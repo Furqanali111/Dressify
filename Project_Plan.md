@@ -181,10 +181,13 @@ Goal: Basic try-on experience
 # 🛠️ Technology Stack (MVP)
 
 ## 🎮 Frontend (Mobile)
-- Unity
-  - UI Toolkit / Canvas
-  - 2D rendering
-  - Scene management
+- **Flutter + Dart**
+  - **Custom Painter** — pixel-level 2D canvas rendering
+  - Same codebase for **Android + iOS**
+  - **Hot reload** — fast iteration during development
+  - Rich image & gesture libraries
+  - **Flutter Flame** — optimized 2D game-like rendering for clothing overlay
+  - Native performance with Dart compilation
 
 ---
 
@@ -210,14 +213,15 @@ Goal: Basic try-on experience
 ---
 
 ## 🔗 Communication
-- REST APIs (Unity ↔ FastAPI)
-- Firebase SDK (Unity integration)
+- REST APIs (Flutter ↔ FastAPI)
+- Firebase SDK (Flutter integration)
 
 ---
 
 # 🧩 System Architecture
-[ Unity Mobile App ]
+[ Flutter Mobile App (Android + iOS) ]
 |
+| Dart + Custom Painter / Flame
 | API Requests
 ↓
 [ FastAPI AI Service ]
