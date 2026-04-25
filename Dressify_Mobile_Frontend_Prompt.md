@@ -4,7 +4,7 @@
 
 ## 📌 Project Context
 
-You are building the **frontend (UI layer) of Dressify**, a 2D virtual try-on mobile app. The primary platform is **Unity** using **UI Toolkit / Canvas** for rendering. The frontend communicates with a **FastAPI backend** (REST) and directly with **Firebase** via Unity SDK for auth and storage. This prompt covers every screen, component, interaction, state, animation, and design rule you need to implement.
+You are building the **frontend (UI layer) of Dressify**, a 2D virtual try-on mobile app. The primary platform is **Flutter** using **UI Toolkit / Canvas** for rendering. The frontend communicates with a **FastAPI backend** (REST) and directly with **Firebase** via Flutter SDK for auth and storage. This prompt covers every screen, component, interaction, state, animation, and design rule you need to implement.
 
 ---
 
@@ -522,7 +522,7 @@ Each screen must handle these states explicitly:
 | Image processing complete | Crossfade from original to processed image (250ms) |
 | Toast appear/dismiss | Slide up in (200ms) + slide down out (200ms) |
 
-Use **Unity's DOTween** or equivalent tween library. Avoid frame-by-frame manual animations. All animations must respect system `Reduce Motion` accessibility setting — if enabled, replace motion-based transitions with instant cuts or simple fades.
+Use **Flutter's DOTween** or equivalent tween library. Avoid frame-by-frame manual animations. All animations must respect system `Reduce Motion` accessibility setting — if enabled, replace motion-based transitions with instant cuts or simple fades.
 
 ---
 
