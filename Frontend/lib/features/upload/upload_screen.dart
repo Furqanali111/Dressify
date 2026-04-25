@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -9,6 +10,7 @@ import '../../core/mock/mock_data.dart';
 import '../../core/router/app_routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
+import '../../core/widgets/app_toast.dart';
 import '../../core/widgets/dashed_border.dart';
 import '../../core/widgets/primary_button.dart';
 import '../../core/widgets/secondary_button.dart';
@@ -68,6 +70,7 @@ class _UploadScreenState extends State<UploadScreen> {
   }
 
   void _startProcessing() {
+    HapticFeedback.lightImpact();
     setState(() {
       _stage = _UploadStage.processing;
       _progress = 0;
@@ -79,6 +82,7 @@ class _UploadScreenState extends State<UploadScreen> {
       setState(() => _progress = (_progress + 0.025).clamp(0.0, 1.0));
       if (_progress >= 1.0) {
         t.cancel();
+        HapticFeedback.lightImpact();
         setState(() => _stage = _UploadStage.done);
       }
     });
@@ -134,6 +138,7 @@ class _UploadScreenState extends State<UploadScreen> {
                 onTryOn: () => context.pushReplacementNamed(AppRoute.tryOn.name),
                 onSave: () {
                   // TODO(api): POST clothing item to wardrobe.
+                  AppToast.success(context, 'Saved to wardrobe');
                   context.pop();
                 },
               ),

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/mock/mock_data.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
+import '../../core/widgets/app_toast.dart';
 import '../../core/widgets/primary_button.dart';
 import '../../core/widgets/secondary_button.dart';
 import '../feedback/ai_feedback_sheet.dart';
@@ -31,6 +33,7 @@ class _TryOnScreenState extends State<TryOnScreen> {
   }
 
   Future<void> _save() async {
+    HapticFeedback.mediumImpact();
     setState(() => _saving = true);
     // TODO(api): POST outfit to backend.
     await Future<void>.delayed(const Duration(milliseconds: 600));
@@ -39,6 +42,8 @@ class _TryOnScreenState extends State<TryOnScreen> {
       _saving = false;
       _saved = true;
     });
+    HapticFeedback.lightImpact();
+    AppToast.success(context, 'Outfit saved');
     Future<void>.delayed(const Duration(seconds: 2), () {
       if (mounted) setState(() => _saved = false);
     });

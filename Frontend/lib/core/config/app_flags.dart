@@ -28,8 +28,6 @@ class AppFlags {
   // ---- helpers ------------------------------------------------------------
 
   static String _string(String key, {required String defaultValue}) {
-    const Map<String, String> defines = <String, String>{};
-    if (defines.containsKey(key)) return defines[key]!;
     final String? fromDefine = _fromDefine(key);
     if (fromDefine != null && fromDefine.isNotEmpty) return fromDefine;
     if (dotenv.isInitialized) {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/mock/mock_data.dart';
@@ -9,6 +10,12 @@ import '../../core/theme/app_spacing.dart';
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
+  Future<void> _refresh() async {
+    HapticFeedback.lightImpact();
+    // TODO(api): re-fetch user + recent outfits.
+    await Future<void>.delayed(const Duration(milliseconds: 600));
+  }
+
   @override
   Widget build(BuildContext context) {
     final AppColors c = context.colors;
@@ -16,7 +23,10 @@ class HomeScreen extends StatelessWidget {
     final List<MockOutfit> outfits = MockData.outfits();
 
     return SafeArea(
-      child: SingleChildScrollView(
+      child: RefreshIndicator(
+        onRefresh: _refresh,
+        child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(
           AppSpacing.xl,
           AppSpacing.lg,
@@ -62,6 +72,7 @@ class HomeScreen extends StatelessWidget {
                 ),
               ),
           ],
+        ),
         ),
       ),
     );

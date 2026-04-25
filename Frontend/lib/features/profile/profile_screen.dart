@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/router/app_routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
+import '../../core/widgets/app_toast.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -32,7 +34,9 @@ class ProfileScreen extends StatelessWidget {
     );
 
     if (ok == true && context.mounted) {
+      HapticFeedback.mediumImpact();
       // TODO(auth): clear JWT + cached profile, then route to sign-in.
+      AppToast.info(context, 'Signed out');
       context.goNamed(AppRoute.signIn.name);
     }
   }

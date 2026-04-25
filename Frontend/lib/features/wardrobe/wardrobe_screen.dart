@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/mock/mock_data.dart';
@@ -6,6 +7,7 @@ import '../../core/router/app_routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/widgets/app_chip.dart';
+import '../../core/widgets/app_toast.dart';
 
 class WardrobeScreen extends StatefulWidget {
   const WardrobeScreen({super.key});
@@ -30,6 +32,12 @@ class _WardrobeScreenState extends State<WardrobeScreen>
   void dispose() {
     _tabController.dispose();
     super.dispose();
+  }
+
+  Future<void> _refresh() async {
+    HapticFeedback.lightImpact();
+    // TODO(api): re-fetch wardrobe items + outfits.
+    await Future<void>.delayed(const Duration(milliseconds: 600));
   }
 
   @override
@@ -102,8 +110,14 @@ class _WardrobeScreenState extends State<WardrobeScreen>
                 child: TabBarView(
                   controller: _tabController,
                   children: <Widget>[
-                    _ClothingGrid(filter: _filter),
-                    _OutfitsGrid(),
+                    RefreshIndicator(
+                      onRefresh: _refresh,
+                      child: _ClothingGrid(filter: _filter),
+                    ),
+                    RefreshIndicator(
+                      onRefresh: _refresh,
+                      child: _OutfitsGrid(),
+                    ),
                   ],
                 ),
               ),
@@ -168,6 +182,23 @@ class _ClothingCard extends StatelessWidget {
 
   final MockClothingItem item;
 
+  Future<void> _showContextMenu(BuildContext context) async {
+    HapticFeedback.mediumImpact();
+    final _ItemAction? action = await showModalBottomSheet<_ItemAction>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _ItemActionSheet(title: item.name),
+    );
+    if (action == null || !context.mounted) return;
+    switch (action) {
+      case _ItemAction.tryOn:
+        context.pushNamed(AppRoute.tryOn.name);
+      case _ItemAction.delete:
+        // TODO(api): DELETE /clothing/:id.
+        AppToast.success(context, '${item.name} deleted');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final AppColors c = context.colors;
@@ -179,6 +210,7 @@ class _ClothingCard extends StatelessWidget {
       borderRadius: radius,
       child: InkWell(
         onTap: () => context.pushNamed(AppRoute.tryOn.name),
+        onLongPress: () => _showContextMenu(context),
         borderRadius: radius,
         child: DecoratedBox(
           decoration: BoxDecoration(
@@ -281,6 +313,22 @@ class _OutfitsGrid extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppRadius.card),
           child: InkWell(
             onTap: () => context.pushNamed(AppRoute.tryOn.name),
+            onLongPress: () async {
+              HapticFeedback.mediumImpact();
+              final _ItemAction? action = await showModalBottomSheet<_ItemAction>(
+                context: context,
+                backgroundColor: Colors.transparent,
+                builder: (_) => _ItemActionSheet(title: o.name),
+              );
+              if (action == null || !context.mounted) return;
+              switch (action) {
+                case _ItemAction.tryOn:
+                  context.pushNamed(AppRoute.tryOn.name);
+                case _ItemAction.delete:
+                  // TODO(api): DELETE /outfits/:id.
+                  AppToast.success(context, '${o.name} deleted');
+              }
+            },
             borderRadius: BorderRadius.circular(AppRadius.card),
             child: DecoratedBox(
               decoration: BoxDecoration(
@@ -423,6 +471,120 @@ class _Empty extends StatelessWidget {
               subtitle,
               textAlign: TextAlign.center,
               style: text.bodyMedium?.copyWith(color: c.textSecondary),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+enum _ItemAction { tryOn, delete }
+
+class _ItemActionSheet extends StatelessWidget {
+  const _ItemActionSheet({required this.title});
+
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    final AppColors c = context.colors;
+    final TextTheme text = Theme.of(context).textTheme;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: c.surface,
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(AppRadius.sheetTop),
+        ),
+      ),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.xl,
+        AppSpacing.md,
+        AppSpacing.xl,
+        AppSpacing.lg,
+      ),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: c.border,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            Text(
+              title,
+              style: text.titleMedium,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            _ActionRow(
+              icon: Icons.checkroom,
+              label: 'Try On',
+              onTap: () => Navigator.of(context).pop(_ItemAction.tryOn),
+            ),
+            _ActionRow(
+              icon: Icons.delete_outline,
+              label: 'Delete',
+              destructive: true,
+              onTap: () => Navigator.of(context).pop(_ItemAction.delete),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ActionRow extends StatelessWidget {
+  const _ActionRow({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.destructive = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final bool destructive;
+
+  @override
+  Widget build(BuildContext context) {
+    final AppColors c = context.colors;
+    final Color color = destructive ? c.error : c.textPrimary;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppRadius.input),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.lg,
+        ),
+        child: Row(
+          children: <Widget>[
+            Icon(icon, color: color, size: 22),
+            const SizedBox(width: AppSpacing.md),
+            Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontSize: 15,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ],
         ),

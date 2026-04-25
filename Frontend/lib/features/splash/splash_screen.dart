@@ -3,11 +3,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/config/app_flags.dart';
 import '../../core/router/app_routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
+import '../onboarding/onboarding_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -31,14 +33,19 @@ class _SplashScreenState extends State<SplashScreen> {
     super.dispose();
   }
 
-  void _resolveAuthAndRoute() {
+  Future<void> _resolveAuthAndRoute() async {
     if (!mounted) return;
     if (AppFlags.bypassAuth) {
       context.goNamed(AppRoute.profileSetup.name);
       return;
     }
     // TODO(auth): read JWT from flutter_secure_storage, verify with backend.
-    context.goNamed(AppRoute.signIn.name);
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final bool seenOnboarding = prefs.getBool(onboardingSeenKey) ?? false;
+    if (!mounted) return;
+    context.goNamed(
+      seenOnboarding ? AppRoute.signIn.name : AppRoute.onboarding.name,
+    );
   }
 
   @override

@@ -7,6 +7,7 @@ import '../../features/avatar/avatar_selection_screen.dart';
 import '../../features/feedback/ai_feedback_screen.dart';
 import '../../features/home/home_screen.dart';
 import '../../features/home/home_shell.dart';
+import '../../features/onboarding/onboarding_screen.dart';
 import '../../features/profile/profile_screen.dart';
 import '../../features/profile_setup/profile_setup_screen.dart';
 import '../../features/splash/splash_screen.dart';
@@ -26,6 +27,11 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
         path: AppRoute.splash.path,
         name: AppRoute.splash.name,
         builder: (_, _) => const SplashScreen(),
+      ),
+      GoRoute(
+        path: AppRoute.onboarding.path,
+        name: AppRoute.onboarding.name,
+        builder: (_, _) => const OnboardingScreen(),
       ),
       GoRoute(
         path: AppRoute.signIn.path,

@@ -1,5 +1,6 @@
 enum AppRoute {
   splash('/'),
+  onboarding('/onboarding'),
   signIn('/sign-in'),
   profileSetup('/profile-setup'),
   avatarSelection('/avatar-selection'),
