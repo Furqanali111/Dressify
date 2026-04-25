@@ -4,10 +4,11 @@ enum AppRoute {
   profileSetup('/profile-setup'),
   avatarSelection('/avatar-selection'),
   home('/home'),
+  wardrobe('/wardrobe'),
+  profile('/profile'),
   upload('/upload'),
   tryOn('/try-on'),
-  wardrobe('/wardrobe'),
-  profile('/profile');
+  aiFeedback('/feedback');
 
   const AppRoute(this.path);
 

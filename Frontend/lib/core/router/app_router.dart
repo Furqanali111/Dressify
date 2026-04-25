@@ -1,9 +1,12 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/auth/sign_in_screen.dart';
 import '../../features/avatar/avatar_selection_screen.dart';
+import '../../features/feedback/ai_feedback_screen.dart';
 import '../../features/home/home_screen.dart';
+import '../../features/home/home_shell.dart';
 import '../../features/profile/profile_screen.dart';
 import '../../features/profile_setup/profile_setup_screen.dart';
 import '../../features/splash/splash_screen.dart';
@@ -12,8 +15,11 @@ import '../../features/upload/upload_screen.dart';
 import '../../features/wardrobe/wardrobe_screen.dart';
 import 'app_routes.dart';
 
+final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
+
 final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
   return GoRouter(
+    navigatorKey: _rootNavigatorKey,
     initialLocation: AppRoute.splash.path,
     routes: <RouteBase>[
       GoRoute(
@@ -36,30 +42,56 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
         name: AppRoute.avatarSelection.name,
         builder: (_, _) => const AvatarSelectionScreen(),
       ),
-      GoRoute(
-        path: AppRoute.home.path,
-        name: AppRoute.home.name,
-        builder: (_, _) => const HomeScreen(),
+      StatefulShellRoute.indexedStack(
+        builder: (_, _, StatefulNavigationShell shell) =>
+            HomeShell(navigationShell: shell),
+        branches: <StatefulShellBranch>[
+          StatefulShellBranch(
+            routes: <RouteBase>[
+              GoRoute(
+                path: AppRoute.home.path,
+                name: AppRoute.home.name,
+                builder: (_, _) => const HomeScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: <RouteBase>[
+              GoRoute(
+                path: AppRoute.wardrobe.path,
+                name: AppRoute.wardrobe.name,
+                builder: (_, _) => const WardrobeScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: <RouteBase>[
+              GoRoute(
+                path: AppRoute.profile.path,
+                name: AppRoute.profile.name,
+                builder: (_, _) => const ProfileScreen(),
+              ),
+            ],
+          ),
+        ],
       ),
       GoRoute(
         path: AppRoute.upload.path,
         name: AppRoute.upload.name,
+        parentNavigatorKey: _rootNavigatorKey,
         builder: (_, _) => const UploadScreen(),
       ),
       GoRoute(
         path: AppRoute.tryOn.path,
         name: AppRoute.tryOn.name,
+        parentNavigatorKey: _rootNavigatorKey,
         builder: (_, _) => const TryOnScreen(),
       ),
       GoRoute(
-        path: AppRoute.wardrobe.path,
-        name: AppRoute.wardrobe.name,
-        builder: (_, _) => const WardrobeScreen(),
-      ),
-      GoRoute(
-        path: AppRoute.profile.path,
-        name: AppRoute.profile.name,
-        builder: (_, _) => const ProfileScreen(),
+        path: AppRoute.aiFeedback.path,
+        name: AppRoute.aiFeedback.name,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, _) => const AiFeedbackScreen(),
       ),
     ],
   );

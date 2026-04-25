@@ -36,6 +36,9 @@ dependencies:
   flutter_secure_storage: ^9.2.2
   shared_preferences: ^2.3.3
 
+  # Runtime config
+  flutter_dotenv: ^5.2.1
+
   # Media I/O (UI-level capture, no processing)
   image_picker: ^1.1.2
   image_cropper: ^8.0.2
@@ -73,3 +76,4 @@ flutter:
     - assets/icons/
     - assets/avatars/
     - assets/images/
+    - .env

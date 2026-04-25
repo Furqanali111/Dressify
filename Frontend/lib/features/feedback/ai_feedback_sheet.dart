@@ -1,0 +1,361 @@
+import 'dart:math' as math;
+
+import 'package:flutter/material.dart';
+
+import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_spacing.dart';
+import '../../core/widgets/primary_button.dart';
+
+class AiFeedbackSheet extends StatefulWidget {
+  const AiFeedbackSheet({super.key});
+
+  @override
+  State<AiFeedbackSheet> createState() => _AiFeedbackSheetState();
+}
+
+class _AiFeedbackSheetState extends State<AiFeedbackSheet>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _arcController;
+
+  // TODO(api): POST /feedback to backend, replace these mocks.
+  double _score = 8.5;
+  String _verdict = 'Great casual look! ✨';
+  bool _regenerating = false;
+
+  final List<_Suggestion> _suggestions = const <_Suggestion>[
+    _Suggestion(
+      icon: Icons.palette_outlined,
+      title: 'Color Harmony',
+      detail:
+          'The navy top pairs well with neutral tones. Consider adding a warm accent.',
+    ),
+    _Suggestion(
+      icon: Icons.balance,
+      title: 'Style Balance',
+      detail: 'Top-heavy silhouette. Balance with slim-fit bottoms.',
+    ),
+    _Suggestion(
+      icon: Icons.event_available_outlined,
+      title: 'Occasion Fit',
+      detail: 'Perfect for casual daywear or weekend errands.',
+    ),
+    _Suggestion(
+      icon: Icons.local_fire_department_outlined,
+      title: 'Trend Score',
+      detail: 'Oversized fits are trending — this works.',
+    ),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _arcController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    )..forward();
+  }
+
+  @override
+  void dispose() {
+    _arcController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _regenerate() async {
+    setState(() => _regenerating = true);
+    _arcController.value = 0;
+    // TODO(api): re-call /feedback.
+    await Future<void>.delayed(const Duration(milliseconds: 800));
+    if (!mounted) return;
+    setState(() {
+      _regenerating = false;
+      _score = 7.8 + math.Random().nextDouble() * 1.5;
+      _verdict = _score >= 8 ? 'Solid look! 💯' : 'Decent — could be sharper.';
+    });
+    _arcController.forward();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final AppColors c = context.colors;
+    final TextTheme text = Theme.of(context).textTheme;
+    final double maxHeight = MediaQuery.of(context).size.height * 0.85;
+
+    return DraggableScrollableSheet(
+      initialChildSize: 0.78,
+      minChildSize: 0.5,
+      maxChildSize: 0.95,
+      builder: (_, ScrollController scrollController) => Container(
+        constraints: BoxConstraints(maxHeight: maxHeight),
+        decoration: BoxDecoration(
+          color: c.background,
+          borderRadius: const BorderRadius.vertical(
+            top: Radius.circular(AppRadius.sheetTop),
+          ),
+        ),
+        child: Column(
+          children: <Widget>[
+            const SizedBox(height: AppSpacing.md),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: c.border,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+              child: Row(
+                children: <Widget>[
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text('Your Style Report', style: text.titleLarge),
+                        Text(
+                          'Casual Weekend',
+                          style: text.bodySmall?.copyWith(color: c.textSecondary),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Expanded(
+              child: ListView(
+                controller: scrollController,
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.xl,
+                  0,
+                  AppSpacing.xl,
+                  AppSpacing.xl,
+                ),
+                children: <Widget>[
+                  Center(
+                    child: AnimatedBuilder(
+                      animation: _arcController,
+                      builder: (_, _) => _RatingArc(
+                        score: _score,
+                        animationValue: _arcController.value,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  Center(
+                    child: Text(_verdict, style: text.titleMedium),
+                  ),
+                  const SizedBox(height: AppSpacing.xl),
+                  for (final _Suggestion s in _suggestions) ...<Widget>[
+                    _SuggestionCard(suggestion: s),
+                    const SizedBox(height: AppSpacing.md),
+                  ],
+                  Center(
+                    child: TextButton.icon(
+                      onPressed: _regenerating ? null : _regenerate,
+                      icon: _regenerating
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.refresh),
+                      label: const Text('Regenerate Feedback'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.xl,
+                0,
+                AppSpacing.xl,
+                AppSpacing.lg,
+              ),
+              child: SafeArea(
+                top: false,
+                child: PrimaryButton(
+                  label: 'Save Outfit + Feedback',
+                  onPressed: () {
+                    // TODO(api): persist outfit with feedback.
+                    Navigator.of(context).pop();
+                  },
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _Suggestion {
+  const _Suggestion({
+    required this.icon,
+    required this.title,
+    required this.detail,
+  });
+
+  final IconData icon;
+  final String title;
+  final String detail;
+}
+
+class _SuggestionCard extends StatefulWidget {
+  const _SuggestionCard({required this.suggestion});
+
+  final _Suggestion suggestion;
+
+  @override
+  State<_SuggestionCard> createState() => _SuggestionCardState();
+}
+
+class _SuggestionCardState extends State<_SuggestionCard> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final AppColors c = context.colors;
+    final TextTheme text = Theme.of(context).textTheme;
+
+    return Material(
+      color: c.surface,
+      borderRadius: BorderRadius.circular(AppRadius.card),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        onTap: () => setState(() => _expanded = !_expanded),
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: c.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(AppRadius.thumbnail),
+                ),
+                child: Icon(widget.suggestion.icon, color: c.primary),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(widget.suggestion.title, style: text.titleMedium),
+                    const SizedBox(height: 2),
+                    Text(
+                      widget.suggestion.detail,
+                      maxLines: _expanded ? null : 2,
+                      overflow:
+                          _expanded ? TextOverflow.visible : TextOverflow.ellipsis,
+                      style:
+                          text.bodyMedium?.copyWith(color: c.textSecondary),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RatingArc extends StatelessWidget {
+  const _RatingArc({required this.score, required this.animationValue});
+
+  final double score;
+  final double animationValue;
+
+  Color get _color {
+    if (score >= 7) return const Color(0xFF22C97A);
+    if (score >= 4) return const Color(0xFFF5A623);
+    return const Color(0xFFFF5C5C);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 160,
+      height: 160,
+      child: CustomPaint(
+        painter: _ArcPainter(
+          progress: (score / 10) * animationValue,
+          color: _color,
+        ),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              Text(
+                (score * animationValue).toStringAsFixed(1),
+                style: const TextStyle(
+                  fontSize: 44,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              Text(
+                '/10',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: context.colors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ArcPainter extends CustomPainter {
+  _ArcPainter({required this.progress, required this.color});
+
+  final double progress;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Offset center = Offset(size.width / 2, size.height / 2);
+    final double radius = math.min(size.width, size.height) / 2 - 6;
+
+    final Paint track = Paint()
+      ..color = const Color(0xFFE8E6F0)
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeWidth = 10;
+
+    final Paint fill = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeWidth = 10;
+
+    canvas.drawCircle(center, radius, track);
+
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      -math.pi / 2,
+      2 * math.pi * progress.clamp(0.0, 1.0),
+      false,
+      fill,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _ArcPainter old) =>
+      old.progress != progress || old.color != color;
+}
