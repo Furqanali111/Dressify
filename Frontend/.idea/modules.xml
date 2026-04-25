@@ -2,7 +2,8 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/Frontend.iml" filepath="$PROJECT_DIR$/.idea/Frontend.iml" />
+      <module fileurl="file://$PROJECT_DIR$/dressify_frontend.iml" filepath="$PROJECT_DIR$/dressify_frontend.iml" />
+      <module fileurl="file://$PROJECT_DIR$/android/dressify_frontend_android.iml" filepath="$PROJECT_DIR$/android/dressify_frontend_android.iml" />
     </modules>
   </component>
 </project>

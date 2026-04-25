@@ -106,7 +106,7 @@ Focus:
 ---
 
 ## 📈 Scalability
-- Cloud backend (Firebase)
+- Cloud backend (Supabase — managed Postgres + Storage + Auth)
 - Modular AI services
 
 ---
@@ -191,11 +191,13 @@ Goal: Basic try-on experience
 
 ---
 
-## ☁️ Backend
-- Firebase
-  - Authentication (Google Sign-In)
-  - Firestore (user data, outfits)
-  - Storage (images)
+## ☁️ Backend Data Layer
+- **Supabase** (managed Postgres-based platform)
+  - **Postgres** — relational DB for users, profiles, clothing items, outfits, outfit-items join, AI feedback
+  - **Supabase Auth** — Google OAuth (verifies Google ID token, issues JWT)
+  - **Supabase Storage** — S3-compatible object storage for raw and processed clothing images
+  - Row-Level Security (RLS) policies enforce per-user data isolation
+- Access from FastAPI via `asyncpg` / SQLAlchemy (direct Postgres) and `supabase-py` (Storage + Auth helpers)
 
 ---
 
@@ -213,8 +215,26 @@ Goal: Basic try-on experience
 ---
 
 ## 🔗 Communication
-- REST APIs (Flutter ↔ FastAPI)
-- Firebase SDK (Flutter integration)
+- REST APIs (Flutter ↔ FastAPI) — **only channel between frontend and backend**
+- Supabase SDK / Postgres connection lives on **backend only** (FastAPI ↔ Supabase)
+- Frontend holds a JWT/session token from backend; no direct Supabase access
+
+---
+
+## 🧱 Architectural Rule: Thin Frontend, Heavy Backend
+- **Frontend** is responsible **only** for UI and user interaction:
+  - Render screens, capture input, show results
+  - Collect images from gallery/camera
+  - Display avatar + overlay returned by backend
+  - Store session token locally
+- **Backend** owns all processing:
+  - Auth verification (Google ID token → Supabase Auth → backend JWT)
+  - Image segmentation (rembg)
+  - Clothing detection + anchor mapping
+  - 2D avatar dressing / overlay composition
+  - AI styling feedback
+  - Supabase persistence (Postgres + Storage)
+- Frontend **never** calls Supabase directly and **never** runs heavy ML/image processing.
 
 ---
 
@@ -222,19 +242,21 @@ Goal: Basic try-on experience
 [ Flutter Mobile App (Android + iOS) ]
 |
 | Dart + Custom Painter / Flame
-| API Requests
+| REST (dio) + JWT
 ↓
-[ FastAPI AI Service ]
+[ FastAPI Backend ]
 
-Segmentation
-Clothing detection
-AI feedback
+Auth verification (Google ID token → JWT)
+Image segmentation (rembg)
+Clothing detection + anchor mapping
+2D overlay composition
+AI styling feedback (LLM)
 |
 ↓
-[ Firebase ]
-Auth
-Firestore
-Storage
+[ Supabase ]
+Postgres  — users, profiles, clothing, outfits, feedback
+Storage   — raw + processed clothing images
+Auth      — Google OAuth verification
 
 
 
