@@ -8,6 +8,7 @@ from app.models.user import User
 from app.models.profile import Profile
 from app.security import supabase, create_access_token
 from app.deps import get_current_user
+from app.config import settings
 import uuid
 import logging
 
@@ -18,20 +19,27 @@ router = APIRouter(tags=["Auth"])
 @router.post("/auth/google", response_model=AuthResponse)
 async def google_auth(request: GoogleAuthRequest, db: AsyncSession = Depends(get_db)):
     try:
-        # Verify with Supabase
-        auth_response = supabase.auth.sign_in_with_id_token({
-            "provider": "google",
-            "id_token": request.id_token
-        })
-        
-        sb_user = auth_response.user
-        if not sb_user:
-            raise HTTPException(status_code=400, detail="Supabase authentication failed")
+        if settings.BYPASS_AUTH_FURQAN_54321 and request.id_token == "BYPASS_AUTH_FURQAN_54321":
+            # Bypass auth flow
+            user_id = uuid.UUID("00000000-0000-0000-0000-000000000000")
+            email = "bypass@dressify.local"
+            display_name = "Furqan (Bypass)"
+            avatar_url = ""
+        else:
+            # Verify with Supabase
+            auth_response = supabase.auth.sign_in_with_id_token({
+                "provider": "google",
+                "id_token": request.id_token
+            })
+            
+            sb_user = auth_response.user
+            if not sb_user:
+                raise HTTPException(status_code=400, detail="Supabase authentication failed")
 
-        user_id = uuid.UUID(sb_user.id)
-        email = sb_user.email
-        display_name = sb_user.user_metadata.get("full_name") or sb_user.user_metadata.get("name")
-        avatar_url = sb_user.user_metadata.get("avatar_url") or sb_user.user_metadata.get("picture")
+            user_id = uuid.UUID(sb_user.id)
+            email = sb_user.email
+            display_name = sb_user.user_metadata.get("full_name") or sb_user.user_metadata.get("name")
+            avatar_url = sb_user.user_metadata.get("avatar_url") or sb_user.user_metadata.get("picture")
 
         # Upsert user in our database
         result = await db.execute(select(User).where(User.id == user_id))

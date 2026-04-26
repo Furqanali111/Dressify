@@ -25,12 +25,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
       _error = null;
     });
 
-    if (AppFlags.bypassAuth) {
-      await Future<void>.delayed(const Duration(milliseconds: 200));
-      if (!mounted) return;
-      context.goNamed(AppRoute.profileSetup.name);
-      return;
-    }
+
 
     try {
       final bool? hasProfile = await ref.read(authStateProvider.notifier).signInWithGoogle();

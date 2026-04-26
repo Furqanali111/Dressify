@@ -5,6 +5,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../models/user.dart';
 import '../api/api_client.dart';
+import '../config/app_flags.dart';
 
 class AuthStateNotifier extends StateNotifier<User?> {
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
@@ -39,13 +40,20 @@ class AuthStateNotifier extends StateNotifier<User?> {
 
   Future<bool?> signInWithGoogle() async {
     try {
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) return null; // User canceled
+      String idToken;
+      
+      if (AppFlags.bypassAuth) {
+        idToken = 'BYPASS_AUTH_FURQAN_54321';
+      } else {
+        final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+        if (googleUser == null) return null; // User canceled
 
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-      final String? idToken = googleAuth.idToken;
+        final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+        final String? googleIdToken = googleAuth.idToken;
 
-      if (idToken == null) throw Exception('Google ID token is null');
+        if (googleIdToken == null) throw Exception('Google ID token is null');
+        idToken = googleIdToken;
+      }
 
       final dio = _ref.read(apiClientProvider);
       final response = await dio.post<dynamic>('auth/google', data: {

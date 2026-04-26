@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     JWT_SECRET: str
     JWT_ISSUER: str = "dressify-api"
     JWT_TTL_HOURS: int = 24
+    BYPASS_AUTH_FURQAN_54321: bool = False
 
     # AI Settings
     OPENAI_API_KEY: str | None = None
