@@ -4,19 +4,20 @@ from datetime import datetime
 import uuid
 
 class Suggestion(BaseModel):
-    category: Literal['color', 'balance', 'occasion', 'trend']
+    category: Literal['color', 'balance', 'occasion', 'accessories']
     title: str
     detail: str
 
 class FeedbackRequest(BaseModel):
-    outfit_id: uuid.UUID
+    outfit_id: Optional[uuid.UUID] = None
+    clothing_item_ids: Optional[List[uuid.UUID]] = None
     occasion: Optional[str] = None
     lat: Optional[float] = None
     lon: Optional[float] = None
 
 class AiFeedbackResponse(BaseModel):
-    id: uuid.UUID
-    outfit_id: uuid.UUID
+    id: Optional[uuid.UUID] = None
+    outfit_id: Optional[uuid.UUID] = None
     score: float
     verdict: str
     suggestions: List[Suggestion]

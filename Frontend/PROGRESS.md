@@ -86,25 +86,25 @@ Every API call site is marked with `TODO(api):` so it's grep-able when the backe
 ## Remaining
 
 ### Auth & data layer (the next big chunk)
-- **Real Google Sign-In** — `google_sign_in` plugin wired to `_handleGoogleSignIn`. Currently both splash and sign-in route forward without ever calling the backend.
-- **`POST /auth/google`** — exchange Google ID token for backend JWT
-- **`flutter_secure_storage`** — persist JWT, read on splash
-- **Auth-gated routing** — `GoRouter.redirect` should send unauthenticated users to `signIn`; currently every route is publicly reachable
+- ✅ **Real Google Sign-In** — `google_sign_in` plugin wired to `_handleGoogleSignIn`. 
+- ✅ **`POST /auth/google`** — exchange Google ID token for backend JWT
+- ✅ **`flutter_secure_storage`** — persist JWT, read on splash
+- ✅ **Auth-gated routing** — `GoRouter.redirect` and `SplashScreen` send unauthenticated users to `signIn`
 - ✅ **`dio` API client** — `lib/core/api/api_client.dart` — Dio instance using `AppFlags.apiBaseUrl`, JWT auth interceptor, error mapping (network / 401 / 4xx / 5xx)
 - ✅ **Models** — Standard Dart types for `User`, `Profile`, `ClothingItem`, `Outfit`, `AiFeedback`.
-- **Riverpod providers** — `authStateProvider`, `currentUserProvider`, `profileProvider`, `wardrobeProvider`, `outfitsProvider`. Currently only `appRouterProvider` exists
+- **Riverpod providers** — `authStateProvider`, `currentUserProvider`, `profileProvider`, `wardrobeProvider`, `outfitsProvider`. 
 - **Mock data deletion** — `lib/core/mock/mock_data.dart` is referenced by Home, Wardrobe, Try-On, Avatar Selection. When real providers land, remove this file and migrate consumers
 
 ### TODO(api) sites — explicit endpoints to wire
-- `splash_screen.dart` — read JWT from secure storage, verify
-- `sign_in_screen.dart` — `POST /auth/google`
+- ✅ `splash_screen.dart` — read JWT from secure storage, verify
+- ✅ `sign_in_screen.dart` — `POST /auth/google`
 - `profile_setup_screen.dart` — `POST /profile` (convert ft·in → cm, lbs → kg before sending)
 - `avatar_selection_screen.dart` — persist avatar choice
 - `upload_screen.dart` — `POST /upload` with multipart image, stream progress; on success swap real processed image into preview
 - `upload_screen.dart` (Save to Wardrobe) — `POST /clothing` (or whatever the wardrobe endpoint becomes)
 - `try_on_screen.dart` (Save Outfit) — `POST /outfits`
 - `ai_feedback_sheet.dart` — `POST /feedback` (initial + regenerate)
-- `profile_screen.dart` (Sign Out) — clear JWT + cached profile
+- ✅ `profile_screen.dart` (Sign Out) — clear JWT + cached profile
 
 ### Cross-cutting polish (now done)
 - ✅ **Onboarding carousel** — `lib/features/onboarding/`, gated by `onboarding_seen_v1` in `SharedPreferences`
@@ -116,14 +116,13 @@ Every API call site is marked with `TODO(api):` so it's grep-able when the backe
 
 ### Cross-cutting polish (still to do)
 - **Apply `context.motion()` to existing `flutter_animate` calls** — utility is built, individual call sites still hard-code durations
-- **Skeleton loaders** — `shimmer` is in `pubspec.yaml` but unused; needed once real data fetching lands (Home recent outfits, Wardrobe grids, AI feedback regenerate)
+- ✅ **Skeleton loaders** — `shimmer` is implemented for `processing_status == 'processing'`
 - **Localization** — spec says no hardcoded strings; everything is currently inline. Set up `flutter_localizations` + ARB files
 - **Dark-mode pass** — themes exist; only splash + sign-in have been visually checked. Every other screen needs a manual review on dark
 - ✅ **Real avatar images** — `_AvatarIllustration` now loads the 10 specific gendered PNGs from `assets/avatars/`
 - **Real Google glyph** — `_GoogleGlyph` in sign-in is a placeholder "G" disc. Replace with `assets/icons/google.svg`
+- ✅ **App Icons & Illustrations** — Replaced empty states and bell with custom assets.
 - **Logo asset** — `assets/logo/` is empty; splash uses Text wordmark
-- **Empty-state illustrations** — Home / Wardrobe currently use icons; spec calls for illustrations (`assets/images/`)
-- **Notification bell** — icon present on home top bar but does nothing
 - **Style Tips quick action** — present but routes nowhere (Phase 2?)
 - **Manual adjustment fallback in Try-On** — when auto-fit confidence < 0.7 the spec calls for amber banner + 8 drag handles + pinch-resize. Pinch + drag work on the whole canvas; per-item drag handles aren't wired
 - **Try-On clothing overlay** — currently a static colored rectangle approximating a top. Needs to consume real `processed_image_url` + `anchor_points` from backend and render via `CustomPainter` (escalation: `flame`)

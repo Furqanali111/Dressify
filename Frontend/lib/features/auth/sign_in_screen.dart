@@ -1,19 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/config/app_flags.dart';
+import '../../core/providers/auth_provider.dart';
 import '../../core/router/app_routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 
-class SignInScreen extends StatefulWidget {
+class SignInScreen extends ConsumerStatefulWidget {
   const SignInScreen({super.key});
 
   @override
-  State<SignInScreen> createState() => _SignInScreenState();
+  ConsumerState<SignInScreen> createState() => _SignInScreenState();
 }
 
-class _SignInScreenState extends State<SignInScreen> {
+class _SignInScreenState extends ConsumerState<SignInScreen> {
   bool _loading = false;
   String? _error;
 
@@ -30,12 +32,30 @@ class _SignInScreenState extends State<SignInScreen> {
       return;
     }
 
-    // TODO(auth): google_sign_in → POST /auth/google → store JWT.
-    await Future<void>.delayed(const Duration(milliseconds: 600));
+    try {
+      final bool? hasProfile = await ref.read(authStateProvider.notifier).signInWithGoogle();
+      if (!mounted) return;
+      
+      if (hasProfile == null) {
+        // User canceled sign in
+        setState(() => _loading = false);
+        return;
+      }
 
-    if (!mounted) return;
-    setState(() => _loading = false);
-    context.goNamed(AppRoute.profileSetup.name);
+      setState(() => _loading = false);
+      
+      if (hasProfile) {
+        context.goNamed(AppRoute.home.name);
+      } else {
+        context.goNamed(AppRoute.profileSetup.name);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = 'Sign in failed. Please try again.';
+      });
+    }
   }
 
   @override

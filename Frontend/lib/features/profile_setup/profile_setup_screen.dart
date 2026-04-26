@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
+import '../../core/providers/profile_provider.dart';
 
 import '../../core/router/app_routes.dart';
 import '../../core/theme/app_colors.dart';
@@ -33,14 +36,14 @@ extension on BodyType {
   }
 }
 
-class ProfileSetupScreen extends StatefulWidget {
+class ProfileSetupScreen extends ConsumerStatefulWidget {
   const ProfileSetupScreen({super.key});
 
   @override
-  State<ProfileSetupScreen> createState() => _ProfileSetupScreenState();
+  ConsumerState<ProfileSetupScreen> createState() => _ProfileSetupScreenState();
 }
 
-class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
+class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _heightController = TextEditingController();
   final TextEditingController _heightInchesController = TextEditingController();
@@ -132,9 +135,42 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     setState(() => _weightError = null);
   }
 
-  void _handleContinue() {
-    // TODO(api): POST profile to backend (name, height_cm, weight_kg, body_type, gender).
+  Future<void> _handleContinue() async {
     // Convert to canonical units (cm, kg) before sending.
+    double? heightCm;
+    if (_heightController.text.isNotEmpty) {
+      if (_heightUnit == HeightUnit.cm) {
+        heightCm = double.tryParse(_heightController.text);
+      } else {
+        final ft = double.tryParse(_heightController.text) ?? 0;
+        final inch = _heightInchesController.text.isEmpty ? 0 : (double.tryParse(_heightInchesController.text) ?? 0);
+        heightCm = (ft * 30.48) + (inch * 2.54);
+      }
+    }
+    
+    double? weightKg;
+    if (_weightController.text.isNotEmpty) {
+      if (_weightUnit == WeightUnit.kg) {
+        weightKg = double.tryParse(_weightController.text);
+      } else {
+        weightKg = (double.tryParse(_weightController.text) ?? 0) * 0.453592;
+      }
+    }
+
+    final Map<String, dynamic> data = <String, dynamic>{
+      if (heightCm != null) 'height_cm': heightCm,
+      if (weightKg != null) 'weight_kg': weightKg,
+      if (_bodyType != null) 'body_type': _bodyType!.name,
+      if (_gender != null) 'gender': _gender,
+    };
+
+    try {
+      await ref.read(profileProvider.notifier).updateProfile(data);
+    } catch (e) {
+      // Allow moving forward even if API fails for now
+    }
+
+    if (!mounted) return;
     context.goNamed(AppRoute.avatarSelection.name, extra: _gender);
   }
 

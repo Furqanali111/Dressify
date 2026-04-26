@@ -304,3 +304,14 @@ The MVP is successful if:
 - Build modular for scalability
 
 ---
+
+# 📝 To Do (Developer Action Items)
+
+- [ ] **Native Google Sign-In Setup**: Configure Google Cloud Console / Firebase project for Android to resolve `PlatformException` during real auth flow.
+  - Generate SHA-1 fingerprint for Android local development (`keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android -keypass android`).
+  - Create OAuth 2.0 Client ID for Android in Google Cloud Console.
+  - Download `google-services.json` and place it in `Frontend/android/app/`.
+  - Add Google Services plugin dependencies to Android `build.gradle` files.
+- [ ] **Dedicated Style Tips Screen**: Build out a completely separate "Style Tips" screen to replace the current shortcut that just opens the "Style Me" bottom sheet. This screen should display AI-generated seasonal fashion advice, wardrobe analytics, and style inspiration.
+
+---

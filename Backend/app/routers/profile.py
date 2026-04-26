@@ -9,6 +9,19 @@ from app.deps import get_current_user
 
 router = APIRouter(prefix="/profile", tags=["Profile"])
 
+@router.get("", response_model=ProfileResponse)
+async def get_profile(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    result = await db.execute(select(Profile).where(Profile.user_id == current_user.id))
+    profile = result.scalar_one_or_none()
+    
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+        
+    return profile
+
 @router.patch("", response_model=ProfileResponse)
 async def update_profile(
     update_data: ProfileUpdate, 

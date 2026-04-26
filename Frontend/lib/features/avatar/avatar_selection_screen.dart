@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
+import '../../core/providers/profile_provider.dart';
 
 import '../../core/mock/mock_data.dart';
 import '../../core/router/app_routes.dart';
@@ -8,20 +11,29 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/widgets/primary_button.dart';
 
-class AvatarSelectionScreen extends StatefulWidget {
+class AvatarSelectionScreen extends ConsumerStatefulWidget {
   const AvatarSelectionScreen({super.key, this.gender});
 
   final String? gender;
 
   @override
-  State<AvatarSelectionScreen> createState() => _AvatarSelectionScreenState();
+  ConsumerState<AvatarSelectionScreen> createState() => _AvatarSelectionScreenState();
 }
 
-class _AvatarSelectionScreenState extends State<AvatarSelectionScreen> {
+class _AvatarSelectionScreenState extends ConsumerState<AvatarSelectionScreen> {
   AvatarKind? _selected;
 
-  void _handleContinue() {
-    // TODO(api): persist selected avatar + go to home.
+  Future<void> _handleContinue() async {
+    if (_selected != null) {
+      try {
+        await ref.read(profileProvider.notifier).updateProfile({
+          'avatar_kind': _selected!.name,
+        });
+      } catch (_) {
+        // ignore for now
+      }
+    }
+    if (!mounted) return;
     context.goNamed(AppRoute.home.name);
   }
 

@@ -12,10 +12,13 @@
 - [x] Avatars: Expanded to 10 gender-specific avatars and wired real PNG assets
 - [x] Profile Setup: Added Gender selection and dynamic avatar filtering
 
+- [x] Auto-Outfit Generation: Added "Style Me" FAB and bottom sheet in Wardrobe
+- [x] Weather Integration: Implemented `geolocator` for live weather context
+- [x] AI Loading States: Added shimmer skeleton loaders for clothes
+- [x] AI Feedback "Visualize": Wired button to swap clothing on the Try-On canvas
+- [x] App Icons & Illustrations: Replaced placeholder icons with newly generated assets
+- [x] Auth Flow: Completed `google_sign_in` exchange with backend `/auth/google`
+- [x] Mock Data Removal: Removed mock outfits from Home, made icons interactive
+- [x] Permissions: Added `permission_handler` for camera & location at startup and on-demand
+
 ## To Do
-- [ ] Auto-Outfit Generation: Add "Style Me" FAB and bottom sheet in Wardrobe
-- [ ] Weather Integration: Implement `geolocator` for live weather context
-- [ ] AI Loading States: Listen to `processing_status` and display skeleton loaders for clothes
-- [ ] AI Feedback "Visualize": Wire a button to automatically swap clothing on the Try-On canvas
-- [ ] Auth Flow: Complete `google_sign_in` exchange with backend `/auth/google`
-- [ ] App Icons & Illustrations: Replace placeholder icons with the newly generated assets

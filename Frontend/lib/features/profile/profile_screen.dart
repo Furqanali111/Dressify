@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
+import '../../core/providers/auth_provider.dart';
 
 import '../../core/router/app_routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/widgets/app_toast.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
-  Future<void> _confirmSignOut(BuildContext context) async {
+  Future<void> _confirmSignOut(BuildContext context, WidgetRef ref) async {
     final bool? ok = await showDialog<bool>(
       context: context,
       builder: (BuildContext ctx) => AlertDialog(
@@ -35,14 +38,15 @@ class ProfileScreen extends StatelessWidget {
 
     if (ok == true && context.mounted) {
       HapticFeedback.mediumImpact();
-      // TODO(auth): clear JWT + cached profile, then route to sign-in.
+      await ref.read(authStateProvider.notifier).signOut();
+      if (!context.mounted) return;
       AppToast.info(context, 'Signed out');
       context.goNamed(AppRoute.signIn.name);
     }
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final AppColors c = context.colors;
     final TextTheme text = Theme.of(context).textTheme;
 
@@ -114,7 +118,7 @@ class ProfileScreen extends StatelessWidget {
                 icon: Icons.logout,
                 label: 'Sign Out',
                 destructive: true,
-                onTap: () => _confirmSignOut(context),
+                onTap: () => _confirmSignOut(context, ref),
               ),
             ],
           ),

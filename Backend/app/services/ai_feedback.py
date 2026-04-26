@@ -5,13 +5,6 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Fallback response
-FALLBACK_SUGGESTIONS = [
-    {"category": "color", "title": "Great Color", "detail": "The colors match well."},
-    {"category": "balance", "title": "Good Proportion", "detail": "The fit is nicely proportioned."},
-    {"category": "occasion", "title": "Versatile", "detail": "Great for many occasions."},
-    {"category": "trend", "title": "Trendy", "detail": "This is very on trend right now."}
-]
 
 def get_feedback_for_outfit(outfit_details: str, occasion: str | None, wardrobe_details: str, weather: str | None = None) -> dict:
     if settings.OPENAI_API_KEY:
@@ -31,7 +24,7 @@ def get_feedback_for_outfit(outfit_details: str, occasion: str | None, wardrobe_
         "verdict": "A concise, one-line summary of the outfit.",
         "suggestions": [
             {{
-                "category": "color", // must be one of: color, balance, occasion, trend
+                "category": "color", // must be one of: color, balance, occasion, accessories
                 "title": "Short title",
                 "detail": "A detailed explanation of the suggestion. If suggesting pairings, mention specific items from the user's wardrobe."
             }}
@@ -66,8 +59,4 @@ def get_feedback_for_outfit(outfit_details: str, occasion: str | None, wardrobe_
         return result
     except Exception as e:
         logger.error(f"AI Feedback API failed using model {model}: {e}")
-        return {
-            "score": 7.5,
-            "verdict": "Nice outfit! (AI fallback)",
-            "suggestions": FALLBACK_SUGGESTIONS
-        }
+        raise RuntimeError("AI Service is currently unavailable. Please try again later.")

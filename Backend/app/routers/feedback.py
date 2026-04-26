@@ -23,22 +23,25 @@ async def generate_feedback(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    # Verify outfit belongs to user
-    outfit_result = await db.execute(select(Outfit).where(Outfit.id == body.outfit_id, Outfit.user_id == current_user.id))
-    outfit = outfit_result.scalar_one_or_none()
-    
-    if not outfit:
-        raise HTTPException(status_code=404, detail="Outfit not found")
+    if body.outfit_id:
+        outfit_result = await db.execute(select(Outfit).where(Outfit.id == body.outfit_id, Outfit.user_id == current_user.id))
+        outfit = outfit_result.scalar_one_or_none()
+        if not outfit:
+            raise HTTPException(status_code=404, detail="Outfit not found")
+            
+        oi_result = await db.execute(select(OutfitItem).where(OutfitItem.outfit_id == outfit.id))
+        outfit_items = oi_result.scalars().all()
+        item_ids = [oi.clothing_item_id for oi in outfit_items]
+    elif body.clothing_item_ids:
+        item_ids = body.clothing_item_ids
+    else:
+        raise HTTPException(status_code=400, detail="Must provide either outfit_id or clothing_item_ids")
         
-    # Fetch all clothing items in this outfit to construct a description for the AI
-    oi_result = await db.execute(select(OutfitItem).where(OutfitItem.outfit_id == outfit.id))
-    outfit_items = oi_result.scalars().all()
-    
     clothing_descriptions = []
-    for oi in outfit_items:
-        ci_result = await db.execute(select(ClothingItem).where(ClothingItem.id == oi.clothing_item_id))
-        ci = ci_result.scalar_one_or_none()
-        if ci:
+    if item_ids:
+        ci_result = await db.execute(select(ClothingItem).where(ClothingItem.id.in_(item_ids)))
+        clothing_items = ci_result.scalars().all()
+        for ci in clothing_items:
             desc = f"{ci.name} ({ci.type})"
             extras = [e for e in [ci.sub_type, ci.color, ci.pattern, ci.style] if e]
             if extras:
@@ -64,18 +67,33 @@ async def generate_feedback(
     if body.lat is not None and body.lon is not None:
         weather_context = await get_current_weather(body.lat, body.lon)
         
-    feedback_data = get_feedback_for_outfit(outfit_details_str, body.occasion, wardrobe_details_str, weather_context)
+    try:
+        feedback_data = get_feedback_for_outfit(outfit_details_str, body.occasion, wardrobe_details_str, weather_context)
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
     
-    feedback = AiFeedback(
-        id=uuid.uuid4(),
-        outfit_id=body.outfit_id,
-        score=feedback_data["score"],
-        verdict=feedback_data["verdict"],
-        suggestions=feedback_data["suggestions"]
-    )
+    feedback_id = uuid.uuid4()
     
-    db.add(feedback)
-    await db.commit()
-    await db.refresh(feedback)
-    
-    return feedback
+    if body.outfit_id:
+        feedback = AiFeedback(
+            id=feedback_id,
+            outfit_id=body.outfit_id,
+            score=feedback_data["score"],
+            verdict=feedback_data["verdict"],
+            suggestions=feedback_data["suggestions"]
+        )
+        db.add(feedback)
+        await db.commit()
+        await db.refresh(feedback)
+        return feedback
+    else:
+        # If no outfit_id, don't persist to DB, just return the response
+        from datetime import datetime
+        return AiFeedbackResponse(
+            id=feedback_id,
+            outfit_id=None,
+            score=feedback_data["score"],
+            verdict=feedback_data["verdict"],
+            suggestions=feedback_data["suggestions"],
+            created_at=datetime.utcnow()
+        )

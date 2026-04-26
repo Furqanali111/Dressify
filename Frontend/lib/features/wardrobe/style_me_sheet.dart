@@ -2,23 +2,28 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:dio/dio.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
+import '../../core/providers/ai_provider.dart';
 
 import '../../core/router/app_routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
+import '../../core/utils/app_permissions.dart';
 import '../../core/widgets/app_chip.dart';
 import '../../core/widgets/app_toast.dart';
 import '../../core/widgets/primary_button.dart';
 
-class StyleMeSheet extends StatefulWidget {
+class StyleMeSheet extends ConsumerStatefulWidget {
   const StyleMeSheet({super.key});
 
   @override
-  State<StyleMeSheet> createState() => _StyleMeSheetState();
+  ConsumerState<StyleMeSheet> createState() => _StyleMeSheetState();
 }
 
-class _StyleMeSheetState extends State<StyleMeSheet> {
+class _StyleMeSheetState extends ConsumerState<StyleMeSheet> {
   final List<String> _occasions = const <String>[
     'Casual', 'Work', 'Party', 'Date Night', 'Workout', 'Loungewear'
   ];
@@ -31,6 +36,9 @@ class _StyleMeSheetState extends State<StyleMeSheet> {
     HapticFeedback.mediumImpact();
 
     String weatherContext = '';
+
+    double? lat;
+    double? lon;
 
     if (_useWeather) {
       try {
@@ -49,13 +57,15 @@ class _StyleMeSheetState extends State<StyleMeSheet> {
           throw Exception('Location permissions permanently denied.');
         }
 
-        // Mock getting position and weather
         final Position position = await Geolocator.getCurrentPosition(
-            desiredAccuracy: LocationAccuracy.low,
-            timeLimit: const Duration(seconds: 5));
-        
-        // In a real app we'd call an API with position.latitude/longitude
-        weatherContext = ' (72°F, Sunny)';
+            locationSettings: const LocationSettings(
+              accuracy: LocationAccuracy.low,
+              timeLimit: Duration(seconds: 5),
+            ),
+        );
+        lat = position.latitude;
+        lon = position.longitude;
+        weatherContext = ' (weather included)';
       } catch (e) {
         if (mounted) {
           AppToast.error(context, 'Could not get weather: ${e.toString().split('Exception:').last}');
@@ -64,15 +74,33 @@ class _StyleMeSheetState extends State<StyleMeSheet> {
       }
     }
 
-    // Mock API delay for outfit generation
-    await Future<void>.delayed(const Duration(seconds: 2));
+    try {
+      final aiService = ref.read(aiProvider);
+      final outfit = await aiService.generateOutfit(
+        occasion: _selectedOccasion ?? 'Casual',
+        lat: lat,
+        lon: lon,
+      );
 
-    if (!mounted) return;
-    
-    // Pass context to TryOn via extra if needed, or simply route
-    context.pop(); // Close sheet
-    context.pushNamed(AppRoute.tryOn.name);
-    AppToast.success(context, 'Generated ${_selectedOccasion ?? 'Outfit'}$weatherContext!');
+      if (!mounted) return;
+      
+      context.pop(); // Close sheet
+      context.pushNamed(AppRoute.tryOn.name, extra: outfit);
+      AppToast.success(context, 'Generated ${_selectedOccasion ?? 'Outfit'}$weatherContext!');
+    } on DioException catch (e) {
+      if (!mounted) return;
+      setState(() => _isGenerating = false);
+      
+      if (e.response?.statusCode == 400 && e.response?.data['detail'] == 'Wardrobe is empty') {
+        AppToast.error(context, 'Your wardrobe is empty! Add clothes first.');
+      } else {
+        AppToast.error(context, 'Failed to generate outfit. Try again.');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isGenerating = false);
+      AppToast.error(context, 'Something went wrong.');
+    }
   }
 
   @override
@@ -159,8 +187,16 @@ class _StyleMeSheetState extends State<StyleMeSheet> {
                       ),
                       Switch(
                         value: _useWeather,
-                        onChanged: (bool val) => setState(() => _useWeather = val),
-                        activeColor: c.primary,
+                        onChanged: (bool val) async {
+                          if (val) {
+                            final bool granted = await AppPermissions.ensureLocation(context);
+                            if (!mounted) return;
+                            setState(() => _useWeather = granted);
+                          } else {
+                            setState(() => _useWeather = false);
+                          }
+                        },
+                        activeThumbColor: c.primary,
                       ),
                     ],
                   ),
@@ -168,7 +204,7 @@ class _StyleMeSheetState extends State<StyleMeSheet> {
                 const SizedBox(height: AppSpacing.xxl),
                 PrimaryButton(
                   label: _isGenerating ? 'Generating...' : 'Generate Outfit',
-                  isLoading: _isGenerating,
+                  loading: _isGenerating,
                   onPressed: _selectedOccasion == null || _isGenerating ? null : _handleGenerate,
                 ),
               ],

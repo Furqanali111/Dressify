@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
+import '../../core/models/outfit.dart';
+import '../../core/providers/profile_provider.dart';
 
 import '../../core/mock/mock_data.dart';
 import '../../core/theme/app_colors.dart';
@@ -10,15 +14,19 @@ import '../../core/widgets/primary_button.dart';
 import '../../core/widgets/secondary_button.dart';
 import '../feedback/ai_feedback_sheet.dart';
 
-class TryOnScreen extends StatefulWidget {
-  const TryOnScreen({super.key});
+class TryOnScreen extends ConsumerStatefulWidget {
+  final Outfit? outfit;
+
+  const TryOnScreen({super.key, this.outfit});
 
   @override
-  State<TryOnScreen> createState() => _TryOnScreenState();
+  ConsumerState<TryOnScreen> createState() => _TryOnScreenState();
 }
 
-class _TryOnScreenState extends State<TryOnScreen> {
-  AvatarKind _avatar = AvatarKind.athletic;
+class _TryOnScreenState extends ConsumerState<TryOnScreen> {
+  AvatarKind _avatar = AvatarKind.maleAthletic;
+  bool _avatarInitialized = false;
+  
   double _scale = 1.0;
   Offset _offset = Offset.zero;
   bool _avatarVisible = true;
@@ -54,13 +62,27 @@ class _TryOnScreenState extends State<TryOnScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => const AiFeedbackSheet(),
+      builder: (_) => AiFeedbackSheet(outfit: widget.outfit),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final AppColors c = context.colors;
+    
+    final profileState = ref.watch(profileProvider);
+    if (!_avatarInitialized && profileState.hasValue) {
+      final profile = profileState.value;
+      if (profile?.avatarKind != null) {
+        _avatar = AvatarKind.values.firstWhere(
+          (e) => e.name == profile!.avatarKind,
+          orElse: () => AvatarKind.maleAthletic,
+        );
+      } else {
+        _avatar = AvatarKind.maleAthletic;
+      }
+      _avatarInitialized = true;
+    }
 
     return Scaffold(
       backgroundColor: const Color(0xFF1A1A2A),
@@ -145,6 +167,7 @@ class _TryOnScreenState extends State<TryOnScreen> {
                 child: Padding(
                   padding: const EdgeInsets.all(AppSpacing.xl),
                   child: _DetailsPanel(
+                    outfit: widget.outfit,
                     avatar: _avatar,
                     onAvatarChanged: (AvatarKind k) =>
                         setState(() => _avatar = k),
@@ -262,6 +285,7 @@ class _AvatarPreview extends StatelessWidget {
 
 class _DetailsPanel extends StatelessWidget {
   const _DetailsPanel({
+    this.outfit,
     required this.avatar,
     required this.onAvatarChanged,
     required this.onFeedback,
@@ -270,6 +294,7 @@ class _DetailsPanel extends StatelessWidget {
     required this.saved,
   });
 
+  final Outfit? outfit;
   final AvatarKind avatar;
   final ValueChanged<AvatarKind> onAvatarChanged;
   final VoidCallback onFeedback;
@@ -300,9 +325,9 @@ class _DetailsPanel extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Text('Navy Crew Tee', style: text.titleMedium),
+                  Text(outfit?.name ?? 'Navy Crew Tee', style: text.titleMedium),
                   Text(
-                    'Top',
+                    outfit != null ? '${outfit!.items.length} items' : 'Top',
                     style: text.bodySmall?.copyWith(color: c.textSecondary),
                   ),
                 ],

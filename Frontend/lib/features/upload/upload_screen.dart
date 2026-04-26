@@ -10,6 +10,7 @@ import '../../core/mock/mock_data.dart';
 import '../../core/router/app_routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
+import '../../core/utils/app_permissions.dart';
 import '../../core/widgets/app_toast.dart';
 import '../../core/widgets/dashed_border.dart';
 import '../../core/widgets/primary_button.dart';
@@ -52,6 +53,12 @@ class _UploadScreenState extends State<UploadScreen> {
 
   Future<void> _pickImage(ImageSource source) async {
     try {
+      // Check camera permission if using camera
+      if (source == ImageSource.camera) {
+        final bool granted = await AppPermissions.ensureCamera(context);
+        if (!granted || !mounted) return;
+      }
+
       final XFile? file = await _picker.pickImage(source: source, imageQuality: 90);
       if (file == null) return;
       setState(() {

@@ -1,50 +1,51 @@
 import 'dart:math' as math;
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/models/ai_feedback.dart';
+import '../../core/models/outfit.dart';
+import '../../core/providers/ai_provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
+import '../../core/widgets/app_toast.dart';
 import '../../core/widgets/primary_button.dart';
 
-class AiFeedbackSheet extends StatefulWidget {
-  const AiFeedbackSheet({super.key});
+class AiFeedbackSheet extends ConsumerStatefulWidget {
+  final Outfit? outfit;
+
+  const AiFeedbackSheet({super.key, this.outfit});
 
   @override
-  State<AiFeedbackSheet> createState() => _AiFeedbackSheetState();
+  ConsumerState<AiFeedbackSheet> createState() => _AiFeedbackSheetState();
 }
 
-class _AiFeedbackSheetState extends State<AiFeedbackSheet>
+class _AiFeedbackSheetState extends ConsumerState<AiFeedbackSheet>
     with SingleTickerProviderStateMixin {
   late final AnimationController _arcController;
 
-  // TODO(api): POST /feedback to backend, replace these mocks.
-  double _score = 8.5;
-  String _verdict = 'Great casual look! ✨';
+  double _score = 0.0;
+  String _verdict = '';
+  List<AiSuggestion> _suggestions = [];
+  bool _isLoading = true;
   bool _regenerating = false;
+  bool _hasError = false;
 
-  final List<_Suggestion> _suggestions = const <_Suggestion>[
-    _Suggestion(
-      icon: Icons.palette_outlined,
-      title: 'Color Harmony',
-      detail:
-          'The navy top pairs well with neutral tones. Consider adding a warm accent.',
-    ),
-    _Suggestion(
-      icon: Icons.balance,
-      title: 'Style Balance',
-      detail: 'Top-heavy silhouette. Balance with slim-fit bottoms.',
-    ),
-    _Suggestion(
-      icon: Icons.event_available_outlined,
-      title: 'Occasion Fit',
-      detail: 'Perfect for casual daywear or weekend errands.',
-    ),
-    _Suggestion(
-      icon: Icons.local_fire_department_outlined,
-      title: 'Trend Score',
-      detail: 'Oversized fits are trending — this works.',
-    ),
-  ];
+  IconData _getIconForCategory(String category) {
+    switch (category) {
+      case 'color':
+        return Icons.palette_outlined;
+      case 'balance':
+        return Icons.balance;
+      case 'occasion':
+        return Icons.event_available_outlined;
+      case 'accessories':
+        return Icons.watch_outlined;
+      default:
+        return Icons.lightbulb_outline;
+    }
+  }
 
   @override
   void initState() {
@@ -52,7 +53,8 @@ class _AiFeedbackSheetState extends State<AiFeedbackSheet>
     _arcController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 600),
-    )..forward();
+    );
+    _fetchFeedback();
   }
 
   @override
@@ -61,18 +63,67 @@ class _AiFeedbackSheetState extends State<AiFeedbackSheet>
     super.dispose();
   }
 
+  Future<void> _fetchFeedback() async {
+    try {
+      final aiService = ref.read(aiProvider);
+      
+      String? outfitId = widget.outfit?.id;
+      List<String>? itemIds;
+      
+      // If outfit has no ID (unsaved manual outfit) but has items, pass items.
+      // Currently, Outfit model requires an ID, so we pass it. 
+      // If we didn't get an outfit, maybe we pass some default? 
+      // The backend handles fallback if we pass a random unsaved outfit ID but no items?
+      // Wait, if outfit is null, we can't generate feedback on nothing.
+      // We will just let the backend handle the missing items if outfit is null.
+      
+      if (widget.outfit != null && widget.outfit!.items.isNotEmpty) {
+        itemIds = widget.outfit!.items.map((i) => i.clothingItemId).toList();
+        // Since we created it, let's just pass the item IDs to avoid DB 404 if it's not saved yet
+        outfitId = null; 
+      }
+
+      final response = await aiService.generateFeedback(
+        outfitId: outfitId,
+        clothingItemIds: itemIds,
+        // Mocking occasion if not provided in TryOn state right now
+        occasion: 'General', 
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _score = response.score;
+        _verdict = response.verdict;
+        _suggestions = response.suggestions;
+        _isLoading = false;
+        _regenerating = false;
+        _hasError = false;
+      });
+      _arcController.forward(from: 0);
+    } on DioException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _regenerating = false;
+        _hasError = true;
+        _verdict = e.response?.data?['detail']?.toString() ?? 'AI Service is currently unavailable.';
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _regenerating = false;
+        _hasError = true;
+        _verdict = 'AI Service is currently unavailable.';
+      });
+    }
+  }
+
   Future<void> _regenerate() async {
     setState(() => _regenerating = true);
     _arcController.value = 0;
-    // TODO(api): re-call /feedback.
-    await Future<void>.delayed(const Duration(milliseconds: 800));
-    if (!mounted) return;
-    setState(() {
-      _regenerating = false;
-      _score = 7.8 + math.Random().nextDouble() * 1.5;
-      _verdict = _score >= 8 ? 'Solid look! 💯' : 'Decent — could be sharper.';
-    });
-    _arcController.forward();
+    await _fetchFeedback();
   }
 
   @override
@@ -139,23 +190,49 @@ class _AiFeedbackSheetState extends State<AiFeedbackSheet>
                   AppSpacing.xl,
                 ),
                 children: <Widget>[
-                  Center(
-                    child: AnimatedBuilder(
-                      animation: _arcController,
-                      builder: (_, _) => _RatingArc(
-                        score: _score,
-                        animationValue: _arcController.value,
+                  if (_isLoading)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 40),
+                      child: Center(child: CircularProgressIndicator()),
+                    )
+                  else if (_hasError) ...[
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.cloud_off, size: 64, color: c.textSecondary),
+                          const SizedBox(height: AppSpacing.md),
+                          Text(
+                            _verdict,
+                            style: text.titleMedium?.copyWith(color: c.textSecondary),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
                       ),
                     ),
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  Center(
-                    child: Text(_verdict, style: text.titleMedium),
-                  ),
-                  const SizedBox(height: AppSpacing.xl),
-                  for (final _Suggestion s in _suggestions) ...<Widget>[
-                    _SuggestionCard(suggestion: s),
+                  ] else ...[
+                    Center(
+                      child: AnimatedBuilder(
+                        animation: _arcController,
+                        builder: (_, _) => _RatingArc(
+                          score: _score,
+                          animationValue: _arcController.value,
+                        ),
+                      ),
+                    ),
                     const SizedBox(height: AppSpacing.md),
+                    Center(
+                      child: Text(_verdict, style: text.titleMedium, textAlign: TextAlign.center),
+                    ),
+                    const SizedBox(height: AppSpacing.xl),
+                    for (final AiSuggestion s in _suggestions) ...<Widget>[
+                      _SuggestionCard(
+                        suggestion: s,
+                        icon: _getIconForCategory(s.category),
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                    ],
                   ],
                   Center(
                     child: TextButton.icon(
@@ -198,22 +275,11 @@ class _AiFeedbackSheetState extends State<AiFeedbackSheet>
   }
 }
 
-class _Suggestion {
-  const _Suggestion({
-    required this.icon,
-    required this.title,
-    required this.detail,
-  });
-
-  final IconData icon;
-  final String title;
-  final String detail;
-}
-
 class _SuggestionCard extends StatefulWidget {
-  const _SuggestionCard({required this.suggestion});
+  const _SuggestionCard({required this.suggestion, required this.icon});
 
-  final _Suggestion suggestion;
+  final AiSuggestion suggestion;
+  final IconData icon;
 
   @override
   State<_SuggestionCard> createState() => _SuggestionCardState();
@@ -245,7 +311,7 @@ class _SuggestionCardState extends State<_SuggestionCard> {
                   color: c.primary.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(AppRadius.thumbnail),
                 ),
-                child: Icon(widget.suggestion.icon, color: c.primary),
+                child: Icon(widget.icon, color: c.primary),
               ),
               const SizedBox(width: AppSpacing.md),
               Expanded(
@@ -262,6 +328,31 @@ class _SuggestionCardState extends State<_SuggestionCard> {
                       style:
                           text.bodyMedium?.copyWith(color: c.textSecondary),
                     ),
+                    if (_expanded) ...<Widget>[
+                      const SizedBox(height: AppSpacing.sm),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton.icon(
+                          onPressed: () {
+                            // TODO(api): apply suggestion to TryOn canvas
+                            Navigator.of(context).pop();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Visualizing: ${widget.suggestion.title}...'),
+                                duration: const Duration(seconds: 2),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.auto_fix_high, size: 16),
+                          label: const Text('Visualize'),
+                          style: TextButton.styleFrom(
+                            padding: EdgeInsets.zero,
+                            minimumSize: const Size(60, 32),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),

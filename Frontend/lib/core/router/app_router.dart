@@ -14,6 +14,7 @@ import '../../features/splash/splash_screen.dart';
 import '../../features/try_on/try_on_screen.dart';
 import '../../features/upload/upload_screen.dart';
 import '../../features/wardrobe/wardrobe_screen.dart';
+import '../../core/models/outfit.dart';
 import 'app_routes.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -93,7 +94,10 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
         path: AppRoute.tryOn.path,
         name: AppRoute.tryOn.name,
         parentNavigatorKey: _rootNavigatorKey,
-        builder: (_, _) => const TryOnScreen(),
+        builder: (_, GoRouterState state) {
+          final outfit = state.extra as Outfit?;
+          return TryOnScreen(outfit: outfit);
+        },
       ),
       GoRoute(
         path: AppRoute.aiFeedback.path,

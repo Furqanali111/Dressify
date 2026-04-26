@@ -127,12 +127,14 @@ class MockClothingItem {
     required this.name,
     required this.type,
     required this.swatch,
+    this.processingStatus = 'completed',
   });
 
   final String id;
   final String name;
   final ClothingType type;
   final Color swatch;
+  final String processingStatus;
 }
 
 class MockOutfit {
@@ -174,6 +176,7 @@ class MockData {
       name: 'Slim Black Jeans',
       type: ClothingType.bottom,
       swatch: Color(0xFF111122),
+      processingStatus: 'processing',
     ),
     MockClothingItem(
       id: 'c4',

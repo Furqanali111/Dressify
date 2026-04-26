@@ -2,23 +2,27 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/config/app_flags.dart';
+import '../../core/providers/auth_provider.dart';
+import '../../core/providers/profile_provider.dart';
 import '../../core/router/app_routes.dart';
+import '../../core/utils/app_permissions.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../onboarding/onboarding_screen.dart';
 
-class SplashScreen extends StatefulWidget {
+class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
 
   @override
-  State<SplashScreen> createState() => _SplashScreenState();
+  ConsumerState<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> {
+class _SplashScreenState extends ConsumerState<SplashScreen> {
   Timer? _timer;
 
   @override
@@ -39,7 +43,20 @@ class _SplashScreenState extends State<SplashScreen> {
       context.goNamed(AppRoute.profileSetup.name);
       return;
     }
-    // TODO(auth): read JWT from flutter_secure_storage, verify with backend.
+    
+    final bool loggedIn = await ref.read(authStateProvider.notifier).init();
+    if (!mounted) return;
+
+    if (loggedIn) {
+      // Eagerly fetch profile so it's ready in global state
+      await ref.read(profileProvider.notifier).fetchProfile();
+      if (!mounted) return;
+      context.goNamed(AppRoute.home.name);
+      // Request camera + location permissions after login
+      if (mounted) AppPermissions.requestStartupPermissions(context);
+      return;
+    }
+
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     final bool seenOnboarding = prefs.getBool(onboardingSeenKey) ?? false;
     if (!mounted) return;

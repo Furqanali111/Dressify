@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:shimmer/shimmer.dart';
+
 import '../../core/mock/mock_data.dart';
 import '../../core/router/app_routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/widgets/app_chip.dart';
 import '../../core/widgets/app_toast.dart';
+import 'style_me_sheet.dart';
 
 class WardrobeScreen extends StatefulWidget {
   const WardrobeScreen({super.key});
@@ -126,11 +129,39 @@ class _WardrobeScreenState extends State<WardrobeScreen>
           Positioned(
             right: AppSpacing.lg,
             bottom: AppSpacing.lg,
-            child: FloatingActionButton(
-              backgroundColor: c.primary,
-              foregroundColor: Colors.white,
-              onPressed: () => context.pushNamed(AppRoute.upload.name),
-              child: const Icon(Icons.add),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: <Widget>[
+                FloatingActionButton.small(
+                  heroTag: 'upload',
+                  backgroundColor: c.surface,
+                  foregroundColor: c.primary,
+                  onPressed: () => context.pushNamed(AppRoute.upload.name),
+                  child: const Icon(Icons.add),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                FloatingActionButton.extended(
+                  heroTag: 'style_me',
+                  backgroundColor: c.primary,
+                  foregroundColor: Colors.white,
+                  onPressed: () {
+                    showModalBottomSheet<void>(
+                      context: context,
+                      backgroundColor: Colors.transparent,
+                      isScrollControlled: true,
+                      builder: (_) => const StyleMeSheet(),
+                    );
+                  },
+                  icon: Image.asset(
+                    'assets/icons/05_icon_magic_wand.png',
+                    width: 24,
+                    height: 24,
+                    color: Colors.white,
+                  ),
+                  label: const Text('Style Me'),
+                ),
+              ],
             ),
           ),
         ],
@@ -146,13 +177,12 @@ class _ClothingGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final List<MockClothingItem> items = filter == null
-        ? MockData.clothing
-        : MockData.clothing.where((MockClothingItem i) => i.type == filter).toList();
+    // TODO(api): fetch actual items from backend
+    final List<MockClothingItem> items = <MockClothingItem>[];
 
     if (items.isEmpty) {
       return const _Empty(
-        icon: Icons.checkroom_outlined,
+        imageAsset: 'assets/images/03_empty_wardrobe.png',
         title: 'No clothing items yet',
         subtitle: 'Upload your first item from the + button',
       );
@@ -205,12 +235,14 @@ class _ClothingCard extends StatelessWidget {
     final TextTheme text = Theme.of(context).textTheme;
     final BorderRadius radius = BorderRadius.circular(AppRadius.card);
 
-    return Material(
+    final bool isProcessing = item.processingStatus == 'processing';
+
+    final Widget card = Material(
       color: c.surface,
       borderRadius: radius,
       child: InkWell(
-        onTap: () => context.pushNamed(AppRoute.tryOn.name),
-        onLongPress: () => _showContextMenu(context),
+        onTap: isProcessing ? null : () => context.pushNamed(AppRoute.tryOn.name),
+        onLongPress: isProcessing ? null : () => _showContextMenu(context),
         borderRadius: radius,
         child: DecoratedBox(
           decoration: BoxDecoration(
@@ -228,8 +260,7 @@ class _ClothingCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
-                AspectRatio(
-                  aspectRatio: 1,
+                Expanded(
                   child: ColoredBox(
                     color: c.background,
                     child: Center(
@@ -262,8 +293,10 @@ class _ClothingCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        item.type.label,
-                        style: text.bodySmall?.copyWith(color: c.textSecondary),
+                        isProcessing ? 'Analyzing with AI...' : item.type.label,
+                        style: text.bodySmall?.copyWith(
+                          color: isProcessing ? c.primary : c.textSecondary,
+                        ),
                       ),
                     ],
                   ),
@@ -274,6 +307,16 @@ class _ClothingCard extends StatelessWidget {
         ),
       ),
     );
+
+    if (isProcessing) {
+      return Shimmer.fromColors(
+        baseColor: c.surface,
+        highlightColor: c.background,
+        child: card,
+      );
+    }
+
+    return card;
   }
 }
 
@@ -282,11 +325,12 @@ class _OutfitsGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     final AppColors c = context.colors;
     final TextTheme text = Theme.of(context).textTheme;
-    final List<MockOutfit> outfits = MockData.outfits();
+    // TODO(api): fetch actual outfits from backend
+    final List<MockOutfit> outfits = <MockOutfit>[];
 
     if (outfits.isEmpty) {
       return const _Empty(
-        icon: Icons.bookmark_outline,
+        imageAsset: 'assets/images/04_no_outfits.png',
         title: 'No saved outfits yet',
         subtitle: 'Try on something and save the look',
       );
@@ -443,12 +487,12 @@ class _OutfitsGrid extends StatelessWidget {
 
 class _Empty extends StatelessWidget {
   const _Empty({
-    required this.icon,
+    required this.imageAsset,
     required this.title,
     required this.subtitle,
   });
 
-  final IconData icon;
+  final String imageAsset;
   final String title;
   final String subtitle;
 
@@ -463,7 +507,12 @@ class _Empty extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            Icon(icon, size: 56, color: c.textSecondary),
+            Image.asset(
+              imageAsset,
+              width: 64,
+              height: 64,
+              opacity: const AlwaysStoppedAnimation<double>(0.7),
+            ),
             const SizedBox(height: AppSpacing.md),
             Text(title, style: text.titleMedium),
             const SizedBox(height: AppSpacing.xs),
