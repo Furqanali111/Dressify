@@ -9,7 +9,9 @@ import '../../core/theme/app_spacing.dart';
 import '../../core/widgets/primary_button.dart';
 
 class AvatarSelectionScreen extends StatefulWidget {
-  const AvatarSelectionScreen({super.key});
+  const AvatarSelectionScreen({super.key, this.gender});
+
+  final String? gender;
 
   @override
   State<AvatarSelectionScreen> createState() => _AvatarSelectionScreenState();
@@ -63,19 +65,35 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen> {
             ),
             const SizedBox(height: AppSpacing.xl),
             Expanded(
-              child: ListView.separated(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-                scrollDirection: Axis.horizontal,
-                itemCount: AvatarKind.values.length,
-                separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.lg),
-                itemBuilder: (_, int i) {
-                  final AvatarKind kind = AvatarKind.values[i];
-                  return _AvatarCard(
-                    kind: kind,
-                    selected: _selected == kind,
-                    onTap: () => setState(() => _selected = kind),
+              child: Builder(
+                builder: (context) {
+                  List<AvatarKind> availableAvatars = AvatarKind.values.toList();
+                  
+                  if (widget.gender == 'Female') {
+                    availableAvatars = availableAvatars
+                        .where((a) => a.name.startsWith('female'))
+                        .toList();
+                  } else if (widget.gender == 'Male') {
+                    availableAvatars = availableAvatars
+                        .where((a) => a.name.startsWith('male'))
+                        .toList();
+                  }
+
+                  return ListView.separated(
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+                    scrollDirection: Axis.horizontal,
+                    itemCount: availableAvatars.length,
+                    separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.lg),
+                    itemBuilder: (_, int i) {
+                      final AvatarKind kind = availableAvatars[i];
+                      return _AvatarCard(
+                        kind: kind,
+                        selected: _selected == kind,
+                        onTap: () => setState(() => _selected = kind),
+                      );
+                    },
                   );
-                },
+                }
               ),
             ),
             const SizedBox(height: AppSpacing.lg),
@@ -217,7 +235,11 @@ class _AvatarIllustration extends StatelessWidget {
         ),
       ),
       child: Center(
-        child: Icon(Icons.person, size: 88, color: kind.accent),
+        child: Image.asset(
+          kind.assetPath,
+          height: 160,
+          fit: BoxFit.contain,
+        ),
       ),
     );
   }

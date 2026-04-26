@@ -49,6 +49,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   HeightUnit _heightUnit = HeightUnit.cm;
   WeightUnit _weightUnit = WeightUnit.kg;
   BodyType? _bodyType;
+  String? _gender;
 
   String? _heightError;
   String? _weightError;
@@ -132,9 +133,9 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   }
 
   void _handleContinue() {
-    // TODO(api): POST profile to backend (name, height_cm, weight_kg, body_type).
+    // TODO(api): POST profile to backend (name, height_cm, weight_kg, body_type, gender).
     // Convert to canonical units (cm, kg) before sending.
-    context.goNamed(AppRoute.avatarSelection.name);
+    context.goNamed(AppRoute.avatarSelection.name, extra: _gender);
   }
 
   void _handleSkip() {
@@ -228,6 +229,37 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                             onTap: () => setState(() => _bodyType = type),
                           );
                         },
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    Text(
+                      'Gender',
+                      style: text.labelMedium?.copyWith(color: c.textSecondary),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    SizedBox(
+                      height: 36,
+                      child: ListView(
+                        scrollDirection: Axis.horizontal,
+                        children: <Widget>[
+                          AppChip(
+                            label: 'Female',
+                            selected: _gender == 'Female',
+                            onTap: () => setState(() => _gender = 'Female'),
+                          ),
+                          const SizedBox(width: AppSpacing.sm),
+                          AppChip(
+                            label: 'Male',
+                            selected: _gender == 'Male',
+                            onTap: () => setState(() => _gender = 'Male'),
+                          ),
+                          const SizedBox(width: AppSpacing.sm),
+                          AppChip(
+                            label: 'Other',
+                            selected: _gender == 'Other',
+                            onTap: () => setState(() => _gender = 'Other'),
+                          ),
+                        ],
                       ),
                     ),
                   ],

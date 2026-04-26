@@ -46,7 +46,9 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       GoRoute(
         path: AppRoute.avatarSelection.path,
         name: AppRoute.avatarSelection.name,
-        builder: (_, _) => const AvatarSelectionScreen(),
+        builder: (_, GoRouterState state) => AvatarSelectionScreen(
+          gender: state.extra as String?,
+        ),
       ),
       StatefulShellRoute.indexedStack(
         builder: (_, _, StatefulNavigationShell shell) =>

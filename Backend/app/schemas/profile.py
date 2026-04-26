@@ -8,6 +8,7 @@ class ProfileUpdate(BaseModel):
     height_cm: Optional[Decimal] = None
     weight_kg: Optional[Decimal] = None
     body_type: Optional[str] = None
+    gender: Optional[str] = None
     avatar_kind: Optional[str] = None
 
 class ProfileResponse(BaseModel):
@@ -16,6 +17,7 @@ class ProfileResponse(BaseModel):
     height_cm: Optional[Decimal] = None
     weight_kg: Optional[Decimal] = None
     body_type: Optional[str] = None
+    gender: Optional[str] = None
     avatar_kind: Optional[str] = None
     preferences: Optional[dict] = None
     created_at: datetime

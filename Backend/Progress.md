@@ -18,10 +18,10 @@
 - [x] AI Enhancements: Add `occasion` parsing and full wardrobe context injection for outfit styling
 - [x] AI Vision: Implement async `BackgroundTasks` to extract `color`, `pattern`, `style`, and `sub_type` using `llama3.2-vision`
 - [x] DB Drivers: Configured connection strings and transitioned to `psycopg` driver for maximum stability
-
-## To Do
 - [x] Auto-Outfit Generation: Implement `POST /outfits/generate`
 - [x] Weather Integration: Fetch weather via Open-Meteo for AI styling context
 - [x] AI Status Tracking: Add `processing_status` to Clothing Items
 - [x] API Security: Add `slowapi` rate limiting to AI endpoints
-- [ ] Setup tests structure and fixtures
+
+## To Do
+- [ ] Testing: Setup tests structure and `pytest` fixtures for the Phase 1 features

@@ -44,6 +44,9 @@ dependencies:
   image_cropper: ^8.0.2
   cached_network_image: ^3.4.1
 
+  # Location (Weather Context)
+  geolocator: ^13.0.0
+
   # Try-on canvas (escalation path; we start with CustomPainter)
   flame: ^1.22.0
 
@@ -60,8 +63,6 @@ dev_dependencies:
     sdk: flutter
 
   flutter_lints: ^6.0.0
-  custom_lint: ^0.7.3
-  riverpod_lint: ^2.6.3
 
   build_runner: ^2.4.13
   freezed: ^2.5.7

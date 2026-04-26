@@ -90,8 +90,8 @@ Every API call site is marked with `TODO(api):` so it's grep-able when the backe
 - **`POST /auth/google`** — exchange Google ID token for backend JWT
 - **`flutter_secure_storage`** — persist JWT, read on splash
 - **Auth-gated routing** — `GoRouter.redirect` should send unauthenticated users to `signIn`; currently every route is publicly reachable
-- **`dio` API client** — `lib/core/api/api_client.dart` — Dio instance using `AppFlags.apiBaseUrl`, JWT auth interceptor, error mapping (network / 401 / 4xx / 5xx)
-- **Models** — Freezed types for `User`, `Profile`, `ClothingItem`, `Outfit`, `AiFeedback`. `freezed` + `json_serializable` are in `pubspec.yaml`; nothing generated yet (need `build_runner`)
+- ✅ **`dio` API client** — `lib/core/api/api_client.dart` — Dio instance using `AppFlags.apiBaseUrl`, JWT auth interceptor, error mapping (network / 401 / 4xx / 5xx)
+- ✅ **Models** — Standard Dart types for `User`, `Profile`, `ClothingItem`, `Outfit`, `AiFeedback`.
 - **Riverpod providers** — `authStateProvider`, `currentUserProvider`, `profileProvider`, `wardrobeProvider`, `outfitsProvider`. Currently only `appRouterProvider` exists
 - **Mock data deletion** — `lib/core/mock/mock_data.dart` is referenced by Home, Wardrobe, Try-On, Avatar Selection. When real providers land, remove this file and migrate consumers
 
@@ -119,7 +119,7 @@ Every API call site is marked with `TODO(api):` so it's grep-able when the backe
 - **Skeleton loaders** — `shimmer` is in `pubspec.yaml` but unused; needed once real data fetching lands (Home recent outfits, Wardrobe grids, AI feedback regenerate)
 - **Localization** — spec says no hardcoded strings; everything is currently inline. Set up `flutter_localizations` + ARB files
 - **Dark-mode pass** — themes exist; only splash + sign-in have been visually checked. Every other screen needs a manual review on dark
-- **Real avatar SVGs** — `_AvatarIllustration` is a person icon over a colored gradient. Drop SVGs into `assets/avatars/` and load via `flutter_svg`
+- ✅ **Real avatar images** — `_AvatarIllustration` now loads the 10 specific gendered PNGs from `assets/avatars/`
 - **Real Google glyph** — `_GoogleGlyph` in sign-in is a placeholder "G" disc. Replace with `assets/icons/google.svg`
 - **Logo asset** — `assets/logo/` is empty; splash uses Text wordmark
 - **Empty-state illustrations** — Home / Wardrobe currently use icons; spec calls for illustrations (`assets/images/`)

@@ -12,6 +12,7 @@ class Profile(Base):
     height_cm = Column(Numeric(5, 2), nullable=True)
     weight_kg = Column(Numeric(5, 2), nullable=True)
     body_type = Column(String, nullable=True)
+    gender = Column(String, nullable=True)
     avatar_kind = Column(String, nullable=True)
     preferences = Column(JSONB, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

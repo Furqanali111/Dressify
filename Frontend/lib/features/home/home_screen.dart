@@ -115,7 +115,12 @@ class _TopBar extends StatelessWidget {
           ),
         ),
         IconButton(
-          icon: Icon(Icons.notifications_none, color: c.textPrimary),
+          icon: Image.asset(
+            'assets/icons/05_icon_bell.png',
+            width: 24,
+            height: 24,
+            color: c.textPrimary,
+          ),
           onPressed: () {},
         ),
         const SizedBox(width: AppSpacing.xs),
@@ -360,7 +365,12 @@ class _EmptyOutfits extends StatelessWidget {
       ),
       child: Column(
         children: <Widget>[
-          Icon(Icons.checkroom_outlined, size: 48, color: c.textSecondary),
+          Image.asset(
+            'assets/images/04_no_outfits.png',
+            width: 64,
+            height: 64,
+            opacity: const AlwaysStoppedAnimation<double>(0.7),
+          ),
           const SizedBox(height: AppSpacing.md),
           Text(
             'No outfits yet',
