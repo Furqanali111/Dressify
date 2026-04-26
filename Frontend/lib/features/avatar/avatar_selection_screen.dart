@@ -5,7 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/providers/profile_provider.dart';
 
-import '../../core/mock/mock_data.dart';
+import '../../core/enums/app_enums.dart';
 import '../../core/router/app_routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';

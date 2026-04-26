@@ -3,8 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/models/profile.dart';
 import '../../core/providers/auth_provider.dart';
-
+import '../../core/providers/profile_provider.dart';
 import '../../core/router/app_routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
@@ -59,14 +60,17 @@ class ProfileScreen extends ConsumerWidget {
           AppSpacing.xxxxl,
         ),
         children: <Widget>[
-          _ProfileHeader(),
+          _ProfileHeader(onSignOut: () => _confirmSignOut(context, ref)),
           const SizedBox(height: AppSpacing.xl),
-          _BodyStatsCard(),
+          const _BodyStatsCard(),
           const SizedBox(height: AppSpacing.xl),
-          Text('Settings', style: text.labelMedium?.copyWith(
-            color: c.textSecondary,
-            letterSpacing: 0.6,
-          )),
+          Text(
+            'Settings',
+            style: text.labelMedium?.copyWith(
+              color: c.textSecondary,
+              letterSpacing: 0.6,
+            ),
+          ),
           const SizedBox(height: AppSpacing.sm),
           _SettingsCard(
             children: <Widget>[
@@ -128,11 +132,24 @@ class ProfileScreen extends ConsumerWidget {
   }
 }
 
-class _ProfileHeader extends StatelessWidget {
+// ---------------------------------------------------------------------------
+// Profile header — shows real user name from authStateProvider
+// ---------------------------------------------------------------------------
+
+class _ProfileHeader extends ConsumerWidget {
+  const _ProfileHeader({required this.onSignOut});
+
+  final VoidCallback onSignOut;
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final AppColors c = context.colors;
     final TextTheme text = Theme.of(context).textTheme;
+    final user = ref.watch(authStateProvider);
+
+    final String displayName = user?.displayName?.isNotEmpty == true
+        ? user!.displayName!
+        : user?.email ?? 'Your Account';
 
     return Row(
       children: <Widget>[
@@ -150,10 +167,15 @@ class _ProfileHeader extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              Text('Your Name', style: text.headlineMedium),
+              Text(
+                displayName,
+                style: text.headlineMedium,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
               const SizedBox(height: 2),
               GestureDetector(
-                onTap: () {},
+                onTap: () => context.pushNamed(AppRoute.profileSetup.name),
                 child: Text(
                   'Edit Profile',
                   style: text.labelLarge?.copyWith(color: c.primary),
@@ -167,11 +189,36 @@ class _ProfileHeader extends StatelessWidget {
   }
 }
 
-class _BodyStatsCard extends StatelessWidget {
+// ---------------------------------------------------------------------------
+// Body stats — shows real data from profileProvider
+// ---------------------------------------------------------------------------
+
+class _BodyStatsCard extends ConsumerWidget {
+  const _BodyStatsCard();
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final AppColors c = context.colors;
     final TextTheme text = Theme.of(context).textTheme;
+    final AsyncValue<Profile?> profileState = ref.watch(profileProvider);
+
+    final Profile? profile = profileState.valueOrNull;
+
+    String heightLabel = '—';
+    String weightLabel = '—';
+    String bodyLabel = '—';
+
+    if (profile != null) {
+      if (profile.heightCm != null) {
+        heightLabel = '${profile.heightCm!.toStringAsFixed(0)} cm';
+      }
+      if (profile.weightKg != null) {
+        weightLabel = '${profile.weightKg!.toStringAsFixed(0)} kg';
+      }
+      if (profile.bodyType != null && profile.bodyType!.isNotEmpty) {
+        bodyLabel = _capitalize(profile.bodyType!);
+      }
+    }
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
@@ -201,26 +248,36 @@ class _BodyStatsCard extends StatelessWidget {
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
                 child: Text(
-                  'Edit',
+                  profile == null ? 'Set Up' : 'Edit',
                   style: text.labelLarge?.copyWith(color: c.primary),
                 ),
               ),
             ],
           ),
           const SizedBox(height: AppSpacing.md),
-          const Row(
-            children: <Widget>[
-              Expanded(child: _StatPill(label: 'Height', value: '—')),
-              SizedBox(width: AppSpacing.md),
-              Expanded(child: _StatPill(label: 'Weight', value: '—')),
-              SizedBox(width: AppSpacing.md),
-              Expanded(child: _StatPill(label: 'Body', value: '—')),
-            ],
-          ),
+          profileState.isLoading
+              ? const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(AppSpacing.md),
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                )
+              : Row(
+                  children: <Widget>[
+                    Expanded(child: _StatPill(label: 'Height', value: heightLabel)),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(child: _StatPill(label: 'Weight', value: weightLabel)),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(child: _StatPill(label: 'Body', value: bodyLabel)),
+                  ],
+                ),
         ],
       ),
     );
   }
+
+  String _capitalize(String s) =>
+      s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
 }
 
 class _StatPill extends StatelessWidget {
@@ -266,6 +323,10 @@ class _StatPill extends StatelessWidget {
     );
   }
 }
+
+// ---------------------------------------------------------------------------
+// Settings components (unchanged)
+// ---------------------------------------------------------------------------
 
 class _SettingsCard extends StatelessWidget {
   const _SettingsCard({required this.children});

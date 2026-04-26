@@ -10,6 +10,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/widgets/primary_button.dart';
 import '../wardrobe/style_me_sheet.dart';
+import 'notifications_sheet.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -115,11 +116,11 @@ class _TopBar extends StatelessWidget {
             size: 26,
           ),
           onPressed: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Notifications coming soon!'),
-                duration: Duration(seconds: 2),
-              ),
+            showModalBottomSheet<void>(
+              context: context,
+              backgroundColor: Colors.transparent,
+              isScrollControlled: true,
+              builder: (_) => const NotificationsSheet(),
             );
           },
         ),

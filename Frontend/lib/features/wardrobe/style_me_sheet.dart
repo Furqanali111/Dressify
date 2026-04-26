@@ -7,7 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/providers/ai_provider.dart';
-
+import '../../core/providers/profile_provider.dart';
 import '../../core/router/app_routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
@@ -76,8 +76,12 @@ class _StyleMeSheetState extends ConsumerState<StyleMeSheet> {
 
     try {
       final aiService = ref.read(aiProvider);
+      final profileState = ref.read(profileProvider);
+      final avatarKind = profileState.valueOrNull?.avatarKind;
+
       final outfit = await aiService.generateOutfit(
         occasion: _selectedOccasion ?? 'Casual',
+        avatarKind: avatarKind,
         lat: lat,
         lon: lon,
       );

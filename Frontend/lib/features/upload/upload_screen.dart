@@ -8,7 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../core/api/api_client.dart';
-import '../../core/mock/mock_data.dart';
+import '../../core/enums/app_enums.dart';
 import '../../core/models/clothing_item.dart';
 import '../../core/providers/wardrobe_provider.dart';
 import '../../core/router/app_routes.dart';
@@ -37,7 +37,7 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
   ClothingType _detectedType = ClothingType.top;
   double _progress = 0;
   String? _error;
-  ClothingItem? _uploadedItem;
+  List<ClothingItem> _uploadedItems = const [];
 
   Future<void> _showSourceSheet() async {
     final ImageSource? source = await showModalBottomSheet<ImageSource>(
@@ -62,7 +62,7 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
         _picked = file;
         _stage = _UploadStage.picked;
         _error = null;
-        _uploadedItem = null;
+        _uploadedItems = const [];
         _detectedType = ClothingType.top;
       });
     } catch (_) {
@@ -97,8 +97,6 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
       final Response<dynamic> response = await dio.post<dynamic>(
         '/upload',
         data: form,
-        // Upload transfer: 0 → 80%. Backend rembg (80 → 100%) is not streamable,
-        // so progress ≥ 0.8 triggers an indeterminate indicator in the UI.
         onSendProgress: (int sent, int total) {
           if (!mounted || total <= 0) return;
           setState(() => _progress = (sent / total * 0.8).clamp(0.0, 0.8));
@@ -106,19 +104,21 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
         options: Options(contentType: 'multipart/form-data'),
       );
 
-      final ClothingItem item =
-          ClothingItem.fromJson(response.data as Map<String, dynamic>);
+      // Backend now returns a list of extracted garments
+      final List<ClothingItem> items = (response.data as List<dynamic>)
+          .map((dynamic e) => ClothingItem.fromJson(e as Map<String, dynamic>))
+          .toList();
 
       if (!mounted) return;
       HapticFeedback.lightImpact();
       setState(() {
-        _uploadedItem = item;
-        _detectedType = _typeFromString(item.type);
+        _uploadedItems = items;
+        _detectedType = items.isNotEmpty ? _typeFromString(items.first.type) : ClothingType.other;
         _progress = 1.0;
         _stage = _UploadStage.done;
       });
 
-      // Refresh wardrobe so the new item appears immediately on the wardrobe tab
+      // Refresh wardrobe so all new items appear immediately
       ref.read(wardrobeProvider.notifier).fetch();
     } on DioException catch (e) {
       if (!mounted) return;
@@ -143,25 +143,18 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
         _picked = null;
         _progress = 0;
         _error = null;
-        _uploadedItem = null;
+        _uploadedItems = const [];
       });
 
   static ClothingType _typeFromString(String type) {
     switch (type) {
-      case 'top':
-        return ClothingType.top;
-      case 'bottom':
-        return ClothingType.bottom;
-      case 'dress':
-        return ClothingType.dress;
-      case 'jacket':
-        return ClothingType.jacket;
-      case 'shoes':
-        return ClothingType.shoes;
-      case 'accessory':
-        return ClothingType.accessory;
-      default:
-        return ClothingType.other;
+      case 'top':        return ClothingType.top;
+      case 'bottom':     return ClothingType.bottom;
+      case 'dress':      return ClothingType.dress;
+      case 'jacket':     return ClothingType.jacket;
+      case 'shoes':      return ClothingType.shoes;
+      case 'accessory':  return ClothingType.accessory;
+      default:           return ClothingType.other;
     }
   }
 
@@ -193,7 +186,7 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
                     stage: _stage,
                     picked: _picked,
                     progress: _progress,
-                    processedUrl: _uploadedItem?.processedUrl,
+                    uploadedItems: _uploadedItems,
                     onPick: _showSourceSheet,
                   ),
                 ),
@@ -201,14 +194,21 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
               _Bottom(
                 stage: _stage,
                 detectedType: _detectedType,
+                uploadedItems: _uploadedItems,
                 onTypeChanged: (ClothingType t) =>
                     setState(() => _detectedType = t),
                 onProcess: _startProcessing,
                 onChangeImage: _reset,
                 onTryOn: () =>
                     context.pushReplacementNamed(AppRoute.tryOn.name),
+                onGoToWardrobe: () {
+                  AppToast.success(
+                    context,
+                    '${_uploadedItems.length} item${_uploadedItems.length == 1 ? '' : 's'} saved to wardrobe',
+                  );
+                  context.goNamed(AppRoute.wardrobe.name);
+                },
                 onSave: () {
-                  // Item is already persisted by POST /upload — just refresh UI
                   AppToast.success(context, 'Saved to wardrobe');
                   context.pop();
                 },
@@ -230,15 +230,15 @@ class _Hero extends StatelessWidget {
     required this.stage,
     required this.picked,
     required this.progress,
+    required this.uploadedItems,
     required this.onPick,
-    this.processedUrl,
   });
 
   final _UploadStage stage;
   final XFile? picked;
   final double progress;
+  final List<ClothingItem> uploadedItems;
   final VoidCallback onPick;
-  final String? processedUrl;
 
   @override
   Widget build(BuildContext context) {
@@ -252,8 +252,7 @@ class _Hero extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppRadius.card),
           onTap: onPick,
           child: CustomPaint(
-            painter:
-                DashedRRectPainter(color: c.primary.withValues(alpha: 0.6)),
+            painter: DashedRRectPainter(color: c.primary.withValues(alpha: 0.6)),
             child: SizedBox(
               width: double.infinity,
               child: Padding(
@@ -270,8 +269,9 @@ class _Hero extends StatelessWidget {
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
-                      'Supports JPG, PNG up to 10MB',
+                      'Supports JPG, PNG up to 10MB\nWearing multiple items? We\'ll extract each one.',
                       style: text.bodySmall?.copyWith(color: c.textSecondary),
+                      textAlign: TextAlign.center,
                     ),
                   ],
                 ),
@@ -282,19 +282,26 @@ class _Hero extends StatelessWidget {
       );
     }
 
-    // Prefer the processed (background-removed) image when available
+    // Multi-item done state — show summary card instead of single image
+    if (stage == _UploadStage.done && uploadedItems.length > 1) {
+      return _MultiItemSummary(items: uploadedItems, c: c, text: text);
+    }
+
+    // Single-item done / processing — show the image
+    final String? processedUrl =
+        uploadedItems.isNotEmpty ? uploadedItems.first.processedUrl : null;
     final bool showProcessed =
         stage == _UploadStage.done &&
         processedUrl != null &&
-        processedUrl!.isNotEmpty;
+        processedUrl.isNotEmpty;
 
     final Widget imageWidget = showProcessed
         ? Image.network(
-            processedUrl!,
+            processedUrl,
             fit: BoxFit.contain,
             width: double.infinity,
-            loadingBuilder: (_, Widget child, ImageChunkEvent? progress) =>
-                progress == null ? child : const Center(child: CircularProgressIndicator()),
+            loadingBuilder: (_, Widget child, ImageChunkEvent? prog) =>
+                prog == null ? child : const Center(child: CircularProgressIndicator()),
             errorBuilder: (_, _, _) => _localImage,
           )
         : _localImage;
@@ -325,12 +332,9 @@ class _Hero extends StatelessWidget {
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(8),
                           child: LinearProgressIndicator(
-                            // Indeterminate while waiting for backend after upload
                             value: progress < 0.8 ? progress : null,
-                            backgroundColor:
-                                Colors.white.withValues(alpha: 0.2),
-                            valueColor: const AlwaysStoppedAnimation<Color>(
-                                Colors.white),
+                            backgroundColor: Colors.white.withValues(alpha: 0.2),
+                            valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
                             minHeight: 6,
                           ),
                         ),
@@ -339,7 +343,7 @@ class _Hero extends StatelessWidget {
                       Text(
                         progress < 0.8
                             ? 'Uploading… ${(progress / 0.8 * 100).toInt()}%'
-                            : 'Removing background…',
+                            : 'Detecting & extracting garments…',
                         style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.w600,
@@ -351,15 +355,12 @@ class _Hero extends StatelessWidget {
               ),
             ),
           ),
-        if (stage == _UploadStage.done)
+        if (stage == _UploadStage.done && uploadedItems.length == 1)
           Positioned(
             top: AppSpacing.md,
             left: AppSpacing.md,
             child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.sm,
-                vertical: 4,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 4),
               decoration: BoxDecoration(
                 color: context.colors.success,
                 borderRadius: BorderRadius.circular(AppRadius.chip),
@@ -370,7 +371,7 @@ class _Hero extends StatelessWidget {
                   Icon(Icons.check, color: Colors.white, size: 14),
                   SizedBox(width: 4),
                   Text(
-                    'Background removed',
+                    'Garment extracted',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 11,
@@ -394,6 +395,90 @@ class _Hero extends StatelessWidget {
         );
 }
 
+class _MultiItemSummary extends StatelessWidget {
+  const _MultiItemSummary({
+    required this.items,
+    required this.c,
+    required this.text,
+  });
+
+  final List<ClothingItem> items;
+  final AppColors c;
+  final TextTheme text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.xl),
+      decoration: BoxDecoration(
+        color: c.surface,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: <Widget>[
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              color: c.success.withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.check_circle_outline, color: c.success, size: 36),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          Text(
+            '${items.length} garments extracted!',
+            style: text.titleLarge,
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            'Each item has been saved to your wardrobe.',
+            style: text.bodyMedium?.copyWith(color: c.textSecondary),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: AppSpacing.xl),
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            alignment: WrapAlignment.center,
+            children: items.map((ClothingItem item) {
+              final ClothingType type = _UploadScreenState._typeFromString(item.type);
+              return Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.xs,
+                ),
+                decoration: BoxDecoration(
+                  color: c.primary.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(AppRadius.chip),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    Icon(type.icon, size: 14, color: c.primary),
+                    const SizedBox(width: 4),
+                    Text(
+                      item.name,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: c.primary,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Bottom action bar
 // ---------------------------------------------------------------------------
@@ -402,19 +487,23 @@ class _Bottom extends StatelessWidget {
   const _Bottom({
     required this.stage,
     required this.detectedType,
+    required this.uploadedItems,
     required this.onTypeChanged,
     required this.onProcess,
     required this.onChangeImage,
     required this.onTryOn,
+    required this.onGoToWardrobe,
     required this.onSave,
   });
 
   final _UploadStage stage;
   final ClothingType detectedType;
+  final List<ClothingItem> uploadedItems;
   final ValueChanged<ClothingType> onTypeChanged;
   final VoidCallback onProcess;
   final VoidCallback onChangeImage;
   final VoidCallback onTryOn;
+  final VoidCallback onGoToWardrobe;
   final VoidCallback onSave;
 
   @override
@@ -427,6 +516,16 @@ class _Bottom extends StatelessWidget {
     }
 
     if (stage == _UploadStage.done) {
+      // Multi-item: just go to wardrobe
+      if (uploadedItems.length > 1) {
+        return PrimaryButton(
+          label: 'View in Wardrobe',
+          icon: Icons.checkroom,
+          onPressed: onGoToWardrobe,
+        );
+      }
+
+      // Single item: offer try-on or save
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
@@ -509,8 +608,7 @@ class _TypeChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding:
-          const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 4),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(AppRadius.chip),
@@ -581,8 +679,7 @@ class _SourceSheet extends StatelessWidget {
                   child: _SourceTile(
                     icon: Icons.camera_alt_outlined,
                     label: 'Camera',
-                    onTap: () =>
-                        Navigator.of(context).pop(ImageSource.camera),
+                    onTap: () => Navigator.of(context).pop(ImageSource.camera),
                   ),
                 ),
                 const SizedBox(width: AppSpacing.md),
@@ -590,8 +687,7 @@ class _SourceSheet extends StatelessWidget {
                   child: _SourceTile(
                     icon: Icons.photo_library_outlined,
                     label: 'Gallery',
-                    onTap: () =>
-                        Navigator.of(context).pop(ImageSource.gallery),
+                    onTap: () => Navigator.of(context).pop(ImageSource.gallery),
                   ),
                 ),
               ],

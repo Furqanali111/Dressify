@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shimmer/shimmer.dart';
 
-import '../../core/mock/mock_data.dart' show ClothingType, ClothingTypeX;
+import '../../core/enums/app_enums.dart' show ClothingType, ClothingTypeX;
 import '../../core/models/clothing_item.dart';
 import '../../core/models/outfit.dart';
 import '../../core/providers/outfits_provider.dart';

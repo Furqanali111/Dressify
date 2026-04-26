@@ -8,7 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/api/api_client.dart';
-import '../../core/mock/mock_data.dart';
+import '../../core/enums/app_enums.dart';
 import '../../core/models/clothing_item.dart';
 import '../../core/models/outfit.dart';
 import '../../core/providers/outfits_provider.dart';
@@ -408,7 +408,11 @@ class _TopBar extends StatelessWidget {
           const Spacer(),
           IconButton(
             icon: const Icon(Icons.fullscreen, color: Colors.white),
-            onPressed: () {},
+            tooltip: 'Fullscreen',
+            onPressed: () {
+              // Hide status bar and nav bar for an immersive canvas view
+              SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+            },
           ),
         ],
       ),

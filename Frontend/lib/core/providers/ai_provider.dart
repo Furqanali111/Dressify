@@ -17,14 +17,16 @@ class AiService {
 
   Future<Outfit> generateOutfit({
     required String occasion,
+    String? avatarKind,
     double? lat,
     double? lon,
     String? seedItemId,
   }) async {
     final response = await _dio.post<Map<String, dynamic>>(
       '/outfits/generate',
-      data: {
+      data: <String, dynamic>{
         'occasion': occasion,
+        if (avatarKind != null) 'avatar_kind': avatarKind,
         if (lat != null) 'lat': lat,
         if (lon != null) 'lon': lon,
         if (seedItemId != null) 'seed_item_id': seedItemId,
