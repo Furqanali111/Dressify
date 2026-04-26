@@ -11,6 +11,7 @@ import '../../core/api/api_client.dart';
 import '../../core/mock/mock_data.dart';
 import '../../core/models/clothing_item.dart';
 import '../../core/models/outfit.dart';
+import '../../core/providers/outfits_provider.dart';
 import '../../core/providers/profile_provider.dart';
 import '../../core/providers/wardrobe_provider.dart';
 import '../../core/theme/app_colors.dart';
@@ -175,18 +176,42 @@ class _TryOnScreenState extends ConsumerState<TryOnScreen> {
   Future<void> _save() async {
     HapticFeedback.mediumImpact();
     setState(() => _saving = true);
-    // TODO(api): POST outfit to backend.
-    await Future<void>.delayed(const Duration(milliseconds: 600));
-    if (!mounted) return;
-    setState(() {
-      _saving = false;
-      _saved = true;
-    });
-    HapticFeedback.lightImpact();
-    AppToast.success(context, 'Outfit saved');
-    Future<void>.delayed(const Duration(seconds: 2), () {
-      if (mounted) setState(() => _saved = false);
-    });
+
+    try {
+      if (widget.outfit?.id == null) {
+        // Manual outfit — persist it for the first time
+        final Dio dio = ref.read(apiClientProvider);
+        final List<Map<String, dynamic>> items = _garments.values
+            .map((g) => <String, dynamic>{'clothing_item_id': g.item.id})
+            .toList();
+        await dio.post<dynamic>('/outfits', data: <String, dynamic>{
+          'name': 'My Outfit',
+          'avatar_kind': _avatar.name,
+          'items': items,
+        });
+      }
+      // Refresh the outfits list in both cases
+      ref.read(outfitsProvider.notifier).fetch();
+
+      if (!mounted) return;
+      setState(() {
+        _saving = false;
+        _saved = true;
+      });
+      HapticFeedback.lightImpact();
+      AppToast.success(context, 'Outfit saved');
+      Future<void>.delayed(const Duration(seconds: 2), () {
+        if (mounted) setState(() => _saved = false);
+      });
+    } on DioException catch (e) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      AppToast.error(
+        context,
+        (e.response?.data as Map<String, dynamic>?)?['detail']?.toString() ??
+            'Failed to save outfit',
+      );
+    }
   }
 
   void _openFeedback() {

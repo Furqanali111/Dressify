@@ -10,7 +10,7 @@ from app.deps import get_current_user
 from app.schemas.feedback import FeedbackRequest, AiFeedbackResponse
 from app.services.ai_feedback import get_feedback_for_outfit
 from app.services.weather import get_current_weather
-from app.main import limiter
+from app.core.limiter import limiter
 import uuid
 
 router = APIRouter(prefix="/feedback", tags=["AI Feedback"])

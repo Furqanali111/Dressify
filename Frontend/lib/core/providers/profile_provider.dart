@@ -12,7 +12,7 @@ class ProfileStateNotifier extends StateNotifier<AsyncValue<Profile?>> {
     try {
       state = const AsyncValue.loading();
       final dio = _ref.read(apiClientProvider);
-      final response = await dio.get<Map<String, dynamic>>('/profile');
+      final response = await dio.get<Map<String, dynamic>>('profile');
       final profile = Profile.fromJson(response.data!);
       state = AsyncValue.data(profile);
     } on DioException catch (e, st) {
@@ -29,7 +29,7 @@ class ProfileStateNotifier extends StateNotifier<AsyncValue<Profile?>> {
   Future<void> updateProfile(Map<String, dynamic> data) async {
     try {
       final dio = _ref.read(apiClientProvider);
-      final response = await dio.patch<Map<String, dynamic>>('/profile', data: data);
+      final response = await dio.patch<Map<String, dynamic>>('profile', data: data);
       final profile = Profile.fromJson(response.data!);
       state = AsyncValue.data(profile);
     } catch (e) {

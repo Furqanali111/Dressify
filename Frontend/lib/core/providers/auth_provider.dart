@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -18,7 +19,7 @@ class AuthStateNotifier extends StateNotifier<User?> {
 
     try {
       final Dio dio = _ref.read(apiClientProvider);
-      final Response<dynamic> response = await dio.get<dynamic>('/me');
+      final Response<dynamic> response = await dio.get<dynamic>('me');
       final Map<String, dynamic> data = response.data as Map<String, dynamic>;
       state = User.fromJson(data['user'] as Map<String, dynamic>);
       return true;
@@ -47,7 +48,7 @@ class AuthStateNotifier extends StateNotifier<User?> {
       if (idToken == null) throw Exception('Google ID token is null');
 
       final dio = _ref.read(apiClientProvider);
-      final response = await dio.post('/auth/google', data: {
+      final response = await dio.post<dynamic>('auth/google', data: {
         'id_token': idToken,
       });
 
@@ -59,10 +60,12 @@ class AuthStateNotifier extends StateNotifier<User?> {
 
       return response.data['has_profile'] as bool;
     } catch (e) {
-      print('Google sign in error: $e');
+      debugPrint('Google sign in error: $e');
       rethrow;
     }
   }
+
+  void clearSession() => state = null;
 
   Future<void> signOut() async {
     await _googleSignIn.signOut();

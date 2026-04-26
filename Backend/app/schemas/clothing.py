@@ -7,7 +7,6 @@ class ClothingItemResponse(BaseModel):
     id: uuid.UUID
     name: str
     type: str
-    raw_url: str = ""
     processed_url: str = ""
     anchor_points: Optional[dict] = None
     detection_confidence: Optional[float] = None

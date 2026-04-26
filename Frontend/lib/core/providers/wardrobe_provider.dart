@@ -15,7 +15,7 @@ class WardrobeNotifier extends StateNotifier<AsyncValue<List<ClothingItem>>> {
     state = const AsyncValue<List<ClothingItem>>.loading();
     try {
       final Dio dio = _ref.read(apiClientProvider);
-      final Response<dynamic> response = await dio.get<dynamic>('/clothing');
+      final Response<dynamic> response = await dio.get<dynamic>('clothing');
       state = AsyncValue<List<ClothingItem>>.data(_parse(response.data));
     } on DioException catch (e, st) {
       // Treat 404 ("no resource yet") as an empty list rather than an error.
@@ -31,7 +31,7 @@ class WardrobeNotifier extends StateNotifier<AsyncValue<List<ClothingItem>>> {
 
   Future<void> delete(String id) async {
     final Dio dio = _ref.read(apiClientProvider);
-    await dio.delete<dynamic>('/clothing/$id');
+    await dio.delete<dynamic>('clothing/$id');
     final List<ClothingItem> current = state.value ?? <ClothingItem>[];
     state = AsyncValue<List<ClothingItem>>.data(
       current.where((ClothingItem it) => it.id != id).toList(),

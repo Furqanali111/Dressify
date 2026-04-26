@@ -11,7 +11,6 @@ class ClothingItem(Base):
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     name = Column(String, nullable=False)
     type = Column(String, nullable=False)
-    raw_image_path = Column(String, nullable=False)
     processed_image_path = Column(String, nullable=True)
     detection_confidence = Column(Numeric(3, 2), nullable=True)
     anchor_points = Column(JSONB, nullable=True)

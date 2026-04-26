@@ -20,7 +20,7 @@ class AppFlags {
 
   /// Backend base URL. Override per environment.
   static String get apiBaseUrl =>
-      _string('API_BASE_URL', defaultValue: 'http://localhost:8000');
+      _string('API_BASE_URL', defaultValue: 'http://localhost:8000/api/v1/');
 
   /// Sentry DSN. Empty string means crash reporting is disabled.
   static String get sentryDsn => _string('SENTRY_DSN', defaultValue: '');

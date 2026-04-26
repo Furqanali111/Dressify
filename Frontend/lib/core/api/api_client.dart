@@ -1,10 +1,12 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../config/app_flags.dart';
+import '../providers/auth_provider.dart';
 import 'auth_interceptor.dart';
 
-final apiClientProvider = Provider<Dio>((ref) {
+final Provider<Dio> apiClientProvider = Provider<Dio>((Ref ref) {
   final Dio dio = Dio(
     BaseOptions(
       baseUrl: AppFlags.apiBaseUrl,
@@ -13,7 +15,9 @@ final apiClientProvider = Provider<Dio>((ref) {
     ),
   );
 
-  dio.interceptors.add(AuthInterceptor());
+  dio.interceptors.add(AuthInterceptor(
+    onUnauthorized: () => ref.read(authStateProvider.notifier).clearSession(),
+  ));
 
   if (kDebugMode) {
     dio.interceptors.add(LogInterceptor(

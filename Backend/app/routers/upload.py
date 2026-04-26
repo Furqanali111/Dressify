@@ -8,7 +8,7 @@ from app.services.storage import upload_file, get_signed_url
 from app.services.image_processing import remove_background, detect_type_and_anchors
 from app.services.ai_vision import extract_clothing_metadata
 from app.schemas.clothing import ClothingItemResponse
-from app.main import limiter
+from app.core.limiter import limiter
 import uuid
 import logging
 
@@ -34,16 +34,11 @@ async def upload_clothing(
         raise HTTPException(status_code=400, detail="Image must be < 10MB")
         
     item_id = uuid.uuid4()
-    raw_path = f"{current_user.id}/{item_id}.jpg"
     processed_path = f"{current_user.id}/{item_id}.png"
     
-    # 1. Persist raw
-    if not upload_file("clothing-raw", raw_path, image_bytes, image.content_type):
-        raise HTTPException(status_code=500, detail="Failed to upload raw image")
-        
-    # 2. rembg
+    # 1. Extract clothing
     try:
-        processed_bytes = remove_background(image_bytes)
+        processed_bytes = remove_background(image_bytes, use_cloth_seg=True)
     except Exception as e:
         logger.error(f"Image processing error: {e}")
         raise HTTPException(status_code=500, detail="Image processing failed")
@@ -52,8 +47,8 @@ async def upload_clothing(
     if not upload_file("clothing-processed", processed_path, processed_bytes, "image/png"):
         raise HTTPException(status_code=500, detail="Failed to upload processed image")
         
-    # 4. OpenCV static guess
-    detected_type, anchors, confidence = detect_type_and_anchors(processed_bytes)
+    # 4. Vision-based type detection
+    detected_type, anchors, confidence = await detect_type_and_anchors(processed_bytes)
     
     # 5. DB insert
     item = ClothingItem(
@@ -61,7 +56,6 @@ async def upload_clothing(
         user_id=current_user.id,
         name=name,
         type=detected_type,
-        raw_image_path=raw_path,
         processed_image_path=processed_path,
         detection_confidence=confidence,
         anchor_points=anchors
@@ -71,14 +65,12 @@ async def upload_clothing(
     await db.refresh(item)
     
     # 6. Sign URLs
-    raw_url = get_signed_url("clothing-raw", raw_path)
     processed_url = get_signed_url("clothing-processed", processed_path)
     
     # 7. Queue async vision metadata extraction
     background_tasks.add_task(extract_clothing_metadata, item_id, processed_bytes)
     
     response = ClothingItemResponse.model_validate(item)
-    response.raw_url = raw_url or ""
     response.processed_url = processed_url or ""
     
     return response

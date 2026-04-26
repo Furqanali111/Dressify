@@ -67,27 +67,18 @@ class _AiFeedbackSheetState extends ConsumerState<AiFeedbackSheet>
     try {
       final aiService = ref.read(aiProvider);
       
-      String? outfitId = widget.outfit?.id;
-      List<String>? itemIds;
-      
-      // If outfit has no ID (unsaved manual outfit) but has items, pass items.
-      // Currently, Outfit model requires an ID, so we pass it. 
-      // If we didn't get an outfit, maybe we pass some default? 
-      // The backend handles fallback if we pass a random unsaved outfit ID but no items?
-      // Wait, if outfit is null, we can't generate feedback on nothing.
-      // We will just let the backend handle the missing items if outfit is null.
-      
-      if (widget.outfit != null && widget.outfit!.items.isNotEmpty) {
-        itemIds = widget.outfit!.items.map((i) => i.clothingItemId).toList();
-        // Since we created it, let's just pass the item IDs to avoid DB 404 if it's not saved yet
-        outfitId = null; 
-      }
+      // Use outfit_id when available — backend will persist the feedback automatically.
+      // Fall back to item IDs only when there is no persisted outfit yet.
+      final String? outfitId = widget.outfit?.id;
+      final List<String>? itemIds = outfitId == null &&
+              (widget.outfit?.items.isNotEmpty ?? false)
+          ? widget.outfit!.items.map((i) => i.clothingItemId).toList()
+          : null;
 
       final response = await aiService.generateFeedback(
         outfitId: outfitId,
         clothingItemIds: itemIds,
-        // Mocking occasion if not provided in TryOn state right now
-        occasion: 'General', 
+        occasion: 'General',
       );
 
       if (!mounted) return;
@@ -260,11 +251,8 @@ class _AiFeedbackSheetState extends ConsumerState<AiFeedbackSheet>
               child: SafeArea(
                 top: false,
                 child: PrimaryButton(
-                  label: 'Save Outfit + Feedback',
-                  onPressed: () {
-                    // TODO(api): persist outfit with feedback.
-                    Navigator.of(context).pop();
-                  },
+                  label: 'Done',
+                  onPressed: () => Navigator.of(context).pop(),
                 ),
               ),
             ),
@@ -333,18 +321,9 @@ class _SuggestionCardState extends State<_SuggestionCard> {
                       Align(
                         alignment: Alignment.centerRight,
                         child: TextButton.icon(
-                          onPressed: () {
-                            // TODO(api): apply suggestion to TryOn canvas
-                            Navigator.of(context).pop();
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Visualizing: ${widget.suggestion.title}...'),
-                                duration: const Duration(seconds: 2),
-                              ),
-                            );
-                          },
-                          icon: const Icon(Icons.auto_fix_high, size: 16),
-                          label: const Text('Visualize'),
+                          onPressed: () => setState(() => _expanded = false),
+                          icon: const Icon(Icons.check, size: 16),
+                          label: const Text('Got it'),
                           style: TextButton.styleFrom(
                             padding: EdgeInsets.zero,
                             minimumSize: const Size(60, 32),

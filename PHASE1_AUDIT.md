@@ -1,6 +1,6 @@
 # Dressify — Phase 1 Audit (Open Items)
 
-> Date: 2026-04-26. Everything listed here is **not yet fixed**.
+> Last updated: 2026-04-26. Everything listed here is **not yet fixed**.
 
 ---
 
@@ -15,7 +15,9 @@ smoke test per endpoint, and CI integration.
 
 ---
 
-## 2. Priority Order
+## 2. Frontend
+
+## 3. Priority Order
 
 | Priority | Item |
 |---|---|
