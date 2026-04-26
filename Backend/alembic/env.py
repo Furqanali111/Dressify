@@ -25,15 +25,17 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from app.models import Base
 from app.config import settings
 
+print("ALEMBIC SEES THESE TABLES:", list(Base.metadata.tables.keys()))
 target_metadata = Base.metadata
 
 def get_url():
     url = settings.DATABASE_URL
     if url.startswith("postgres://"):
-        return url.replace("postgres://", "postgresql+psycopg://", 1)
+        url = url.replace("postgres://", "postgresql+psycopg://", 1)
     if url.startswith("postgresql://"):
-        return url.replace("postgresql://", "postgresql+psycopg://", 1)
-    return url
+        url = url.replace("postgresql://", "postgresql+psycopg://", 1)
+    # Escape % signs to prevent configparser interpolation errors
+    return url.replace("%", "%%")
 
 config.set_main_option("sqlalchemy.url", get_url())
 
@@ -89,6 +91,9 @@ async def run_async_migrations() -> None:
 
 def run_migrations_online() -> None:
     """Run migrations in 'online' mode."""
+    import sys
+    if sys.platform == 'win32':
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
     asyncio.run(run_async_migrations())
 

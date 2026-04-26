@@ -23,3 +23,8 @@ coverage
 .flutter-versions
 *.iml
 .claude
+.idea
+.venv
+.env.production
+venv
+__pycache__

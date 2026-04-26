@@ -146,6 +146,10 @@ Goal: Basic try-on experience
 - Preview rendering
 - Save outfit
 - Basic AI feedback
+- Auto-Outfit Generation (AI Styling based on wardrobe)
+- Live Weather Integration (for AI Context)
+- AI Processing Status tracking
+- API Rate Limiting for security
 
 ---
 
