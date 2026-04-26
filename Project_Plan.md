@@ -1,7 +1,7 @@
 # 📱 Dressify — Virtual Try-On App (MDM)
 
 ## 🧠 Overview
-FitMirror is a mobile application that allows users to:
+Dressify is a mobile application that allows users to:
 - Create/select avatars
 - Upload clothing images
 - Automatically visualize outfits using intelligent 2D overlay
@@ -34,7 +34,7 @@ Focus:
 ---
 
 ## 🧍 Avatar System (2D)
-- Predefined avatars (3–5 types)
+- Predefined avatars (10 types: 5 female + 5 male, each in Slim/Athletic/Average/Curvy/Plus)
 - Avatar selection
 - Basic scaling (based on user attributes)
 

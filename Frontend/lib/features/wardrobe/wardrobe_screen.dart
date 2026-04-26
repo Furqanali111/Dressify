@@ -1,10 +1,15 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-
 import 'package:shimmer/shimmer.dart';
 
-import '../../core/mock/mock_data.dart';
+import '../../core/mock/mock_data.dart' show ClothingType, ClothingTypeX;
+import '../../core/models/clothing_item.dart';
+import '../../core/models/outfit.dart';
+import '../../core/providers/outfits_provider.dart';
+import '../../core/providers/wardrobe_provider.dart';
 import '../../core/router/app_routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
@@ -12,14 +17,14 @@ import '../../core/widgets/app_chip.dart';
 import '../../core/widgets/app_toast.dart';
 import 'style_me_sheet.dart';
 
-class WardrobeScreen extends StatefulWidget {
+class WardrobeScreen extends ConsumerStatefulWidget {
   const WardrobeScreen({super.key});
 
   @override
-  State<WardrobeScreen> createState() => _WardrobeScreenState();
+  ConsumerState<WardrobeScreen> createState() => _WardrobeScreenState();
 }
 
-class _WardrobeScreenState extends State<WardrobeScreen>
+class _WardrobeScreenState extends ConsumerState<WardrobeScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
   ClothingType? _filter; // null = "All"
@@ -39,8 +44,10 @@ class _WardrobeScreenState extends State<WardrobeScreen>
 
   Future<void> _refresh() async {
     HapticFeedback.lightImpact();
-    // TODO(api): re-fetch wardrobe items + outfits.
-    await Future<void>.delayed(const Duration(milliseconds: 600));
+    await Future.wait<void>(<Future<void>>[
+      ref.read(wardrobeProvider.notifier).fetch(),
+      ref.read(outfitsProvider.notifier).fetch(),
+    ]);
   }
 
   @override
@@ -115,11 +122,11 @@ class _WardrobeScreenState extends State<WardrobeScreen>
                   children: <Widget>[
                     RefreshIndicator(
                       onRefresh: _refresh,
-                      child: _ClothingGrid(filter: _filter),
+                      child: _ClothingTab(filter: _filter),
                     ),
                     RefreshIndicator(
                       onRefresh: _refresh,
-                      child: _OutfitsGrid(),
+                      child: const _OutfitsTab(),
                     ),
                   ],
                 ),
@@ -170,49 +177,118 @@ class _WardrobeScreenState extends State<WardrobeScreen>
   }
 }
 
-class _ClothingGrid extends StatelessWidget {
-  const _ClothingGrid({required this.filter});
+// ─── Tabs ───────────────────────────────────────────────────────────────────
+
+class _ClothingTab extends ConsumerWidget {
+  const _ClothingTab({required this.filter});
 
   final ClothingType? filter;
 
   @override
-  Widget build(BuildContext context) {
-    // TODO(api): fetch actual items from backend
-    final List<MockClothingItem> items = <MockClothingItem>[];
+  Widget build(BuildContext context, WidgetRef ref) {
+    final AsyncValue<List<ClothingItem>> async = ref.watch(wardrobeProvider);
 
-    if (items.isEmpty) {
-      return const _Empty(
-        imageAsset: 'assets/images/03_empty_wardrobe.png',
-        title: 'No clothing items yet',
-        subtitle: 'Upload your first item from the + button',
-      );
-    }
+    return async.when(
+      loading: () => const _LoadingShimmer(aspectRatio: 0.85),
+      error: (Object e, _) => _ScrollableState(
+        child: _ErrorState(
+          message: 'Could not load your wardrobe',
+          onRetry: () => ref.read(wardrobeProvider.notifier).fetch(),
+        ),
+      ),
+      data: (List<ClothingItem> all) {
+        final List<ClothingItem> items = filter == null
+            ? all
+            : all.where((ClothingItem it) => it.type == filter!.name).toList();
 
-    return GridView.builder(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.xl,
-        AppSpacing.lg,
-        AppSpacing.xl,
-        AppSpacing.xxxxl + AppSpacing.lg,
-      ),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: AppSpacing.md,
-        mainAxisSpacing: AppSpacing.md,
-        childAspectRatio: 0.85,
-      ),
-      itemCount: items.length,
-      itemBuilder: (_, int i) => _ClothingCard(item: items[i]),
+        if (items.isEmpty) {
+          return const _ScrollableState(
+            child: _Empty(
+              imageAsset: 'assets/images/03_empty_wardrobe.png',
+              title: 'No clothing items yet',
+              subtitle: 'Upload your first item from the + button',
+            ),
+          );
+        }
+
+        return GridView.builder(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.xl,
+            AppSpacing.lg,
+            AppSpacing.xl,
+            AppSpacing.xxxxl + AppSpacing.lg,
+          ),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            crossAxisSpacing: AppSpacing.md,
+            mainAxisSpacing: AppSpacing.md,
+            childAspectRatio: 0.85,
+          ),
+          itemCount: items.length,
+          itemBuilder: (_, int i) => _ClothingCard(item: items[i]),
+        );
+      },
     );
   }
 }
 
-class _ClothingCard extends StatelessWidget {
+class _OutfitsTab extends ConsumerWidget {
+  const _OutfitsTab();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final AsyncValue<List<Outfit>> async = ref.watch(outfitsProvider);
+
+    return async.when(
+      loading: () => const _LoadingShimmer(aspectRatio: 0.7),
+      error: (Object e, _) => _ScrollableState(
+        child: _ErrorState(
+          message: 'Could not load your outfits',
+          onRetry: () => ref.read(outfitsProvider.notifier).fetch(),
+        ),
+      ),
+      data: (List<Outfit> outfits) {
+        if (outfits.isEmpty) {
+          return const _ScrollableState(
+            child: _Empty(
+              imageAsset: 'assets/images/04_no_outfits.png',
+              title: 'No saved outfits yet',
+              subtitle: 'Try on something and save the look',
+            ),
+          );
+        }
+
+        return GridView.builder(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.xl,
+            AppSpacing.lg,
+            AppSpacing.xl,
+            AppSpacing.xxxxl + AppSpacing.lg,
+          ),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            crossAxisSpacing: AppSpacing.md,
+            mainAxisSpacing: AppSpacing.md,
+            childAspectRatio: 0.7,
+          ),
+          itemCount: outfits.length,
+          itemBuilder: (_, int i) => _OutfitCard(outfit: outfits[i]),
+        );
+      },
+    );
+  }
+}
+
+// ─── Cards ──────────────────────────────────────────────────────────────────
+
+class _ClothingCard extends ConsumerWidget {
   const _ClothingCard({required this.item});
 
-  final MockClothingItem item;
+  final ClothingItem item;
 
-  Future<void> _showContextMenu(BuildContext context) async {
+  Future<void> _showContextMenu(BuildContext context, WidgetRef ref) async {
     HapticFeedback.mediumImpact();
     final _ItemAction? action = await showModalBottomSheet<_ItemAction>(
       context: context,
@@ -224,25 +300,31 @@ class _ClothingCard extends StatelessWidget {
       case _ItemAction.tryOn:
         context.pushNamed(AppRoute.tryOn.name);
       case _ItemAction.delete:
-        // TODO(api): DELETE /clothing/:id.
-        AppToast.success(context, '${item.name} deleted');
+        try {
+          await ref.read(wardrobeProvider.notifier).delete(item.id);
+          if (!context.mounted) return;
+          AppToast.success(context, '${item.name} deleted');
+        } catch (_) {
+          if (!context.mounted) return;
+          AppToast.error(context, 'Failed to delete ${item.name}');
+        }
     }
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final AppColors c = context.colors;
     final TextTheme text = Theme.of(context).textTheme;
     final BorderRadius radius = BorderRadius.circular(AppRadius.card);
-
     final bool isProcessing = item.processingStatus == 'processing';
+    final ClothingType uiType = _typeFromString(item.type);
 
     final Widget card = Material(
       color: c.surface,
       borderRadius: radius,
       child: InkWell(
         onTap: isProcessing ? null : () => context.pushNamed(AppRoute.tryOn.name),
-        onLongPress: isProcessing ? null : () => _showContextMenu(context),
+        onLongPress: isProcessing ? null : () => _showContextMenu(context, ref),
         borderRadius: radius,
         child: DecoratedBox(
           decoration: BoxDecoration(
@@ -263,21 +345,7 @@ class _ClothingCard extends StatelessWidget {
                 Expanded(
                   child: ColoredBox(
                     color: c.background,
-                    child: Center(
-                      child: Container(
-                        width: 64,
-                        height: 64,
-                        decoration: BoxDecoration(
-                          color: item.swatch,
-                          borderRadius: BorderRadius.circular(AppRadius.thumbnail),
-                        ),
-                        child: Icon(
-                          item.type.icon,
-                          color: Colors.white.withValues(alpha: 0.8),
-                          size: 28,
-                        ),
-                      ),
-                    ),
+                    child: _ClothingImage(item: item, fallbackType: uiType),
                   ),
                 ),
                 Padding(
@@ -293,7 +361,7 @@ class _ClothingCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        isProcessing ? 'Analyzing with AI...' : item.type.label,
+                        isProcessing ? 'Analyzing with AI…' : uiType.label,
                         style: text.bodySmall?.copyWith(
                           color: isProcessing ? c.primary : c.textSecondary,
                         ),
@@ -320,168 +388,175 @@ class _ClothingCard extends StatelessWidget {
   }
 }
 
-class _OutfitsGrid extends StatelessWidget {
+class _ClothingImage extends StatelessWidget {
+  const _ClothingImage({required this.item, required this.fallbackType});
+
+  final ClothingItem item;
+  final ClothingType fallbackType;
+
   @override
   Widget build(BuildContext context) {
     final AppColors c = context.colors;
-    final TextTheme text = Theme.of(context).textTheme;
-    // TODO(api): fetch actual outfits from backend
-    final List<MockOutfit> outfits = <MockOutfit>[];
 
-    if (outfits.isEmpty) {
-      return const _Empty(
-        imageAsset: 'assets/images/04_no_outfits.png',
-        title: 'No saved outfits yet',
-        subtitle: 'Try on something and save the look',
+    if (item.processedUrl.isNotEmpty) {
+      return CachedNetworkImage(
+        imageUrl: item.processedUrl,
+        fit: BoxFit.contain,
+        placeholder: (_, _) => _swatch(c, fallbackType),
+        errorWidget: (_, _, _) => _swatch(c, fallbackType),
       );
     }
+    return _swatch(c, fallbackType);
+  }
 
-    return GridView.builder(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.xl,
-        AppSpacing.lg,
-        AppSpacing.xl,
-        AppSpacing.xxxxl + AppSpacing.lg,
+  Widget _swatch(AppColors c, ClothingType type) {
+    return Center(
+      child: Container(
+        width: 64,
+        height: 64,
+        decoration: BoxDecoration(
+          color: c.primary.withValues(alpha: 0.18),
+          borderRadius: BorderRadius.circular(AppRadius.thumbnail),
+        ),
+        child: Icon(
+          type.icon,
+          color: c.primary,
+          size: 28,
+        ),
       ),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: AppSpacing.md,
-        mainAxisSpacing: AppSpacing.md,
-        childAspectRatio: 0.7,
-      ),
-      itemCount: outfits.length,
-      itemBuilder: (_, int i) {
-        final MockOutfit o = outfits[i];
-        return Material(
-          color: c.surface,
-          borderRadius: BorderRadius.circular(AppRadius.card),
-          child: InkWell(
-            onTap: () => context.pushNamed(AppRoute.tryOn.name),
-            onLongPress: () async {
-              HapticFeedback.mediumImpact();
-              final _ItemAction? action = await showModalBottomSheet<_ItemAction>(
-                context: context,
-                backgroundColor: Colors.transparent,
-                builder: (_) => _ItemActionSheet(title: o.name),
-              );
-              if (action == null || !context.mounted) return;
-              switch (action) {
-                case _ItemAction.tryOn:
-                  context.pushNamed(AppRoute.tryOn.name);
-                case _ItemAction.delete:
-                  // TODO(api): DELETE /outfits/:id.
-                  AppToast.success(context, '${o.name} deleted');
-              }
-            },
-            borderRadius: BorderRadius.circular(AppRadius.card),
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(AppRadius.card),
-                boxShadow: <BoxShadow>[
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.06),
-                    blurRadius: 10,
-                    offset: const Offset(0, 3),
+    );
+  }
+}
+
+class _OutfitCard extends ConsumerWidget {
+  const _OutfitCard({required this.outfit});
+
+  final Outfit outfit;
+
+  Future<void> _showContextMenu(BuildContext context, WidgetRef ref) async {
+    HapticFeedback.mediumImpact();
+    final _ItemAction? action = await showModalBottomSheet<_ItemAction>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _ItemActionSheet(title: outfit.name),
+    );
+    if (action == null || !context.mounted) return;
+    switch (action) {
+      case _ItemAction.tryOn:
+        context.pushNamed(AppRoute.tryOn.name);
+      case _ItemAction.delete:
+        try {
+          await ref.read(outfitsProvider.notifier).delete(outfit.id);
+          if (!context.mounted) return;
+          AppToast.success(context, '${outfit.name} deleted');
+        } catch (_) {
+          if (!context.mounted) return;
+          AppToast.error(context, 'Failed to delete ${outfit.name}');
+        }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final AppColors c = context.colors;
+    final TextTheme text = Theme.of(context).textTheme;
+    final BorderRadius radius = BorderRadius.circular(AppRadius.card);
+    final Color accent = _accentForAvatar(outfit.avatarKind, c);
+
+    return Material(
+      color: c.surface,
+      borderRadius: radius,
+      child: InkWell(
+        onTap: () => context.pushNamed(AppRoute.tryOn.name),
+        onLongPress: () => _showContextMenu(context, ref),
+        borderRadius: radius,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: radius,
+            boxShadow: <BoxShadow>[
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.06),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: radius,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                Expanded(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: <Color>[
+                          accent.withValues(alpha: 0.22),
+                          accent.withValues(alpha: 0.06),
+                        ],
+                      ),
+                    ),
+                    child: Center(
+                      child: Icon(Icons.person, size: 80, color: accent),
+                    ),
                   ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(AppRadius.card),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: <Widget>[
-                    Expanded(
-                      child: Stack(
-                        children: <Widget>[
-                          DecoratedBox(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: <Color>[
-                                  o.avatar.accent.withValues(alpha: 0.22),
-                                  o.avatar.accent.withValues(alpha: 0.06),
-                                ],
-                              ),
-                            ),
-                            child: Center(
-                              child: Icon(
-                                Icons.person,
-                                size: 80,
-                                color: o.avatar.accent,
-                              ),
-                            ),
-                          ),
-                          if (o.aiRating != null)
-                            Positioned(
-                              top: AppSpacing.sm,
-                              right: AppSpacing.sm,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: AppSpacing.sm,
-                                  vertical: 3,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withValues(alpha: 0.55),
-                                  borderRadius: BorderRadius.circular(AppRadius.chip),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: <Widget>[
-                                    const Icon(Icons.star,
-                                        color: Colors.amber, size: 12),
-                                    const SizedBox(width: 3),
-                                    Text(
-                                      o.aiRating!.toStringAsFixed(1),
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.all(AppSpacing.md),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                          Text(
-                            o.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style:
-                                text.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            _formatDate(o.savedAt),
-                            style: text.bodySmall?.copyWith(color: c.textSecondary),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
                 ),
-              ),
+                Padding(
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        outfit.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style:
+                            text.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        _formatDate(outfit.createdAt),
+                        style: text.bodySmall?.copyWith(color: c.textSecondary),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── States: empty / error / loading ────────────────────────────────────────
+
+/// Wraps the empty/error widget in a scrollable so [RefreshIndicator] can
+/// pull it down even when there's nothing to scroll past.
+class _ScrollableState extends StatelessWidget {
+  const _ScrollableState({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (BuildContext ctx, BoxConstraints constraints) {
+        return ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: EdgeInsets.zero,
+          children: <Widget>[
+            ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              child: Center(child: child),
+            ),
+          ],
         );
       },
     );
-  }
-
-  String _formatDate(DateTime d) {
-    const List<String> months = <String>[
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-    ];
-    return '${months[d.month - 1]} ${d.day}, ${d.year}';
   }
 }
 
@@ -501,32 +576,160 @@ class _Empty extends StatelessWidget {
     final AppColors c = context.colors;
     final TextTheme text = Theme.of(context).textTheme;
 
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xl),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            Image.asset(
-              imageAsset,
-              width: 64,
-              height: 64,
-              opacity: const AlwaysStoppedAnimation<double>(0.7),
+    return Padding(
+      padding: const EdgeInsets.all(AppSpacing.xl),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Image.asset(
+            imageAsset,
+            width: 120,
+            height: 120,
+            opacity: const AlwaysStoppedAnimation<double>(0.7),
+            errorBuilder: (_, _, _) => Icon(
+              Icons.checkroom_outlined,
+              size: 80,
+              color: c.textSecondary.withValues(alpha: 0.5),
             ),
-            const SizedBox(height: AppSpacing.md),
-            Text(title, style: text.titleMedium),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              subtitle,
-              textAlign: TextAlign.center,
-              style: text.bodyMedium?.copyWith(color: c.textSecondary),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          Text(title, style: text.titleMedium, textAlign: TextAlign.center),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            subtitle,
+            textAlign: TextAlign.center,
+            style: text.bodyMedium?.copyWith(color: c.textSecondary),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          Text(
+            'Pull down to refresh',
+            style: text.bodySmall?.copyWith(
+              color: c.textSecondary.withValues(alpha: 0.6),
             ),
-          ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ErrorState extends StatelessWidget {
+  const _ErrorState({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final AppColors c = context.colors;
+    final TextTheme text = Theme.of(context).textTheme;
+
+    return Padding(
+      padding: const EdgeInsets.all(AppSpacing.xl),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Icon(Icons.cloud_off_outlined, size: 56, color: c.textSecondary),
+          const SizedBox(height: AppSpacing.md),
+          Text(message, style: text.titleMedium, textAlign: TextAlign.center),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            'Check your connection or pull to retry.',
+            textAlign: TextAlign.center,
+            style: text.bodyMedium?.copyWith(color: c.textSecondary),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          TextButton.icon(
+            onPressed: onRetry,
+            icon: const Icon(Icons.refresh),
+            label: const Text('Retry'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LoadingShimmer extends StatelessWidget {
+  const _LoadingShimmer({required this.aspectRatio});
+
+  final double aspectRatio;
+
+  @override
+  Widget build(BuildContext context) {
+    final AppColors c = context.colors;
+
+    return GridView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.xl,
+        AppSpacing.lg,
+        AppSpacing.xl,
+        AppSpacing.xxxxl + AppSpacing.lg,
+      ),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: AppSpacing.md,
+        mainAxisSpacing: AppSpacing.md,
+        childAspectRatio: aspectRatio,
+      ),
+      itemCount: 4,
+      itemBuilder: (_, _) => Shimmer.fromColors(
+        baseColor: c.surface,
+        highlightColor: c.background,
+        child: Container(
+          decoration: BoxDecoration(
+            color: c.surface,
+            borderRadius: BorderRadius.circular(AppRadius.card),
+          ),
         ),
       ),
     );
   }
 }
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+ClothingType _typeFromString(String raw) {
+  for (final ClothingType t in ClothingType.values) {
+    if (t.name == raw) return t;
+  }
+  return ClothingType.other;
+}
+
+Color _accentForAvatar(String avatarKind, AppColors c) {
+  // Map common backend strings (e.g. 'femaleSlim') to a tint. Falls back to
+  // the brand primary so an unknown value still renders cleanly.
+  switch (avatarKind) {
+    case 'femaleSlim':
+    case 'maleSlim':
+      return const Color(0xFF8E85FF);
+    case 'femaleAthletic':
+    case 'maleAthletic':
+      return const Color(0xFF63B4FF);
+    case 'femaleAverage':
+    case 'maleAverage':
+      return const Color(0xFFFF8FA3);
+    case 'femaleCurvy':
+    case 'maleCurvy':
+      return const Color(0xFFFFB266);
+    case 'femalePlus':
+    case 'malePlus':
+      return const Color(0xFF66D9A8);
+    default:
+      return c.primary;
+  }
+}
+
+String _formatDate(DateTime d) {
+  const List<String> months = <String>[
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+  return '${months[d.month - 1]} ${d.day}, ${d.year}';
+}
+
+// ─── Action sheet ───────────────────────────────────────────────────────────
 
 enum _ItemAction { tryOn, delete }
 

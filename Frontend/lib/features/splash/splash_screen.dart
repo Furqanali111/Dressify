@@ -13,6 +13,7 @@ import '../../core/router/app_routes.dart';
 import '../../core/utils/app_permissions.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
+import '../../core/utils/motion.dart';
 import '../onboarding/onboarding_screen.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
@@ -93,10 +94,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                         fontSize: 40,
                         fontWeight: FontWeight.w700,
                       ),
-                    ).animate().fadeIn(duration: 400.ms).scale(
+                    ).animate().fadeIn(duration: context.motion(400.ms)).scale(
                           begin: const Offset(0.96, 0.96),
                           end: const Offset(1, 1),
-                          duration: 400.ms,
+                          duration: context.motion(400.ms),
                           curve: Curves.easeOut,
                         ),
                     const SizedBox(height: AppSpacing.sm),
@@ -105,7 +106,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                       style: text.bodyLarge?.copyWith(
                         color: Colors.white.withValues(alpha: 0.85),
                       ),
-                    ).animate().fadeIn(delay: 200.ms, duration: 400.ms),
+                    ).animate().fadeIn(delay: context.motion(200.ms), duration: context.motion(400.ms)),
                     const SizedBox(height: AppSpacing.xxxl),
                     const SizedBox(
                       width: 28,

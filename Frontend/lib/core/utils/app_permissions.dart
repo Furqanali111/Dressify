@@ -5,7 +5,7 @@ import 'package:permission_handler/permission_handler.dart';
 /// Call [requestStartupPermissions] once after first authentication
 /// to request camera and location permissions upfront.
 class AppPermissions {
-  AppPermissions._();
+  const AppPermissions._();
 
   /// Request camera and location permissions at app startup.
   /// Shows rationale dialogs if previously denied.

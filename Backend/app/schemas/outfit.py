@@ -14,6 +14,7 @@ class OutfitCreate(BaseModel):
 
 class GenerateOutfitRequest(BaseModel):
     occasion: str
+    avatar_kind: str = "average"
     lat: Optional[float] = None
     lon: Optional[float] = None
     seed_item_id: Optional[uuid.UUID] = None

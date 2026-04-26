@@ -7,8 +7,7 @@ from app.models.outfit import Outfit, OutfitItem
 from app.models.user import User
 from app.models.clothing_item import ClothingItem
 from app.deps import get_current_user
-from app.schemas.outfit import OutfitCreate, OutfitResponse, OutfitItemSchema, OutfitItemResponse, GenerateOutfitRequest
-from app.schemas.clothing import ClothingItemResponse
+from app.schemas.outfit import OutfitCreate, OutfitResponse, OutfitItemSchema, GenerateOutfitRequest
 from app.services.weather import get_current_weather
 from app.services.ai_outfit_generator import generate_outfit
 from app.main import limiter
@@ -74,7 +73,7 @@ async def get_outfits(
             created_at=o.created_at
         ))
         
-    return {"status": "success"}
+    return outfits_resp
 
 @router.post("/generate", response_model=OutfitResponse)
 @limiter.limit("5/minute")
@@ -119,29 +118,35 @@ async def auto_generate_outfit(
     
     if not final_ids:
         raise HTTPException(status_code=500, detail="AI returned invalid item IDs")
-        
-    # Create outfit
+
+    # Create outfit — avatar_kind is NOT NULL so must be provided
+    outfit_id = uuid.uuid4()
     new_outfit = Outfit(
-        id=uuid.uuid4(),
+        id=outfit_id,
         user_id=current_user.id,
-        name=f"Generated for {body.occasion}"
+        name=f"Generated for {body.occasion}",
+        avatar_kind=body.avatar_kind,
     )
     db.add(new_outfit)
-    
-    items = []
+
+    # OutfitItem has composite PK (outfit_id, clothing_item_id) — no id column
+    outfit_item_schemas = []
     for ci_id in final_ids:
-        db.add(OutfitItem(id=uuid.uuid4(), outfit_id=new_outfit.id, clothing_item_id=uuid.UUID(ci_id)))
-        # populate response
-        ci = next((w for w in wardrobe_items if str(w.id) == ci_id), None)
-        if ci:
-            items.append(ClothingItemResponse.model_validate(ci))
-        
+        ci_uuid = uuid.UUID(ci_id)
+        db.add(OutfitItem(outfit_id=outfit_id, clothing_item_id=ci_uuid))
+        outfit_item_schemas.append(OutfitItemSchema(clothing_item_id=ci_uuid))
+
     await db.commit()
     await db.refresh(new_outfit)
-    
-    response = OutfitResponse.model_validate(new_outfit)
-    response.items = items
-    return response
+
+    return OutfitResponse(
+        id=new_outfit.id,
+        user_id=new_outfit.user_id,
+        name=new_outfit.name,
+        avatar_kind=new_outfit.avatar_kind,
+        items=outfit_item_schemas,
+        created_at=new_outfit.created_at,
+    )
 
 @router.delete("/{outfit_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_outfit(

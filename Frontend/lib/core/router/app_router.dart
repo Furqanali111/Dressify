@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/models/outfit.dart';
+import '../../core/models/user.dart';
+import '../../core/providers/auth_provider.dart';
 import '../../features/auth/sign_in_screen.dart';
 import '../../features/avatar/avatar_selection_screen.dart';
 import '../../features/feedback/ai_feedback_screen.dart';
@@ -14,15 +17,42 @@ import '../../features/splash/splash_screen.dart';
 import '../../features/try_on/try_on_screen.dart';
 import '../../features/upload/upload_screen.dart';
 import '../../features/wardrobe/wardrobe_screen.dart';
-import '../../core/models/outfit.dart';
 import 'app_routes.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
 
+/// Routes accessible without a valid JWT.
+const Set<String> _publicPaths = <String>{
+  '/splash',
+  '/onboarding',
+  '/sign-in',
+  '/profile-setup',
+  '/avatar-selection',
+};
+
 final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
+  final ValueNotifier<bool> refreshNotifier = ValueNotifier<bool>(false);
+
+  ref.listen<User?>(authStateProvider, (_, _) {
+    refreshNotifier.value = !refreshNotifier.value;
+  });
+
+  ref.onDispose(refreshNotifier.dispose);
+
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
     initialLocation: AppRoute.splash.path,
+    refreshListenable: refreshNotifier,
+    redirect: (BuildContext context, GoRouterState state) {
+      final User? user = ref.read(authStateProvider);
+      final String location = state.matchedLocation;
+      final bool isPublic = _publicPaths.contains(location);
+
+      if (user == null && !isPublic) {
+        return AppRoute.signIn.path;
+      }
+      return null;
+    },
     routes: <RouteBase>[
       GoRoute(
         path: AppRoute.splash.path,

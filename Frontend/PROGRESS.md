@@ -28,7 +28,11 @@ Currently exposed: `BYPASS_AUTH`, `API_BASE_URL`, `SENTRY_DSN`. When `BYPASS_AUT
 
 ## Status: all 10 spec screens built end-to-end + onboarding + interactivity polish
 
-`flutter analyze` is clean. The full happy path is navigable on a device:
+> ⚠️ `flutter analyze` reports 21 warnings (unused imports, null-aware, prefer_const) in files
+> touched by the parallel build agent. These do not block the build but should be fixed before
+> the backend integration sprint. The wardrobe screen and providers added later are clean.
+
+The full happy path is navigable on a device:
 
 > Splash → (first launch only: Onboarding) → Sign-In → Profile Setup → Avatar Selection → Home (with bottom nav: Home / Wardrobe / Profile) → Upload → Try-On → AI Feedback (bottom sheet) → save → back to Home/Wardrobe.
 
@@ -73,7 +77,7 @@ Every API call site is marked with `TODO(api):` so it's grep-able when the backe
 | 1 | Splash | `lib/features/splash/splash_screen.dart` | Gradient + animated wordmark, 1.5s delay, reads onboarding flag, branches on BYPASS_AUTH, shows DEV badge when bypassing |
 | 2 | Sign-In | `lib/features/auth/sign_in_screen.dart` | Google-branded button, error/loading states, bypass hint banner |
 | 3 | Profile Setup | `lib/features/profile_setup/profile_setup_screen.dart` | Step 1/2 header, name + height (cm OR ft·in dual) + weight (kg/lbs) + body-type chips, full validation, Continue gated on name + ≥1 valid measurement |
-| 4 | Avatar Selection | `lib/features/avatar/avatar_selection_screen.dart` | Horizontal scroll of 5 avatars (Slim / Athletic / Average / Curvy / Plus), select state with primary border + checkmark + 1.04 scale animation, Use This Avatar CTA |
+| 4 | Avatar Selection | `lib/features/avatar/avatar_selection_screen.dart` | Horizontal scroll of 10 avatars (5 female + 5 male: Slim / Athletic / Average / Curvy / Plus each), filtered by gender passed from Profile Setup. Select state with primary border + checkmark + 1.04 scale animation, Use This Avatar CTA |
 | 5 | Home | `lib/features/home/home_screen.dart` + `home_shell.dart` | Top bar (greeting + bell + avatar), 4 Quick Action tiles, Recent Outfits horizontal scroll with rating badges, See All link, empty state. **Bottom nav** is the `HomeShell` with active-tab dot indicator. **Pull-to-refresh** wired. |
 | 6 | Upload | `lib/features/upload/upload_screen.dart` | Dashed upload zone, source bottom sheet (Camera / Gallery via `image_picker`), preview, mocked auto-detection chip + override dropdown, mocked processing progress bar, success state with type chip + Try On / Save to Wardrobe |
 | 7 | Try-On Preview | `lib/features/try_on/try_on_screen.dart` | Dark-canvas 65% panel with avatar + mocked clothing overlay, pinch-zoom + drag, floating zoom/reset/visibility/fullscreen controls, bottom panel with item info + avatar selector + AI Feedback / Save Outfit (saving / saved states with auto-revert) |
@@ -89,10 +93,15 @@ Every API call site is marked with `TODO(api):` so it's grep-able when the backe
 - ✅ **Real Google Sign-In** — `google_sign_in` plugin wired to `_handleGoogleSignIn`. 
 - ✅ **`POST /auth/google`** — exchange Google ID token for backend JWT
 - ✅ **`flutter_secure_storage`** — persist JWT, read on splash
-- ✅ **Auth-gated routing** — `GoRouter.redirect` and `SplashScreen` send unauthenticated users to `signIn`
+- ⏳ **Auth-gated routing** — `SplashScreen` redirects unauthenticated cold-starts to `signIn`, but `GoRouter.redirect` is **not implemented**. Direct navigation to `/home` bypasses auth entirely.
 - ✅ **`dio` API client** — `lib/core/api/api_client.dart` — Dio instance using `AppFlags.apiBaseUrl`, JWT auth interceptor, error mapping (network / 401 / 4xx / 5xx)
 - ✅ **Models** — Standard Dart types for `User`, `Profile`, `ClothingItem`, `Outfit`, `AiFeedback`.
-- **Riverpod providers** — `authStateProvider`, `currentUserProvider`, `profileProvider`, `wardrobeProvider`, `outfitsProvider`. 
+- **Riverpod providers** — status per provider:
+  - ✅ `wardrobeProvider` — `lib/core/providers/wardrobe_provider.dart` (fetch/delete, real API)
+  - ✅ `outfitsProvider` — `lib/core/providers/outfits_provider.dart` (fetch/delete, real API)
+  - ⏳ `authStateProvider` — wired for Google sign-in and sign-out; `init()` uses a hardcoded mock `User` instead of parsing the real `/me` response. **Fix before any authenticated API testing.**
+  - ⏳ `profileProvider` — wired for fetch + update; partially tested
+  - ❌ `currentUserProvider` — not created; replace the hardcoded mock `User` in `authStateProvider.init()` with a proper `GET /me` parse
 - **Mock data deletion** — `lib/core/mock/mock_data.dart` is referenced by Home, Wardrobe, Try-On, Avatar Selection. When real providers land, remove this file and migrate consumers
 
 ### TODO(api) sites — explicit endpoints to wire

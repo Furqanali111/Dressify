@@ -13,7 +13,7 @@ Phase 1 = Core MVP per `Project_Plan.md`. The frontend is built and waiting on r
 - **`asyncpg`** + **SQLAlchemy 2.x async** for direct Postgres queries
 - **`rembg`** for background removal
 - **OpenCV** for clothing-type detection + anchor-point estimation
-- **LLM** (Anthropic Claude) for styling feedback, with rule-based fallback
+- **LLM** (OpenAI GPT-4o-mini with Ollama Llama 3.2 offline fallback) for styling feedback
 - **PyJWT** to mint short-lived backend JWTs
 - **Pydantic v2** for request/response models
 - **`uvicorn`** for the dev server, **`gunicorn`** behind a reverse proxy for prod
@@ -79,7 +79,8 @@ GOOGLE_CLIENT_ID=...                 # web client ID — used to verify Google I
 JWT_SECRET=...                       # backend-issued JWT signing key
 JWT_ISSUER=dressify-api
 JWT_TTL_HOURS=24
-ANTHROPIC_API_KEY=...                # for AI feedback
+OPENAI_API_KEY=...                   # for AI feedback (optional; falls back to Ollama)
+OLLAMA_BASE_URL=http://localhost:11434/v1  # local Llama 3.2 fallback
 ALLOWED_ORIGINS=http://localhost:3000,exp://...
 LOG_LEVEL=info
 ```
@@ -266,10 +267,10 @@ class ClothingItem(BaseModel):
 class AiFeedback(BaseModel):
     score: float                     # 0..10, drives the rating arc
     verdict: str                     # short overall line
-    suggestions: list[Suggestion]    # exactly 4: color / balance / occasion / trend
+    suggestions: list[Suggestion]    # exactly 4: color / balance / occasion / accessories
 
 class Suggestion(BaseModel):
-    category: Literal['color','balance','occasion','trend']
+    category: Literal['color','balance','occasion','accessories']
     title: str
     detail: str
 ```
@@ -307,12 +308,14 @@ After step 3, the frontend can flip `BYPASS_AUTH=false` in `.env`. After step 8,
 
 When each backend endpoint lands, the frontend can flip the corresponding switch:
 
-- [ ] `POST /auth/google` ready → frontend wires real Google sign-in, removes `Future.delayed` stub in `_handleGoogleSignIn`
-- [ ] `GET /me` ready → frontend splash reads JWT, verifies, routes to home if valid
-- [ ] `PATCH /profile` ready → frontend POSTs from profile setup + avatar selection
-- [ ] `POST /upload` ready → frontend swaps `Timer.periodic` mock progress for real multipart upload via `dio` with `onSendProgress`
-- [ ] `GET /clothing` + `GET /outfits` ready → frontend deletes `MockData`, replaces with Riverpod providers
-- [ ] `POST /outfits` ready → try-on Save Outfit goes live
-- [ ] `POST /feedback` ready → AI feedback sheet renders real responses
+- [x] `POST /auth/google` ready → frontend `authStateProvider.signInWithGoogle()` wired
+- [x] `GET /me` ready → **frontend still calls `GET /profile`; fix `authStateProvider.init()` to use `GET /me` and parse real `User`**
+- [x] `PATCH /profile` ready → frontend profile setup + avatar selection call it
+- [x] `POST /upload` ready → **frontend still uses `Timer.periodic` mock — wire real multipart upload**
+- [x] `GET /clothing` ready → `wardrobeProvider` consumes it
+- [x] `GET /outfits` ready (bug fixed: was returning wrong value) → `outfitsProvider` consumes it
+- [x] `DELETE /clothing/:id` + `DELETE /outfits/:id` ready → wardrobe long-press delete wired
+- [ ] `POST /outfits` ready → **try-on Save Outfit not yet wired on frontend**
+- [ ] `POST /feedback` ready → **AI feedback sheet not yet wired on frontend** (still mocked)
 
 Once all are checked, Phase 1 is shippable.

@@ -13,29 +13,23 @@ class AuthStateNotifier extends StateNotifier<User?> {
   AuthStateNotifier(this._ref) : super(null);
 
   Future<bool> init() async {
-    final token = await _storage.read(key: 'auth_jwt');
+    final String? token = await _storage.read(key: 'auth_jwt');
     if (token == null || token.isEmpty) return false;
 
     try {
-      final dio = _ref.read(apiClientProvider);
-      await dio.get('/profile');
-      state = User(
-        id: 'mock',
-        email: 'cached@example.com',
-        createdAt: DateTime.now(),
-      );
+      final Dio dio = _ref.read(apiClientProvider);
+      final Response<dynamic> response = await dio.get<dynamic>('/me');
+      final Map<String, dynamic> data = response.data as Map<String, dynamic>;
+      state = User.fromJson(data['user'] as Map<String, dynamic>);
       return true;
     } on DioException catch (e) {
-      if (e.response?.statusCode == 404) {
-         state = User(
-           id: 'mock',
-           email: 'cached@example.com',
-           createdAt: DateTime.now(),
-         );
-         return true;
+      // 401 = JWT invalid/expired — clear it
+      if (e.response?.statusCode == 401) {
+        await _storage.delete(key: 'auth_jwt');
+        state = null;
+        return false;
       }
-      await _storage.delete(key: 'auth_jwt');
-      state = null;
+      // Network error — keep token, let user retry
       return false;
     } catch (_) {
       return false;

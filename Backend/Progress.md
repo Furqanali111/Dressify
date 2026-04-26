@@ -23,5 +23,8 @@
 - [x] AI Status Tracking: Add `processing_status` to Clothing Items
 - [x] API Security: Add `slowapi` rate limiting to AI endpoints
 
+- [x] Testing: Setup tests structure — `tests/conftest.py`, `test_auth.py`, `test_upload.py`, `test_outfits.py` exist
+
 ## To Do
-- [ ] Testing: Setup tests structure and `pytest` fixtures for the Phase 1 features
+- [ ] Testing: Fill out actual assertions in test files; add CI integration
+- [ ] Bug: Fix `POST /outfits/generate` — four bugs (missing `avatar_kind`, `OutfitItem` id column, `model_validate` fails, type mismatch on `items`)

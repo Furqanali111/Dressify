@@ -1,12 +1,16 @@
-import 'dart:async';
 import 'dart:io';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../core/api/api_client.dart';
 import '../../core/mock/mock_data.dart';
+import '../../core/models/clothing_item.dart';
+import '../../core/providers/wardrobe_provider.dart';
 import '../../core/router/app_routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
@@ -18,14 +22,14 @@ import '../../core/widgets/secondary_button.dart';
 
 enum _UploadStage { idle, picked, processing, done, error }
 
-class UploadScreen extends StatefulWidget {
+class UploadScreen extends ConsumerStatefulWidget {
   const UploadScreen({super.key});
 
   @override
-  State<UploadScreen> createState() => _UploadScreenState();
+  ConsumerState<UploadScreen> createState() => _UploadScreenState();
 }
 
-class _UploadScreenState extends State<UploadScreen> {
+class _UploadScreenState extends ConsumerState<UploadScreen> {
   final ImagePicker _picker = ImagePicker();
 
   _UploadStage _stage = _UploadStage.idle;
@@ -33,19 +37,13 @@ class _UploadScreenState extends State<UploadScreen> {
   ClothingType _detectedType = ClothingType.top;
   double _progress = 0;
   String? _error;
-  Timer? _progressTimer;
-
-  @override
-  void dispose() {
-    _progressTimer?.cancel();
-    super.dispose();
-  }
+  ClothingItem? _uploadedItem;
 
   Future<void> _showSourceSheet() async {
     final ImageSource? source = await showModalBottomSheet<ImageSource>(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (BuildContext ctx) => const _SourceSheet(),
+      builder: (_) => const _SourceSheet(),
     );
     if (source == null) return;
     await _pickImage(source);
@@ -53,19 +51,18 @@ class _UploadScreenState extends State<UploadScreen> {
 
   Future<void> _pickImage(ImageSource source) async {
     try {
-      // Check camera permission if using camera
       if (source == ImageSource.camera) {
         final bool granted = await AppPermissions.ensureCamera(context);
         if (!granted || !mounted) return;
       }
-
-      final XFile? file = await _picker.pickImage(source: source, imageQuality: 90);
+      final XFile? file =
+          await _picker.pickImage(source: source, imageQuality: 90);
       if (file == null) return;
       setState(() {
         _picked = file;
         _stage = _UploadStage.picked;
         _error = null;
-        // Mocked auto-detection — pretend the API returned 'Top'.
+        _uploadedItem = null;
         _detectedType = ClothingType.top;
       });
     } catch (_) {
@@ -76,33 +73,96 @@ class _UploadScreenState extends State<UploadScreen> {
     }
   }
 
-  void _startProcessing() {
+  Future<void> _startProcessing() async {
+    if (_picked == null) return;
     HapticFeedback.lightImpact();
     setState(() {
       _stage = _UploadStage.processing;
       _progress = 0;
-    });
-
-    // TODO(api): POST image to backend `/upload`, stream progress.
-    _progressTimer = Timer.periodic(const Duration(milliseconds: 60), (Timer t) {
-      if (!mounted) return;
-      setState(() => _progress = (_progress + 0.025).clamp(0.0, 1.0));
-      if (_progress >= 1.0) {
-        t.cancel();
-        HapticFeedback.lightImpact();
-        setState(() => _stage = _UploadStage.done);
-      }
-    });
-  }
-
-  void _reset() {
-    _progressTimer?.cancel();
-    setState(() {
-      _stage = _UploadStage.idle;
-      _picked = null;
-      _progress = 0;
       _error = null;
     });
+
+    try {
+      final Dio dio = ref.read(apiClientProvider);
+      final String fileName = _picked!.name;
+      final String itemName = fileName.contains('.')
+          ? fileName.substring(0, fileName.lastIndexOf('.'))
+          : fileName;
+
+      final FormData form = FormData.fromMap(<String, dynamic>{
+        'image': await MultipartFile.fromFile(_picked!.path, filename: fileName),
+        'name': itemName,
+      });
+
+      final Response<dynamic> response = await dio.post<dynamic>(
+        '/upload',
+        data: form,
+        // Upload transfer: 0 → 80%. Backend rembg (80 → 100%) is not streamable,
+        // so progress ≥ 0.8 triggers an indeterminate indicator in the UI.
+        onSendProgress: (int sent, int total) {
+          if (!mounted || total <= 0) return;
+          setState(() => _progress = (sent / total * 0.8).clamp(0.0, 0.8));
+        },
+        options: Options(contentType: 'multipart/form-data'),
+      );
+
+      final ClothingItem item =
+          ClothingItem.fromJson(response.data as Map<String, dynamic>);
+
+      if (!mounted) return;
+      HapticFeedback.lightImpact();
+      setState(() {
+        _uploadedItem = item;
+        _detectedType = _typeFromString(item.type);
+        _progress = 1.0;
+        _stage = _UploadStage.done;
+      });
+
+      // Refresh wardrobe so the new item appears immediately on the wardrobe tab
+      ref.read(wardrobeProvider.notifier).fetch();
+    } on DioException catch (e) {
+      if (!mounted) return;
+      final String msg =
+          ((e.response?.data as Map?)?['detail'] as String?) ??
+          'Upload failed. Check your connection and try again.';
+      setState(() {
+        _stage = _UploadStage.error;
+        _error = msg;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _stage = _UploadStage.error;
+        _error = 'Something went wrong. Please try again.';
+      });
+    }
+  }
+
+  void _reset() => setState(() {
+        _stage = _UploadStage.idle;
+        _picked = null;
+        _progress = 0;
+        _error = null;
+        _uploadedItem = null;
+      });
+
+  static ClothingType _typeFromString(String type) {
+    switch (type) {
+      case 'top':
+        return ClothingType.top;
+      case 'bottom':
+        return ClothingType.bottom;
+      case 'dress':
+        return ClothingType.dress;
+      case 'jacket':
+        return ClothingType.jacket;
+      case 'shoes':
+        return ClothingType.shoes;
+      case 'accessory':
+        return ClothingType.accessory;
+      default:
+        return ClothingType.other;
+    }
   }
 
   @override
@@ -128,12 +188,15 @@ class _UploadScreenState extends State<UploadScreen> {
               if (_error != null)
                 _ErrorBanner(message: _error!, onRetry: _reset)
               else
-                Expanded(child: _Hero(
-                  stage: _stage,
-                  picked: _picked,
-                  progress: _progress,
-                  onPick: _showSourceSheet,
-                )),
+                Expanded(
+                  child: _Hero(
+                    stage: _stage,
+                    picked: _picked,
+                    progress: _progress,
+                    processedUrl: _uploadedItem?.processedUrl,
+                    onPick: _showSourceSheet,
+                  ),
+                ),
               const SizedBox(height: AppSpacing.lg),
               _Bottom(
                 stage: _stage,
@@ -142,9 +205,10 @@ class _UploadScreenState extends State<UploadScreen> {
                     setState(() => _detectedType = t),
                 onProcess: _startProcessing,
                 onChangeImage: _reset,
-                onTryOn: () => context.pushReplacementNamed(AppRoute.tryOn.name),
+                onTryOn: () =>
+                    context.pushReplacementNamed(AppRoute.tryOn.name),
                 onSave: () {
-                  // TODO(api): POST clothing item to wardrobe.
+                  // Item is already persisted by POST /upload — just refresh UI
                   AppToast.success(context, 'Saved to wardrobe');
                   context.pop();
                 },
@@ -157,18 +221,24 @@ class _UploadScreenState extends State<UploadScreen> {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Hero area
+// ---------------------------------------------------------------------------
+
 class _Hero extends StatelessWidget {
   const _Hero({
     required this.stage,
     required this.picked,
     required this.progress,
     required this.onPick,
+    this.processedUrl,
   });
 
   final _UploadStage stage;
   final XFile? picked;
   final double progress;
   final VoidCallback onPick;
+  final String? processedUrl;
 
   @override
   Widget build(BuildContext context) {
@@ -182,26 +252,29 @@ class _Hero extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppRadius.card),
           onTap: onPick,
           child: CustomPaint(
-            painter: DashedRRectPainter(color: c.primary.withValues(alpha: 0.6)),
-            child: Container(
+            painter:
+                DashedRRectPainter(color: c.primary.withValues(alpha: 0.6)),
+            child: SizedBox(
               width: double.infinity,
-              padding: const EdgeInsets.all(AppSpacing.xl),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: <Widget>[
-                  Icon(Icons.cloud_upload_outlined, size: 56, color: c.primary),
-                  const SizedBox(height: AppSpacing.md),
-                  Text(
-                    'Tap to upload or drag here',
-                    style: text.titleMedium,
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    'Supports JPG, PNG up to 10MB',
-                    style: text.bodySmall?.copyWith(color: c.textSecondary),
-                  ),
-                ],
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.xl),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: <Widget>[
+                    Icon(Icons.cloud_upload_outlined, size: 56, color: c.primary),
+                    const SizedBox(height: AppSpacing.md),
+                    Text(
+                      'Tap to upload or drag here',
+                      style: text.titleMedium,
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      'Supports JPG, PNG up to 10MB',
+                      style: text.bodySmall?.copyWith(color: c.textSecondary),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -209,26 +282,32 @@ class _Hero extends StatelessWidget {
       );
     }
 
-    final Widget image = picked == null
-        ? const SizedBox.shrink()
-        : ClipRRect(
-            borderRadius: BorderRadius.circular(AppRadius.card),
-            child: Image.file(
-              File(picked!.path),
-              fit: BoxFit.cover,
-              width: double.infinity,
-            ),
-          );
+    // Prefer the processed (background-removed) image when available
+    final bool showProcessed =
+        stage == _UploadStage.done &&
+        processedUrl != null &&
+        processedUrl!.isNotEmpty;
+
+    final Widget imageWidget = showProcessed
+        ? Image.network(
+            processedUrl!,
+            fit: BoxFit.contain,
+            width: double.infinity,
+            loadingBuilder: (_, Widget child, ImageChunkEvent? progress) =>
+                progress == null ? child : const Center(child: CircularProgressIndicator()),
+            errorBuilder: (_, _, _) => _localImage,
+          )
+        : _localImage;
 
     return Stack(
       children: <Widget>[
         Positioned.fill(
-          child: Container(
-            decoration: BoxDecoration(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(AppRadius.card),
+            child: ColoredBox(
               color: c.surface,
-              borderRadius: BorderRadius.circular(AppRadius.card),
+              child: imageWidget,
             ),
-            child: image,
           ),
         ),
         if (stage == _UploadStage.processing)
@@ -236,7 +315,7 @@ class _Hero extends StatelessWidget {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(AppRadius.card),
               child: ColoredBox(
-                color: Colors.black.withValues(alpha: 0.45),
+                color: Colors.black.withValues(alpha: 0.55),
                 child: Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -246,17 +325,21 @@ class _Hero extends StatelessWidget {
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(8),
                           child: LinearProgressIndicator(
-                            value: progress,
-                            backgroundColor: Colors.white.withValues(alpha: 0.2),
-                            valueColor:
-                                const AlwaysStoppedAnimation<Color>(Colors.white),
+                            // Indeterminate while waiting for backend after upload
+                            value: progress < 0.8 ? progress : null,
+                            backgroundColor:
+                                Colors.white.withValues(alpha: 0.2),
+                            valueColor: const AlwaysStoppedAnimation<Color>(
+                                Colors.white),
                             minHeight: 6,
                           ),
                         ),
                       ),
                       const SizedBox(height: AppSpacing.md),
                       Text(
-                        'Removing background… ${(progress * 100).toInt()}%',
+                        progress < 0.8
+                            ? 'Uploading… ${(progress / 0.8 * 100).toInt()}%'
+                            : 'Removing background…',
                         style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.w600,
@@ -278,7 +361,7 @@ class _Hero extends StatelessWidget {
                 vertical: 4,
               ),
               decoration: BoxDecoration(
-                color: c.success,
+                color: context.colors.success,
                 borderRadius: BorderRadius.circular(AppRadius.chip),
               ),
               child: const Row(
@@ -301,7 +384,19 @@ class _Hero extends StatelessWidget {
       ],
     );
   }
+
+  Widget get _localImage => picked == null
+      ? const SizedBox.shrink()
+      : Image.file(
+          File(picked!.path),
+          fit: BoxFit.cover,
+          width: double.infinity,
+        );
 }
+
+// ---------------------------------------------------------------------------
+// Bottom action bar
+// ---------------------------------------------------------------------------
 
 class _Bottom extends StatelessWidget {
   const _Bottom({
@@ -335,35 +430,7 @@ class _Bottom extends StatelessWidget {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          Row(
-            children: <Widget>[
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.sm,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: c.success.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(AppRadius.chip),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    Icon(detectedType.icon, size: 14, color: c.success),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Detected: ${detectedType.label}',
-                      style: TextStyle(
-                        color: c.success,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+          _TypeChip(type: detectedType, color: c.success),
           const SizedBox(height: AppSpacing.lg),
           Row(
             children: <Widget>[
@@ -388,44 +455,23 @@ class _Bottom extends StatelessWidget {
       );
     }
 
+    // picked or processing
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         Row(
           children: <Widget>[
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.sm,
-                vertical: 4,
-              ),
-              decoration: BoxDecoration(
-                color: c.success.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(AppRadius.chip),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  Icon(Icons.check, size: 14, color: c.success),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${detectedType.label} detected',
-                    style: TextStyle(
-                      color: c.success,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            _TypeChip(type: detectedType, color: c.success),
             const SizedBox(width: AppSpacing.md),
             DropdownButton<ClothingType>(
               value: detectedType,
               underline: const SizedBox.shrink(),
               style: text.bodyMedium,
-              onChanged: (ClothingType? t) {
-                if (t != null) onTypeChanged(t);
-              },
+              onChanged: stage == _UploadStage.processing
+                  ? null
+                  : (ClothingType? t) {
+                      if (t != null) onTypeChanged(t);
+                    },
               items: ClothingType.values
                   .map((ClothingType t) => DropdownMenuItem<ClothingType>(
                         value: t,
@@ -434,10 +480,11 @@ class _Bottom extends StatelessWidget {
                   .toList(),
             ),
             const Spacer(),
-            TextButton(
-              onPressed: onChangeImage,
-              child: const Text('Change image'),
-            ),
+            if (stage != _UploadStage.processing)
+              TextButton(
+                onPressed: onChangeImage,
+                child: const Text('Change image'),
+              ),
           ],
         ),
         const SizedBox(height: AppSpacing.md),
@@ -452,6 +499,44 @@ class _Bottom extends StatelessWidget {
     );
   }
 }
+
+class _TypeChip extends StatelessWidget {
+  const _TypeChip({required this.type, required this.color});
+
+  final ClothingType type;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding:
+          const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(AppRadius.chip),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Icon(type.icon, size: 14, color: color),
+          const SizedBox(width: 4),
+          Text(
+            type.label,
+            style: TextStyle(
+              color: color,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Source picker sheet
+// ---------------------------------------------------------------------------
 
 class _SourceSheet extends StatelessWidget {
   const _SourceSheet();
@@ -496,7 +581,8 @@ class _SourceSheet extends StatelessWidget {
                   child: _SourceTile(
                     icon: Icons.camera_alt_outlined,
                     label: 'Camera',
-                    onTap: () => Navigator.of(context).pop(ImageSource.camera),
+                    onTap: () =>
+                        Navigator.of(context).pop(ImageSource.camera),
                   ),
                 ),
                 const SizedBox(width: AppSpacing.md),
@@ -504,7 +590,8 @@ class _SourceSheet extends StatelessWidget {
                   child: _SourceTile(
                     icon: Icons.photo_library_outlined,
                     label: 'Gallery',
-                    onTap: () => Navigator.of(context).pop(ImageSource.gallery),
+                    onTap: () =>
+                        Navigator.of(context).pop(ImageSource.gallery),
                   ),
                 ),
               ],
@@ -564,6 +651,10 @@ class _SourceTile extends StatelessWidget {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Error state
+// ---------------------------------------------------------------------------
+
 class _ErrorBanner extends StatelessWidget {
   const _ErrorBanner({required this.message, required this.onRetry});
 
@@ -583,7 +674,8 @@ class _ErrorBanner extends StatelessWidget {
             const SizedBox(height: AppSpacing.md),
             Text(message, textAlign: TextAlign.center),
             const SizedBox(height: AppSpacing.lg),
-            PrimaryButton(label: 'Try Again', onPressed: onRetry, fullWidth: false),
+            PrimaryButton(
+                label: 'Try Again', onPressed: onRetry, fullWidth: false),
           ],
         ),
       ),
