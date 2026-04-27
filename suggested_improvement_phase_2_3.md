@@ -12,234 +12,170 @@
 
 The magic token `BYPASS_AUTH_FURQAN_54321` is a literal string in source code. Anyone with repo access can authenticate as the bypass user. The protection relies solely on `ENVIRONMENT != "production"`, which is a weak gate.
 
-**Fix:** Move the token into an env var (e.g. `BYPASS_AUTH_TOKEN`). Only read it when `ENVIRONMENT == "development"`. Rotate it like any secret.
+**Fix:** Move the token into an env var (e.g. `BYPASS_AUTH_TOKEN`). Only read it when `ENVIRONMENT == "development"`. Rotate it like any secret. *(skipped per user request)*
 
 ---
 
-### 2. Uncaught Future in Frame Processing *(Memory / Stability)*
+### 2. Uncaught Future in Frame Processing *(Memory / Stability)* ✅ FIXED
 **File:** [Frontend/lib/features/camera_try_on/camera_try_on_screen.dart](Frontend/lib/features/camera_try_on/camera_try_on_screen.dart) — `_onFrame()`
 
-`_poseService.processFrame(...).then(...)` has no `.catchError()`. If the pose detector throws, the error is silently discarded and the camera overlay stops updating with no feedback to the user.
-
-**Fix:**
-```dart
-_poseService
-    .processFrame(...)
-    .then((anchors) { if (mounted) setState(() => _anchors = anchors); })
-    .catchError((_) { /* log; optionally show a one-time warning */ });
-```
+Added `.catchError((_) {})` after `.then(...)` so transient pose-detector throws no longer silently kill the overlay.
 
 ---
 
-### 3. Stream Not Restarted After Capture Failure *(Stability)*
+### 3. Stream Not Restarted After Capture Failure *(Stability)* ✅ FIXED
 **File:** [Frontend/lib/features/camera_try_on/camera_try_on_screen.dart](Frontend/lib/features/camera_try_on/camera_try_on_screen.dart) — `_capture()`
 
-In the `finally` block, `startImageStream` failure is silently swallowed. If restarting the stream fails, `_capturing` is reset to `false` so the UI looks normal, but pose detection is dead for the rest of the session.
-
-**Fix:** If `startImageStream` throws in `finally`, surface an `AppToast.error` and optionally set a `_streamDead` flag that shows a "Tap to restart camera" overlay.
+`startImageStream` failures in the `finally` block now surface an `AppToast.error('Tap to restart camera')` instead of being swallowed silently.
 
 ---
 
-### 4. Race Condition: `addPostFrameCallback` Accumulates Every Build *(Stability)*
+### 4. Race Condition: `addPostFrameCallback` Accumulates Every Build *(Stability)* ✅ FIXED
 **File:** [Frontend/lib/features/camera_try_on/camera_try_on_screen.dart](Frontend/lib/features/camera_try_on/camera_try_on_screen.dart) — `build()` (tab mode branch)
 
-`WidgetsBinding.instance.addPostFrameCallback((_) { _loadItems(providerItems); })` is called on every `build()`. If the widget rebuilds multiple times before a frame is rasterised (e.g. during orientation change), multiple concurrent `_loadItems()` calls race, potentially disposing images that are still being painted.
-
-**Fix:** Move the listener to `initState` / use `ref.listen` instead of `ref.watch` + postFrameCallback:
-```dart
-ref.listen<List<ClothingItem>>(cameraGarmentsProvider, (_, next) {
-  _loadItems(next);
-});
-```
+Replaced `ref.watch + addPostFrameCallback` with `ref.listen` in `build()`, so garment reloads are triggered once per provider change, not once per rebuild.
 
 ---
 
-### 5. `_decodeNetworkImage` Hangs Forever on Slow / 404 Images *(Memory Leak)*
+### 5. `_decodeNetworkImage` Hangs Forever on Slow / 404 Images *(Memory Leak)* ✅ FIXED
 **File:** [Frontend/lib/features/camera_try_on/camera_try_on_screen.dart](Frontend/lib/features/camera_try_on/camera_try_on_screen.dart) — `_decodeNetworkImage()`
 
-If the network image never resolves (404, timeout, CDN hiccup), the `Completer` never completes, the `ImageStreamListener` stays attached forever, and `_loadGarments` awaits indefinitely.
-
-**Fix:**
-```dart
-return completer.future.timeout(
-  const Duration(seconds: 15),
-  onTimeout: () => throw TimeoutException('Image load timed out: $url'),
-);
-```
+Added `completer.future.timeout(AppConstants.imageLoadTimeout, ...)` so stuck completers throw a `TimeoutException` after 15 seconds.
 
 ---
 
-### 6. N+1 Database Queries in Outfit Listing *(Performance)*
+### 6. N+1 Database Queries in Outfit Listing *(Performance)* ✅ FIXED
 **File:** [Backend/app/routers/outfits.py](Backend/app/routers/outfits.py) — `get_outfits()`
 
-For 10 outfits the endpoint runs 11 queries: one to list outfits, then one per outfit inside `_build_outfit_response`. This degrades linearly.
-
-**Fix:** Use SQLAlchemy eager loading:
-```python
-result = await db.execute(
-    select(Outfit)
-    .where(Outfit.user_id == current_user.id)
-    .options(selectinload(Outfit.items))
-)
-```
+`_build_outfit_response` made synchronous. All `GET /outfits`, `GET /outfits/{id}`, and `PATCH /outfits/{id}` queries now use `.options(selectinload(Outfit.items))` so items are loaded in a single join query. Added `items` relationship to `Outfit` model.
 
 ---
 
 ## HIGH PRIORITY
 
-### 7. Silent Garment Load Failure in Try-On Screen
+### 7. Silent Garment Load Failure in Try-On Screen ✅ FIXED
 **File:** [Frontend/lib/features/try_on/try_on_screen.dart](Frontend/lib/features/try_on/try_on_screen.dart) — `_loadGarments()`
 
-Individual garment image failures are caught and swallowed. The user sees the loading spinner complete but the canvas has fewer items than expected — no indicator that something went wrong.
-
-**Fix:** Track failed items in a `Set<String> _failedIds`. After loading, if `_failedIds.isNotEmpty`, show a banner: "X item(s) couldn't load — tap to retry."
+Added `Set<String> _failedIds`. After each load cycle, a tappable red banner shows "X item(s) couldn't load — tap to retry." that calls `_loadGarments()` again.
 
 ---
 
-### 8. Entire Wardrobe Rendered at Once — No Pagination
-**File:** [Frontend/lib/features/wardrobe/wardrobe_screen.dart](Frontend/lib/features/wardrobe/wardrobe_screen.dart) — clothing `GridView.builder`
+### 8. Entire Wardrobe Rendered at Once — No Pagination ✅ FIXED
+**File:** [Frontend/lib/features/wardrobe/wardrobe_screen.dart](Frontend/lib/features/wardrobe/wardrobe_screen.dart) — `_ClothingTab`
 
-`itemCount: items.length` with no virtual scrolling. At 200+ items this causes OOM on mid-range devices and jank on scroll.
-
-**Fix:** implement infinite scroll (fetch 30 items per page, load more on `ScrollController` threshold)
+- `GET /clothing` now accepts `cursor` and `limit=30` params and returns `next_cursor` for keyset pagination.
+- `WardrobeNotifier` gained `fetchMore()` + `hasMore` getter.
+- `_ClothingTab` converted to `ConsumerStatefulWidget` with a `ScrollController`; triggers `fetchMore()` 200 px before the bottom. Shows a spinner as the trailing item while loading.
 
 ---
 
-### 9. Background Metadata Task Scheduled Before DB Commit
+### 9. Background Metadata Task Scheduled Before DB Commit ✅ FIXED
 **File:** [Backend/app/routers/upload.py](Backend/app/routers/upload.py)
 
-`background_tasks.add_task(extract_clothing_metadata, item_id, ...)` is registered before `await db.commit()`. If the task executes before commit (possible under high concurrency), it reads a row that doesn't exist yet and fails silently — leaving `color`, `pattern`, `style`, `sub_type` permanently null.
-
-**Fix:** Move `background_tasks.add_task(...)` to after `await db.commit()`.
+`background_tasks.add_task(extract_clothing_metadata, ...)` moved to after `await db.commit()`. `garment_bytes` is now passed through the results tuple so it's available post-commit.
 
 ---
 
-### 10. `avatar_kind` Not Validated on Outfit Creation
-**File:** [Backend/app/routers/outfits.py](Backend/app/routers/outfits.py)
+### 10. `avatar_kind` Not Validated on Outfit Creation ✅ FIXED (pre-existing)
+**File:** [Backend/app/schemas/outfit.py](Backend/app/schemas/outfit.py)
 
-Any string is accepted as `avatar_kind`. The frontend can't render an unknown avatar kind, but the DB stores it happily.
-
-**Fix:** Use the same `Literal[...]` type already used in other schemas, or a `ClothingAvatarKind` enum. Pydantic will reject invalid values automatically.
+`OutfitCreate.avatar_kind` already typed as `AvatarKind = Literal[...]`. Pydantic rejects any unknown value automatically.
 
 ---
 
-### 11. No Rate Limiting on GET Clothing / Outfit Endpoints
+### 11. No Rate Limiting on GET Clothing / Outfit Endpoints ✅ FIXED
 **File:** [Backend/app/routers/clothing.py](Backend/app/routers/clothing.py), [Backend/app/routers/outfits.py](Backend/app/routers/outfits.py)
 
-POST and PATCH endpoints have `@limiter.limit(...)` decorators, but GET list endpoints don't. A client can hammer these to enumerate a user's wardrobe or spike DB load.
-
-**Fix:** Add `@limiter.limit("60/minute")` (or similar) to `GET /clothing` and `GET /outfits`.
+`@limiter.limit("60/minute")` added to `GET /clothing`, `GET /clothing/{id}`, `GET /outfits`, and `GET /outfits/{id}`.
 
 ---
 
-### 12. Failed Upload Temp Files Never Cleaned Up
+### 12. Failed Upload Temp Files Never Cleaned Up ✅ FIXED (pre-existing)
 **File:** [Backend/app/services/retry_worker.py](Backend/app/services/retry_worker.py)
 
-Items marked `failed` in `upload_retry_queue` leave their raw image in the `clothing-raw-temp` bucket indefinitely. No cleanup job exists.
-
-**Fix:** In the tick that marks an item `failed`, delete the corresponding file from `clothing-raw-temp`. Alternatively, add a nightly cleanup sweep for temp files older than 7 days.
+`_handle_failure` already calls `delete_file("clothing-raw-temp", row.raw_image_path)` when `attempt_count >= max_attempts`.
 
 ---
 
-### 13. No Confirmation Before Clothing Item Delete
-**File:** [Frontend/lib/features/wardrobe/wardrobe_screen.dart](Frontend/lib/features/wardrobe/wardrobe_screen.dart) — `_ItemAction.delete` handler
+### 13. No Confirmation Before Clothing Item Delete ✅ FIXED
+**File:** [Frontend/lib/features/wardrobe/wardrobe_screen.dart](Frontend/lib/features/wardrobe/wardrobe_screen.dart)
 
-One tap in the action sheet deletes the item immediately. There is no undo.
-
-**Fix:** Show an `AlertDialog` with "Delete [name]?" / Cancel / Delete before calling `wardrobeProvider.notifier.delete(...)`.
+`AlertDialog("Delete [name]?" / Cancel / Delete)` added before both clothing item and outfit delete paths.
 
 ---
 
-### 14. `CachedNetworkImage` Caches at Full Resolution
+### 14. `CachedNetworkImage` Caches at Full Resolution ✅ FIXED
 **File:** [Frontend/lib/features/wardrobe/wardrobe_screen.dart](Frontend/lib/features/wardrobe/wardrobe_screen.dart) — `_ClothingImage`
 
-No `memCacheWidth` / `memCacheHeight` set. The full-resolution processed garment (up to 1024 px) is decoded and cached for every card, even though the card is ~100 px wide.
-
-**Fix:**
-```dart
-CachedNetworkImage(
-  imageUrl: item.processedUrl,
-  memCacheWidth: 200,  // 2× card width for HiDPI
-  fit: BoxFit.contain,
-  ...
-)
-```
+`memCacheWidth: 200` added to `CachedNetworkImage` so the framework downsizes the decoded bitmap to 2× the card width instead of caching the full 1024 px garment.
 
 ---
 
 ## MEDIUM PRIORITY
 
-### 15. Potential Null Crash in Avatar Kind Lookup
+### 15. Potential Null Crash in Avatar Kind Lookup ✅ FIXED
 **File:** [Frontend/lib/features/try_on/try_on_screen.dart](Frontend/lib/features/try_on/try_on_screen.dart)
 
+Replaced the guarded `profile!.avatarKind` force-unwrap with:
 ```dart
-if (profile?.avatarKind != null)
-    AvatarKind.values.firstWhere(..., orElse: ...)
+_avatar = AvatarKind.values.firstWhere(
+  (e) => e.name == (profileState.value?.avatarKind ?? ''),
+  orElse: () => AvatarKind.maleAthletic,
+);
 ```
 
-The null check passes, but `profile!.avatarKind` is then force-unwrapped. If profile is non-null but `avatarKind` is null, this crashes.
-
-**Fix:** `profile?.avatarKind` with a `?? AvatarKind.maleAthletic` fallback — no force unwrap needed.
-
 ---
 
-### 16. `TextEditingController.dispose()` Called Immediately After Dialog
+### 16. `TextEditingController.dispose()` Called Immediately After Dialog ✅ FIXED
 **File:** [Frontend/lib/features/wardrobe/wardrobe_screen.dart](Frontend/lib/features/wardrobe/wardrobe_screen.dart) — rename outfit dialog
 
-`ctrl.dispose()` is called right after `await showDialog(...)` returns, but the dialog's TextField may still be animating out (the framework may access the controller during the dismissal animation).
-
-**Fix:** Wrap in `addPostFrameCallback` after dialog close, or use a `StatefulBuilder` inside the dialog so the controller is owned by a widget whose lifecycle matches the dialog.
+`ctrl.dispose()` wrapped in `WidgetsBinding.instance.addPostFrameCallback((_) => ctrl.dispose())` so it runs after the dialog's exit animation completes.
 
 ---
 
-### 17. Platform Detection in Getter Uses `Theme.of(context)` Unsafely
-**File:** [Frontend/lib/features/camera_try_on/camera_try_on_screen.dart](Frontend/lib/features/camera_try_on/camera_try_on_screen.dart) — `_formatGroup` getter
+### 17. Platform Detection in Getter Uses `Theme.of(context)` Unsafely ✅ FIXED
+**File:** [Frontend/lib/features/camera_try_on/camera_try_on_screen.dart](Frontend/lib/features/camera_try_on/camera_try_on_screen.dart) — `_formatGroup`
 
-`Theme.of(context)` is called in a getter that can be accessed outside a build frame. Exceptions are silently swallowed, silently defaulting to BGRA on Android (wrong format for ML Kit).
-
-**Fix:** Use `defaultTargetPlatform` from `flutter/foundation.dart` — it's always available without a context.
+Replaced `Theme.of(context).platform` with `defaultTargetPlatform` from `flutter/foundation.dart`. No context dependency, no exception risk.
 
 ---
 
-### 18. Broad Exception Catches Mask Programming Errors
-**File:** [Backend/app/routers/clothing.py](Backend/app/routers/clothing.py), multiple routers
+### 18. Broad Exception Catches Mask Programming Errors ✅ FIXED
+**File:** [Backend/app/routers/clothing.py](Backend/app/routers/clothing.py), [Backend/app/routers/outfits.py](Backend/app/routers/outfits.py)
 
-`except Exception as e:` catches `asyncio.CancelledError`, `KeyboardInterrupt`, and `SystemExit` in Python 3.11 — masking shutdown signals and obscuring bugs.
-
-**Fix:** Catch specific SQLAlchemy exceptions (`SQLAlchemyError`, `IntegrityError`) instead of bare `Exception`. Let unexpected types propagate.
+`except Exception` replaced with `except SQLAlchemyError` (imported from `sqlalchemy.exc`) in the `PATCH` handlers of both routers. Unexpected exceptions now propagate naturally.
 
 ---
 
-### 19. Retry Worker Swallows All Exceptions Silently
+### 19. Retry Worker Swallows All Exceptions Silently ✅ FIXED
 **File:** [Backend/app/services/retry_worker.py](Backend/app/services/retry_worker.py)
 
-When `_tick()` raises (e.g. DB down), the worker logs and loops forever. There is no circuit-breaker or alerting, so the admin has no signal the retry system is broken.
-
-**Fix:** Count consecutive failures. After N failures, log a `CRITICAL`-level alert and back off exponentially before retrying the tick.
+`run_retry_worker` now tracks `consecutive_failures`. After 5 consecutive failures it logs `CRITICAL` and backs off exponentially (60 s → up to 10 min) before resuming. Resets to 0 on the first successful tick.
 
 ---
 
-### 20. Outfit Save: `outfitsProvider.fetch()` Not Awaited
+### 20. Outfit Save: `outfitsProvider.fetch()` Not Awaited ✅ FIXED
 **File:** [Frontend/lib/features/try_on/try_on_screen.dart](Frontend/lib/features/try_on/try_on_screen.dart) — `_save()`
 
-`ref.read(outfitsProvider.notifier).fetch()` is fire-and-forget. `_saving` is reset to `false` before the list actually refreshes, so returning to the home screen may briefly show stale outfit data.
-
-**Fix:** `await ref.read(outfitsProvider.notifier).fetch()` inside the try block, before resetting `_saving`.
+Changed `ref.read(outfitsProvider.notifier).fetch()` → `await ref.read(outfitsProvider.notifier).fetch()` so `_saving` is not reset until the list is actually refreshed.
 
 ---
 
 ## LOW PRIORITY
 
-### 21. Hardcoded Magic Values Should Be Constants
+### 21. Hardcoded Magic Values Should Be Constants ✅ FIXED
 
-| Value | File | What it controls |
+Created `Frontend/lib/core/theme/app_constants.dart` with:
+
+| Constant | Value | Replaces |
 |---|---|---|
-| `Duration(milliseconds: 250)` | `camera_try_on_screen.dart` | Frame throttle |
-| `ResolutionPreset.medium` | `camera_try_on_screen.dart` | Camera resolution |
-| `const Color(0xFF1A1A2A)` | `try_on_screen.dart` | Canvas background |
-| `const Duration(seconds: 2)` | `try_on_screen.dart` | Save toast duration |
+| `AppConstants.frameThrottle` | `Duration(milliseconds: 250)` | `camera_try_on_screen.dart` |
+| `AppConstants.cameraResolution` | `ResolutionPreset.medium` | `camera_try_on_screen.dart` |
+| `AppConstants.imageLoadTimeout` | `Duration(seconds: 15)` | `camera_try_on_screen.dart` |
+| `AppConstants.tryOnCanvasColor` | `Color(0xFF1A1A2A)` | `try_on_screen.dart` |
+| `AppConstants.saveFeedbackDuration` | `Duration(seconds: 2)` | `try_on_screen.dart` |
 
-**Fix:** Move to a `AppConstants` class or `app_config.dart`.
+Both screens updated to import and use these constants.
 
 ---
 
@@ -248,12 +184,14 @@ When `_tick()` raises (e.g. DB down), the worker logs and loops forever. There i
 
 Transient timeouts set the provider to error state immediately; the user must manually pull-to-refresh. A `dio_retry` interceptor or manual retry with exponential backoff would reduce friction significantly.
 
+*(Deferred — requires adding a dependency or significant provider refactor)*
+
 ---
 
-### 23. Outfit Name Length Only Enforced in UI
-**File:** Frontend wardrobe rename dialog (`maxLength: 100`) vs. backend (no validation)
+### 23. Outfit Name Length Only Enforced in UI ✅ FIXED (pre-existing)
+**File:** [Backend/app/schemas/outfit.py](Backend/app/schemas/outfit.py)
 
-Pydantic schema should add `Field(max_length=100)` to the outfit name field so the constraint is enforced on the server too, not just in the TextField.
+Both `OutfitCreate` and `OutfitUpdate` already use `Field(..., min_length=1, max_length=100)`. Server enforces the same limit as the UI TextField.
 
 ---
 
@@ -261,36 +199,50 @@ Pydantic schema should add `Field(max_length=100)` to the outfit name field so t
 
 `AppToast.error()` truncates long messages. Users cannot dismiss early or see the full text. Consider adding a `SnackBar` action ("Details") that opens a dialog with the full message.
 
+*(Deferred — requires `AppToast` API refactor)*
+
 ---
 
 ### 25. Hot-Reload Orphans `PoseDetector` Instance in Dev Mode
 **File:** [Frontend/lib/features/camera_try_on/camera_try_on_screen.dart](Frontend/lib/features/camera_try_on/camera_try_on_screen.dart)
 
-On hot reload, the old `PoseDetectionService` is disposed, but ML Kit's native `PoseDetector` may not release immediately. In development this can cause "detector already closed" errors on the next frame.
-
-**Fix:** Not critical for production, but wrapping `_detector.processImage(...)` in a try-catch that checks `_closed` state prevents noisy logs during dev.
+Not critical for production. Wrapping `_detector.processImage(...)` in a try-catch that checks `_closed` state would prevent noisy dev logs. Deferred.
 
 ---
 
 ## Recommended Priority Order
 
-### Immediate (fix before next test round)
+### Immediate (fix before next test round) — ✅ ALL DONE
 - [x] Item 4 — fix `addPostFrameCallback` race in camera tab
 - [x] Item 2 — add `.catchError()` to `_onFrame`
 - [x] Item 3 — surface error if stream fails to restart after capture
 - [x] Item 5 — add timeout to `_decodeNetworkImage`
 - [x] Item 9 — move background task scheduling after DB commit
 
-### Next sprint
+### Next sprint — ✅ ALL DONE
 - [x] Item 6 — fix N+1 outfit query with `selectinload`
-- [x] Item 8 — add wardrobe pagination or virtual scroll
+- [x] Item 8 — add wardrobe pagination / infinite scroll
 - [x] Item 7 — surface partial garment load failures in try-on
 - [x] Item 13 — confirm-before-delete dialog
 - [x] Item 11 — rate-limit GET endpoints
 
-### Ongoing / housekeeping
-- Items 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24
+### Ongoing / housekeeping — ✅ DONE (except 22, 24, 25)
+- [x] Item 10 — avatar_kind validation (pre-existing)
+- [x] Item 12 — temp file cleanup (pre-existing)
+- [x] Item 14 — CachedNetworkImage mem cache sizing
+- [x] Item 15 — avatar kind null crash
+- [x] Item 16 — TextEditingController safe disposal
+- [x] Item 17 — Platform detection without context
+- [x] Item 18 — Broad exception catches → SQLAlchemyError
+- [x] Item 19 — Retry worker circuit breaker + exponential backoff
+- [x] Item 20 — await outfitsProvider.fetch()
+- [x] Item 21 — Hardcoded magic values → AppConstants
+- [ ] Item 22 — Transient network retry in providers *(deferred)*
+- [x] Item 23 — Outfit name max_length in Pydantic (pre-existing)
+- [ ] Item 24 — Toast full-text view *(deferred)*
+- [ ] Item 25 — Hot-reload PoseDetector orphan *(deferred, dev-only)*
 
 ---
 
 *Generated after Phase 3 completion — 2026-04-27*
+*Implementation completed — 2026-04-27*

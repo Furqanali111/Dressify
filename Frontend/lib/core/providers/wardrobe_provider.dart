@@ -10,13 +10,22 @@ class WardrobeNotifier extends StateNotifier<AsyncValue<List<ClothingItem>>> {
   }
 
   final Ref _ref;
+  String? _nextCursor;
+  bool _isLoadingMore = false;
+
+  bool get hasMore => _nextCursor != null;
 
   Future<void> fetch() async {
     state = const AsyncValue<List<ClothingItem>>.loading();
+    _nextCursor = null;
     try {
       final Dio dio = _ref.read(apiClientProvider);
       final Response<dynamic> response = await dio.get<dynamic>('clothing');
-      state = AsyncValue<List<ClothingItem>>.data(_parse(response.data));
+      final dynamic data = response.data;
+      if (data is Map<String, dynamic>) {
+        _nextCursor = data['next_cursor'] as String?;
+      }
+      state = AsyncValue<List<ClothingItem>>.data(_parse(data));
     } on DioException catch (e, st) {
       // Treat 404 ("no resource yet") as an empty list rather than an error.
       if (e.response?.statusCode == 404) {
@@ -26,6 +35,31 @@ class WardrobeNotifier extends StateNotifier<AsyncValue<List<ClothingItem>>> {
       state = AsyncValue<List<ClothingItem>>.error(e, st);
     } catch (e, st) {
       state = AsyncValue<List<ClothingItem>>.error(e, st);
+    }
+  }
+
+  Future<void> fetchMore() async {
+    if (_nextCursor == null || _isLoadingMore) return;
+    _isLoadingMore = true;
+    try {
+      final Dio dio = _ref.read(apiClientProvider);
+      final Response<dynamic> response = await dio.get<dynamic>(
+        'clothing',
+        queryParameters: <String, dynamic>{'cursor': _nextCursor},
+      );
+      final dynamic data = response.data;
+      if (data is Map<String, dynamic>) {
+        _nextCursor = data['next_cursor'] as String?;
+      } else {
+        _nextCursor = null;
+      }
+      final List<ClothingItem> newItems = _parse(data);
+      final List<ClothingItem> current = state.value ?? <ClothingItem>[];
+      state = AsyncValue<List<ClothingItem>>.data(<ClothingItem>[...current, ...newItems]);
+    } catch (_) {
+      // Silently fail; user can pull-to-refresh
+    } finally {
+      _isLoadingMore = false;
     }
   }
 

@@ -33,8 +33,8 @@ dependencies:
   dio: ^5.7.0
 
   # Local storage
-  flutter_secure_storage: ^9.2.2
-  shared_preferences: ^2.3.3
+  flutter_secure_storage: ^10.0.0   # 10.x: DataStore 1.1+ (16 KB-aligned native lib)
+  shared_preferences: ^2.5.0        # 2.5+: DataStore 1.1+ (16 KB-aligned native lib)
 
   # Runtime config
   flutter_dotenv: ^5.2.1
@@ -46,7 +46,7 @@ dependencies:
 
   # Camera & real-time try-on (Phase 3)
   camera: ^0.11.0
-  google_mlkit_pose_detection: ^0.11.0
+  google_mlkit_pose_detection: ^0.14.0  # 0.14+: 16 KB-aligned libxeno_native.so / libimage_processing_util_jni.so
   share_plus: ^10.0.1
 
   # Location (Weather Context)

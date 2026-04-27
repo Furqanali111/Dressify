@@ -7,8 +7,9 @@ plugins {
 
 android {
     namespace = "com.example.dressify_frontend"
-    compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    compileSdk = 36  // AndroidX core/activity 1.18+ (pulled by ML Kit 0.14 / secure_storage 10) requires API 36
+    // NDK 28+ produces 16 KB-aligned ELF segments (required for Google Play as of Aug 2025)
+    ndkVersion = "28.2.13676358"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -20,12 +21,9 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.example.dressify_frontend"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
+        minSdk = 29          // Android 10 — matches stated minimum target
+        targetSdk = 35       // Android 15 — required for Play Store & 16 KB enforcement
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }

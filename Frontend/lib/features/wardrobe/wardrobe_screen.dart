@@ -181,13 +181,39 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen>
 
 // ─── Tabs ───────────────────────────────────────────────────────────────────
 
-class _ClothingTab extends ConsumerWidget {
+class _ClothingTab extends ConsumerStatefulWidget {
   const _ClothingTab({required this.filter});
 
   final ClothingType? filter;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_ClothingTab> createState() => _ClothingTabState();
+}
+
+class _ClothingTabState extends ConsumerState<_ClothingTab> {
+  final ScrollController _scroll = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _scroll.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scroll.removeListener(_onScroll);
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scroll.position.pixels >= _scroll.position.maxScrollExtent - 200) {
+      ref.read(wardrobeProvider.notifier).fetchMore();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final AsyncValue<List<ClothingItem>> async = ref.watch(wardrobeProvider);
 
     return async.when(
@@ -199,9 +225,9 @@ class _ClothingTab extends ConsumerWidget {
         ),
       ),
       data: (List<ClothingItem> all) {
-        final List<ClothingItem> items = filter == null
+        final List<ClothingItem> items = widget.filter == null
             ? all
-            : all.where((ClothingItem it) => it.type == filter!.name).toList();
+            : all.where((ClothingItem it) => it.type == widget.filter!.name).toList();
 
         if (items.isEmpty) {
           return const _ScrollableState(
@@ -213,7 +239,10 @@ class _ClothingTab extends ConsumerWidget {
           );
         }
 
+        final bool hasMore = ref.read(wardrobeProvider.notifier).hasMore;
+
         return GridView.builder(
+          controller: _scroll,
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(
             AppSpacing.xl,
@@ -227,8 +256,18 @@ class _ClothingTab extends ConsumerWidget {
             mainAxisSpacing: AppSpacing.md,
             childAspectRatio: 0.85,
           ),
-          itemCount: items.length,
-          itemBuilder: (_, int i) => _ClothingCard(item: items[i]),
+          itemCount: items.length + (hasMore ? 1 : 0),
+          itemBuilder: (_, int i) {
+            if (i == items.length) {
+              return const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(AppSpacing.lg),
+                  child: CircularProgressIndicator(),
+                ),
+              );
+            }
+            return _ClothingCard(item: items[i]);
+          },
         );
       },
     );
@@ -326,6 +365,25 @@ class _ClothingCard extends ConsumerWidget {
       case _ItemAction.rename:
         break;
       case _ItemAction.delete:
+        final bool? confirm = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: Text('Delete ${item.name}?'),
+            content: const Text('This action cannot be undone.'),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                style: TextButton.styleFrom(foregroundColor: context.colors.error),
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: const Text('Delete'),
+              ),
+            ],
+          ),
+        );
+        if (confirm != true || !context.mounted) return;
         try {
           await ref.read(wardrobeProvider.notifier).delete(item.id);
           if (!context.mounted) return;
@@ -515,6 +573,7 @@ class _ClothingImage extends StatelessWidget {
     if (item.processedUrl.isNotEmpty) {
       return CachedNetworkImage(
         imageUrl: item.processedUrl,
+        memCacheWidth: 200, // 2× card width for HiDPI; avoids caching full 1024 px
         fit: BoxFit.contain,
         placeholder: (_, _) => _swatch(c, fallbackType),
         errorWidget: (_, _, _) => _swatch(c, fallbackType),
@@ -596,7 +655,9 @@ class _OutfitCard extends ConsumerWidget {
             ],
           ),
         );
-        ctrl.dispose();
+        // Defer dispose until after the dialog's exit animation completes,
+        // so the TextField's controller isn't accessed during dismissal.
+        WidgetsBinding.instance.addPostFrameCallback((_) => ctrl.dispose());
         if (newName == null || !context.mounted) return;
         try {
           await ref.read(outfitsProvider.notifier).rename(outfit.id, newName);
@@ -609,6 +670,25 @@ class _OutfitCard extends ConsumerWidget {
       case _ItemAction.edit:
         break;
       case _ItemAction.delete:
+        final bool? confirm = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: Text('Delete ${outfit.name}?'),
+            content: const Text('This action cannot be undone.'),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                style: TextButton.styleFrom(foregroundColor: context.colors.error),
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: const Text('Delete'),
+              ),
+            ],
+          ),
+        );
+        if (confirm != true || !context.mounted) return;
         try {
           await ref.read(outfitsProvider.notifier).delete(outfit.id);
           if (!context.mounted) return;

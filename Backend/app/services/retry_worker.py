@@ -43,18 +43,39 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 async def run_retry_worker() -> None:
-    """Long-running task. Wakes every RETRY_INTERVAL_SECONDS and processes the queue."""
+    """Long-running task. Wakes every RETRY_INTERVAL_SECONDS and processes the queue.
+
+    Circuit-breaker: after 5 consecutive tick failures, logs CRITICAL and backs off
+    exponentially (capped at 10 minutes) so ops staff gets a clear signal.
+    """
     logger.info(
         "Upload retry worker started — interval=%ds, max_retries=%d",
         settings.RETRY_INTERVAL_SECONDS,
         settings.UPLOAD_MAX_RETRIES,
     )
+    consecutive_failures = 0
+    _MAX_CONSECUTIVE_FAILURES = 5
+    _BASE_BACKOFF = 60  # seconds
+    _MAX_BACKOFF = 600  # 10 minutes
+
     while True:
         await asyncio.sleep(settings.RETRY_INTERVAL_SECONDS)
         try:
             await _tick()
+            if consecutive_failures > 0:
+                logger.info("Retry worker recovered after %d consecutive failure(s)", consecutive_failures)
+            consecutive_failures = 0
         except Exception:
-            logger.exception("Retry worker tick raised unexpectedly")
+            consecutive_failures += 1
+            logger.exception("Retry worker tick raised unexpectedly (failure %d)", consecutive_failures)
+            if consecutive_failures >= _MAX_CONSECUTIVE_FAILURES:
+                backoff = min(_BASE_BACKOFF * (2 ** (consecutive_failures - _MAX_CONSECUTIVE_FAILURES)), _MAX_BACKOFF)
+                logger.critical(
+                    "RETRY WORKER: %d consecutive tick failures — backing off %ds. "
+                    "Check DB connectivity and Ollama availability.",
+                    consecutive_failures, backoff,
+                )
+                await asyncio.sleep(backoff)
 
 
 # ---------------------------------------------------------------------------

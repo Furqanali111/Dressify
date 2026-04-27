@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:camera/camera.dart';
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -16,6 +17,7 @@ import '../../core/providers/camera_garments_provider.dart';
 import '../../core/providers/wardrobe_provider.dart';
 import '../../core/router/app_routes.dart';
 import '../../core/services/pose_detection_service.dart';
+import '../../core/theme/app_constants.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/utils/app_permissions.dart';
 import '../../core/widgets/app_toast.dart';
@@ -111,7 +113,7 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
   final PoseDetectionService _poseService = PoseDetectionService();
   Map<String, NormAnchor>? _anchors;
   DateTime _lastFrameTime = DateTime.fromMillisecondsSinceEpoch(0);
-  static const Duration _frameThrottle = Duration(milliseconds: 250);
+  static const Duration _frameThrottle = AppConstants.frameThrottle;
 
   // ── Garments ──────────────────────────────────────────────────────────────
   // Maps ClothingItem.id → loaded garment data.
@@ -133,7 +135,13 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _initCamera();
-    if (!widget.tabMode) _loadGarmentsFromOutfit(widget.outfit);
+    if (!widget.tabMode) {
+      _loadGarmentsFromOutfit(widget.outfit);
+    } else {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _loadItems(ref.read(cameraGarmentsProvider));
+      });
+    }
   }
 
   @override
@@ -196,7 +204,7 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
   Future<void> _initControllerFor(CameraDescription cam) async {
     final CameraController ctrl = CameraController(
       cam,
-      ResolutionPreset.medium,
+      AppConstants.cameraResolution,
       enableAudio: false,
       imageFormatGroup: _formatGroup,
     );
@@ -216,11 +224,9 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
   }
 
   ImageFormatGroup get _formatGroup {
-    try {
-      if (Theme.of(context).platform == TargetPlatform.android) {
-        return ImageFormatGroup.nv21;
-      }
-    } catch (_) {}
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      return ImageFormatGroup.nv21;
+    }
     return ImageFormatGroup.bgra8888;
   }
 
@@ -254,6 +260,8 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
         )
         .then((Map<String, NormAnchor>? anchors) {
       if (mounted) setState(() => _anchors = anchors);
+    }).catchError((_) {
+      // Ignore transient errors; optionally log them.
     });
   }
 
@@ -333,7 +341,10 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
       },
     );
     stream.addListener(listener);
-    return completer.future;
+    return completer.future.timeout(
+      AppConstants.imageLoadTimeout,
+      onTimeout: () => throw TimeoutException('Image load timed out: $url'),
+    );
   }
 
   // ---------------------------------------------------------------------------
@@ -370,7 +381,9 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
     } finally {
       try {
         await _controller?.startImageStream(_onFrame);
-      } catch (_) {}
+      } catch (_) {
+        if (mounted) AppToast.error(context, 'Tap to restart camera');
+      }
       if (mounted) setState(() => _capturing = false);
     }
   }
@@ -383,10 +396,8 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
   Widget build(BuildContext context) {
     // In tab mode, garments come from the shared provider.
     if (widget.tabMode) {
-      final List<ClothingItem> providerItems = ref.watch(cameraGarmentsProvider);
-      // React to provider changes → reload garment images.
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _loadItems(providerItems);
+      ref.listen<List<ClothingItem>>(cameraGarmentsProvider, (_, next) {
+        _loadItems(next);
       });
     }
 

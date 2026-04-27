@@ -72,7 +72,7 @@ async def upload_clothing(
         )
 
     # ── 2. Extract, classify, and persist each garment ───────────────────
-    results: list[tuple[ClothingItem, str]] = []
+    results: list[tuple[ClothingItem, str, bytes]] = []
     garment_count = len(garments)
 
     for idx, garment in enumerate(garments):
@@ -123,10 +123,7 @@ async def upload_clothing(
         )
         db.add(item)
 
-        # 2e. Schedule async metadata extraction (color, pattern, style, sub_type)
-        background_tasks.add_task(extract_clothing_metadata, item_id, garment_bytes)
-
-        results.append((item, processed_path))
+        results.append((item, processed_path, garment_bytes))
 
     if not results:
         raise HTTPException(
@@ -141,7 +138,10 @@ async def upload_clothing(
     await db.commit()
 
     response_items: list[ClothingItemResponse] = []
-    for item, processed_path in results:
+    for item, processed_path, garment_bytes in results:
+        # Schedule async metadata extraction (color, pattern, style, sub_type)
+        background_tasks.add_task(extract_clothing_metadata, item.id, garment_bytes)
+        
         await db.refresh(item)
         processed_url = get_signed_url("clothing-processed", processed_path) or ""
         resp = ClothingItemResponse.model_validate(item)

@@ -16,6 +16,7 @@ import '../../core/providers/outfits_provider.dart';
 import '../../core/providers/profile_provider.dart';
 import '../../core/providers/wardrobe_provider.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_constants.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/widgets/app_toast.dart';
 import '../../core/widgets/primary_button.dart';
@@ -62,6 +63,7 @@ class _TryOnScreenState extends ConsumerState<TryOnScreen> {
   final Map<String, _GarmentData> _garments = {};
   bool _loadingGarments = false;
   bool _hasLowConfidence = false;
+  Set<String> _failedIds = <String>{};
 
   @override
   void initState() {
@@ -102,6 +104,7 @@ class _TryOnScreenState extends ConsumerState<TryOnScreen> {
         ref.read(wardrobeProvider).value ?? const [];
 
     bool anyLowConfidence = false;
+    final Set<String> currentFailed = <String>{};
 
     for (final OutfitItem outfitItem in outfit.items) {
       if (_garments.containsKey(outfitItem.clothingItemId)) continue;
@@ -143,7 +146,7 @@ class _TryOnScreenState extends ConsumerState<TryOnScreen> {
         }
         setState(() => _garments[outfitItem.clothingItemId] = gd);
       } catch (_) {
-        // Skip items whose image fails to load
+        currentFailed.add(outfitItem.clothingItemId);
       }
     }
 
@@ -151,6 +154,7 @@ class _TryOnScreenState extends ConsumerState<TryOnScreen> {
       setState(() {
         _loadingGarments = false;
         _hasLowConfidence = anyLowConfidence;
+        _failedIds = currentFailed;
       });
     }
   }
@@ -208,7 +212,7 @@ class _TryOnScreenState extends ConsumerState<TryOnScreen> {
         });
       }
       // Refresh the outfits list in both cases
-      ref.read(outfitsProvider.notifier).fetch();
+      await ref.read(outfitsProvider.notifier).fetch();
 
       if (!mounted) return;
       setState(() {
@@ -217,7 +221,7 @@ class _TryOnScreenState extends ConsumerState<TryOnScreen> {
       });
       HapticFeedback.lightImpact();
       AppToast.success(context, 'Outfit saved');
-      Future<void>.delayed(const Duration(seconds: 2), () {
+      Future<void>.delayed(AppConstants.saveFeedbackDuration, () {
         if (mounted) setState(() => _saved = false);
       });
     } on DioException catch (e) {
@@ -248,18 +252,15 @@ class _TryOnScreenState extends ConsumerState<TryOnScreen> {
 
     final profileState = ref.watch(profileProvider);
     if (!_avatarInitialized && profileState.hasValue) {
-      final profile = profileState.value;
-      _avatar = profile?.avatarKind != null
-          ? AvatarKind.values.firstWhere(
-              (e) => e.name == profile!.avatarKind,
-              orElse: () => AvatarKind.maleAthletic,
-            )
-          : AvatarKind.maleAthletic;
+      _avatar = AvatarKind.values.firstWhere(
+        (e) => e.name == (profileState.value?.avatarKind ?? ''),
+        orElse: () => AvatarKind.maleAthletic,
+      );
       _avatarInitialized = true;
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFF1A1A2A),
+      backgroundColor: AppConstants.tryOnCanvasColor,
       body: SafeArea(
         child: Column(
           children: <Widget>[
@@ -283,7 +284,7 @@ class _TryOnScreenState extends ConsumerState<TryOnScreen> {
                         _offset += d.focalPointDelta;
                       }),
                       child: ColoredBox(
-                        color: const Color(0xFF1A1A2A),
+                        color: AppConstants.tryOnCanvasColor,
                         child: Center(
                           child: AnimatedOpacity(
                             duration: const Duration(milliseconds: 180),
@@ -304,39 +305,75 @@ class _TryOnScreenState extends ConsumerState<TryOnScreen> {
                       ),
                     ),
                   ),
-                  // Low-confidence warning banner
-                  if (_hasLowConfidence)
+                  // Banners (Low confidence / Load failures)
+                  if (_hasLowConfidence || _failedIds.isNotEmpty)
                     Positioned(
                       top: AppSpacing.sm,
                       left: AppSpacing.md,
                       right: AppSpacing.md,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.md,
-                          vertical: AppSpacing.xs,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.amber.withValues(alpha: 0.88),
-                          borderRadius:
-                              BorderRadius.circular(AppRadius.thumbnail),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: <Widget>[
-                            Icon(Icons.warning_amber_rounded,
-                                size: 16, color: Colors.black87),
-                            SizedBox(width: 6),
-                            Expanded(
-                              child: Text(
-                                'Auto-fit confidence is low. Drag items to adjust.',
-                                style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.black87),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: <Widget>[
+                          if (_hasLowConfidence)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: AppSpacing.md,
+                                vertical: AppSpacing.xs,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.amber.withValues(alpha: 0.88),
+                                borderRadius: BorderRadius.circular(AppRadius.thumbnail),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: <Widget>[
+                                  Icon(Icons.warning_amber_rounded, size: 16, color: Colors.black87),
+                                  SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      'Auto-fit confidence is low. Drag items to adjust.',
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.black87),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                          ],
-                        ),
+                          if (_hasLowConfidence && _failedIds.isNotEmpty)
+                            const SizedBox(height: AppSpacing.sm),
+                          if (_failedIds.isNotEmpty)
+                            GestureDetector(
+                              onTap: _loadGarments,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: AppSpacing.md,
+                                  vertical: AppSpacing.xs,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.redAccent.withValues(alpha: 0.88),
+                                  borderRadius: BorderRadius.circular(AppRadius.thumbnail),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: <Widget>[
+                                    const Icon(Icons.error_outline, size: 16, color: Colors.white),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Text(
+                                        '${_failedIds.length} item(s) couldn\'t load — tap to retry.',
+                                        style: const TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.white),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                     ),
                   // Canvas controls

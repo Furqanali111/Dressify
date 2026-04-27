@@ -2,9 +2,10 @@ import logging
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from app.db import get_db
 from app.models.outfit import Outfit, OutfitItem
@@ -21,15 +22,13 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/outfits", tags=["Outfits"])
 
 
-async def _build_outfit_response(db: AsyncSession, outfit: Outfit) -> OutfitResponse:
-    items_result = await db.execute(select(OutfitItem).where(OutfitItem.outfit_id == outfit.id))
-    items = items_result.scalars().all()
+def _build_outfit_response(outfit: Outfit) -> OutfitResponse:
     return OutfitResponse(
         id=outfit.id,
         user_id=outfit.user_id,
         name=outfit.name,
         avatar_kind=outfit.avatar_kind,
-        items=[OutfitItemSchema(clothing_item_id=i.clothing_item_id, position=i.position) for i in items],
+        items=[OutfitItemSchema(clothing_item_id=i.clothing_item_id, position=i.position) for i in outfit.items],
         created_at=outfit.created_at,
     )
 
@@ -93,30 +92,40 @@ async def create_outfit(
 
 
 @router.get("", response_model=list[OutfitResponse])
+@limiter.limit("60/minute")
 async def get_outfits(
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(select(Outfit).where(Outfit.user_id == current_user.id))
+    result = await db.execute(
+        select(Outfit)
+        .where(Outfit.user_id == current_user.id)
+        .options(selectinload(Outfit.items))
+    )
     outfits = result.scalars().all()
-    return [await _build_outfit_response(db, o) for o in outfits]
+    return [_build_outfit_response(o) for o in outfits]
 
 
 @router.get("/{outfit_id}", response_model=OutfitResponse)
+@limiter.limit("60/minute")
 async def get_outfit(
+    request: Request,
     outfit_id: uuid.UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
-        select(Outfit).where(Outfit.id == outfit_id, Outfit.user_id == current_user.id)
+        select(Outfit)
+        .where(Outfit.id == outfit_id, Outfit.user_id == current_user.id)
+        .options(selectinload(Outfit.items))
     )
     outfit = result.scalar_one_or_none()
 
     if not outfit:
         raise HTTPException(status_code=404, detail="Outfit not found")
 
-    return await _build_outfit_response(db, outfit)
+    return _build_outfit_response(outfit)
 
 
 @router.patch("/{outfit_id}", response_model=OutfitResponse)
@@ -127,7 +136,9 @@ async def update_outfit(
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
-        select(Outfit).where(Outfit.id == outfit_id, Outfit.user_id == current_user.id)
+        select(Outfit)
+        .where(Outfit.id == outfit_id, Outfit.user_id == current_user.id)
+        .options(selectinload(Outfit.items))
     )
     outfit = result.scalar_one_or_none()
 
@@ -139,12 +150,12 @@ async def update_outfit(
     try:
         await db.commit()
         await db.refresh(outfit)
-    except Exception as e:
+    except SQLAlchemyError as e:
         await db.rollback()
         logger.error(f"DB error updating outfit {outfit_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to update outfit")
 
-    return await _build_outfit_response(db, outfit)
+    return _build_outfit_response(outfit)
 
 
 @router.post("/generate", response_model=OutfitResponse)

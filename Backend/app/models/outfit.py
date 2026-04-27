@@ -2,6 +2,7 @@ import uuid
 from sqlalchemy import Column, String, DateTime, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
 from app.db import Base
 
 class Outfit(Base):
@@ -12,6 +13,7 @@ class Outfit(Base):
     name = Column(String, nullable=False)
     avatar_kind = Column(String, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    items = relationship("OutfitItem", backref="outfit", cascade="all, delete-orphan")
 
 class OutfitItem(Base):
     __tablename__ = "outfit_items"

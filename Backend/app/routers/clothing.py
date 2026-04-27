@@ -1,9 +1,10 @@
 import logging
 import uuid
 from typing import Optional
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -27,8 +28,12 @@ def inject_urls(item: ClothingItem) -> ClothingItemResponse:
 
 
 @router.get("", response_model=ClothingListResponse)
+@limiter.limit("60/minute")
 async def get_clothing(
+    request: Request,
     type: Optional[str] = None,
+    cursor: Optional[str] = None,
+    limit: int = 30,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -36,17 +41,33 @@ async def get_clothing(
     if type:
         query = query.where(ClothingItem.type == type)
 
+    if cursor:
+        try:
+            cursor_time = datetime.fromisoformat(cursor)
+            query = query.where(ClothingItem.created_at < cursor_time)
+        except ValueError:
+            pass
+
+    query = query.order_by(ClothingItem.created_at.desc()).limit(limit + 1)
+    
     result = await db.execute(query)
     items = result.scalars().all()
 
+    next_cursor = None
+    if len(items) > limit:
+        next_cursor = items[limit - 1].created_at.isoformat()
+        items = items[:limit]
+
     return ClothingListResponse(
         items=[inject_urls(i) for i in items],
-        next_cursor=None,
+        next_cursor=next_cursor,
     )
 
 
 @router.get("/{item_id}", response_model=ClothingItemResponse)
+@limiter.limit("60/minute")
 async def get_clothing_item(
+    request: Request,
     item_id: uuid.UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -91,7 +112,7 @@ async def update_clothing_item(
     try:
         await db.commit()
         await db.refresh(item)
-    except Exception as e:
+    except SQLAlchemyError as e:
         await db.rollback()
         logger.error(f"DB error updating clothing item {item_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to update item")
