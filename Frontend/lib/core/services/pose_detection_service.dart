@@ -26,10 +26,12 @@ class PoseDetectionService {
 
   final PoseDetector _detector;
   bool _busy = false;
+  bool _isClosed = false;
 
   /// Process one [CameraImage] frame.
   ///
   /// Returns a map of named anchors (normalized 0–1) or `null` when:
+  ///   - the service is disposed,
   ///   - a previous frame is still being processed, or
   ///   - no pose is found in the image.
   Future<Map<String, NormAnchor>?> processFrame({
@@ -38,7 +40,7 @@ class PoseDetectionService {
     required DeviceOrientation deviceOrientation,
     required CameraLensDirection lensDirection,
   }) async {
-    if (_busy) return null;
+    if (_busy || _isClosed) return null;
     _busy = true;
 
     try {
@@ -51,7 +53,7 @@ class PoseDetectionService {
       if (inputImage == null) return null;
 
       final List<Pose> poses = await _detector.processImage(inputImage);
-      if (poses.isEmpty) return null;
+      if (poses.isEmpty || _isClosed) return null;
 
       return _extractAnchors(
         pose: poses.first,
@@ -59,14 +61,19 @@ class PoseDetectionService {
         sensorOrientation: sensorOrientation,
         lensDirection: lensDirection,
       );
-    } catch (_) {
+    } catch (e) {
+      // If we caught an error because the detector closed during processing (hot reload),
+      // just return null gracefully.
       return null;
     } finally {
       _busy = false;
     }
   }
 
-  Future<void> dispose() => _detector.close();
+  Future<void> dispose() {
+    _isClosed = true;
+    return _detector.close();
+  }
 
   // ---------------------------------------------------------------------------
   // InputImage construction

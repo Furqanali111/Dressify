@@ -5,6 +5,10 @@ import '../theme/app_spacing.dart';
 
 enum ToastVariant { success, error, info }
 
+/// Threshold above which the error toast adds a "Details" action button
+/// that opens an AlertDialog showing the full message.
+const int _kDetailThreshold = 80;
+
 class AppToast {
   const AppToast._();
 
@@ -20,8 +24,8 @@ class AppToast {
 
     final (IconData icon, Color accent) = switch (variant) {
       ToastVariant.success => (Icons.check_circle_outline, c.success),
-      ToastVariant.error => (Icons.error_outline, c.error),
-      ToastVariant.info => (Icons.info_outline, c.primary),
+      ToastVariant.error   => (Icons.error_outline, c.error),
+      ToastVariant.info    => (Icons.info_outline, c.primary),
     };
 
     messenger
@@ -72,9 +76,52 @@ class AppToast {
   static void success(BuildContext context, String message) =>
       show(context, message, variant: ToastVariant.success);
 
-  static void error(BuildContext context, String message) =>
-      show(context, message, variant: ToastVariant.error);
-
   static void info(BuildContext context, String message) =>
       show(context, message, variant: ToastVariant.info);
+
+  /// Shows an error toast.
+  ///
+  /// If [message] exceeds [_kDetailThreshold] characters, a "Details" action
+  /// is automatically added. Tapping it dismisses the snack bar and opens an
+  /// AlertDialog with the full, untruncated message.
+  static void error(BuildContext context, String message) {
+    final bool isLong = message.length > _kDetailThreshold;
+    final String displayed = isLong
+        ? '${message.substring(0, _kDetailThreshold).trimRight()}…'
+        : message;
+
+    SnackBarAction? action;
+    if (isLong) {
+      action = SnackBarAction(
+        label: 'Details',
+        textColor: Colors.white70,
+        onPressed: () {
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          showDialog<void>(
+            context: context,
+            builder: (BuildContext ctx) => AlertDialog(
+              title: const Text('Error Details'),
+              content: SingleChildScrollView(child: Text(message)),
+              actions: <Widget>[
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: const Text('Close'),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+    }
+
+    show(
+      context,
+      displayed,
+      variant: ToastVariant.error,
+      duration: isLong
+          ? const Duration(seconds: 6) // extra time to read & tap Details
+          : const Duration(seconds: 3),
+      action: action,
+    );
+  }
 }

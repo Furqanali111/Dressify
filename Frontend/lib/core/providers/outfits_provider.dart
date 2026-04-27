@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../api/api_client.dart';
 import '../models/outfit.dart';
+import '../utils/dio_retry.dart';
 
 class OutfitsNotifier extends StateNotifier<AsyncValue<List<Outfit>>> {
   OutfitsNotifier(this._ref) : super(const AsyncValue<List<Outfit>>.loading()) {
@@ -15,7 +16,9 @@ class OutfitsNotifier extends StateNotifier<AsyncValue<List<Outfit>>> {
     state = const AsyncValue<List<Outfit>>.loading();
     try {
       final Dio dio = _ref.read(apiClientProvider);
-      final Response<dynamic> response = await dio.get<dynamic>('/outfits');
+      final Response<dynamic> response = await dioFetchWithRetry(
+        () => dio.get<dynamic>('/outfits'),
+      );
       state = AsyncValue<List<Outfit>>.data(_parse(response.data));
     } on DioException catch (e, st) {
       if (e.response?.statusCode == 404) {

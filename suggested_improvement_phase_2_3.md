@@ -179,12 +179,10 @@ Both screens updated to import and use these constants.
 
 ---
 
-### 22. No Retry on Transient Network Errors in Providers
+### 22. No Retry on Transient Network Errors in Providers ✅ FIXED
 **File:** [Frontend/lib/core/providers/wardrobe_provider.dart](Frontend/lib/core/providers/wardrobe_provider.dart), [Frontend/lib/core/providers/outfits_provider.dart](Frontend/lib/core/providers/outfits_provider.dart)
 
-Transient timeouts set the provider to error state immediately; the user must manually pull-to-refresh. A `dio_retry` interceptor or manual retry with exponential backoff would reduce friction significantly.
-
-*(Deferred — requires adding a dependency or significant provider refactor)*
+Added `dioFetchWithRetry` helper in `lib/core/utils/dio_retry.dart` that retries on transient errors (no response or 5xx) with exponential backoff. Wrapped `fetch()` calls in both providers.
 
 ---
 
@@ -195,18 +193,17 @@ Both `OutfitCreate` and `OutfitUpdate` already use `Field(..., min_length=1, max
 
 ---
 
-### 24. No Toast Dismiss / Full-Text View for Long Error Messages
+### 24. No Toast Dismiss / Full-Text View for Long Error Messages ✅ FIXED
+**File:** [Frontend/lib/core/widgets/app_toast.dart](Frontend/lib/core/widgets/app_toast.dart)
 
-`AppToast.error()` truncates long messages. Users cannot dismiss early or see the full text. Consider adding a `SnackBar` action ("Details") that opens a dialog with the full message.
-
-*(Deferred — requires `AppToast` API refactor)*
+`AppToast.error()` now automatically detects long messages (>80 chars), truncates the toast display, and adds a "Details" action that opens a full-text AlertDialog.
 
 ---
 
-### 25. Hot-Reload Orphans `PoseDetector` Instance in Dev Mode
-**File:** [Frontend/lib/features/camera_try_on/camera_try_on_screen.dart](Frontend/lib/features/camera_try_on/camera_try_on_screen.dart)
+### 25. Hot-Reload Orphans `PoseDetector` Instance in Dev Mode ✅ FIXED
+**File:** [Frontend/lib/core/services/pose_detection_service.dart](Frontend/lib/core/services/pose_detection_service.dart)
 
-Not critical for production. Wrapping `_detector.processImage(...)` in a try-catch that checks `_closed` state would prevent noisy dev logs. Deferred.
+Added `_isClosed` flag to `PoseDetectionService`. `processFrame` now checks this flag before and after async calls, and the entire processing loop is wrapped in a try-catch to gracefully handle disposal during hot reload.
 
 ---
 
@@ -226,7 +223,7 @@ Not critical for production. Wrapping `_detector.processImage(...)` in a try-cat
 - [x] Item 13 — confirm-before-delete dialog
 - [x] Item 11 — rate-limit GET endpoints
 
-### Ongoing / housekeeping — ✅ DONE (except 22, 24, 25)
+### Ongoing / housekeeping — ✅ ALL DONE
 - [x] Item 10 — avatar_kind validation (pre-existing)
 - [x] Item 12 — temp file cleanup (pre-existing)
 - [x] Item 14 — CachedNetworkImage mem cache sizing
@@ -237,10 +234,10 @@ Not critical for production. Wrapping `_detector.processImage(...)` in a try-cat
 - [x] Item 19 — Retry worker circuit breaker + exponential backoff
 - [x] Item 20 — await outfitsProvider.fetch()
 - [x] Item 21 — Hardcoded magic values → AppConstants
-- [ ] Item 22 — Transient network retry in providers *(deferred)*
+- [x] Item 22 — Transient network retry in providers
 - [x] Item 23 — Outfit name max_length in Pydantic (pre-existing)
-- [ ] Item 24 — Toast full-text view *(deferred)*
-- [ ] Item 25 — Hot-reload PoseDetector orphan *(deferred, dev-only)*
+- [x] Item 24 — Toast full-text view
+- [x] Item 25 — Hot-reload PoseDetector orphan
 
 ---
 

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../api/api_client.dart';
 import '../models/clothing_item.dart';
+import '../utils/dio_retry.dart';
 
 class WardrobeNotifier extends StateNotifier<AsyncValue<List<ClothingItem>>> {
   WardrobeNotifier(this._ref) : super(const AsyncValue<List<ClothingItem>>.loading()) {
@@ -20,7 +21,9 @@ class WardrobeNotifier extends StateNotifier<AsyncValue<List<ClothingItem>>> {
     _nextCursor = null;
     try {
       final Dio dio = _ref.read(apiClientProvider);
-      final Response<dynamic> response = await dio.get<dynamic>('clothing');
+      final Response<dynamic> response = await dioFetchWithRetry(
+        () => dio.get<dynamic>('clothing'),
+      );
       final dynamic data = response.data;
       if (data is Map<String, dynamic>) {
         _nextCursor = data['next_cursor'] as String?;
