@@ -118,8 +118,16 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
         _stage = _UploadStage.done;
       });
 
-      // Refresh wardrobe so all new items appear immediately
-      ref.read(wardrobeProvider.notifier).fetch();
+      // Refresh wardrobe so all new items appear immediately, then poll
+      // items that are still being processed by the AI metadata pipeline.
+      await ref.read(wardrobeProvider.notifier).fetch();
+      final List<String> pendingIds = items
+          .where((ClothingItem it) => it.processingStatus == 'processing')
+          .map((ClothingItem it) => it.id)
+          .toList();
+      if (pendingIds.isNotEmpty) {
+        ref.read(wardrobeProvider.notifier).pollUntilComplete(pendingIds);
+      }
     } on DioException catch (e) {
       if (!mounted) return;
       final String msg =

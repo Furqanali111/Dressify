@@ -28,7 +28,7 @@ async def google_auth(request: GoogleAuthRequest, db: AsyncSession = Depends(get
     display_name: str | None
     avatar_url: str | None
 
-    if settings.BYPASS_AUTH_FURQAN_54321 and request.id_token == "BYPASS_AUTH_FURQAN_54321":
+    if settings.bypass_auth_enabled and request.id_token == "BYPASS_AUTH_FURQAN_54321":
         user_id = uuid.UUID("00000000-0000-0000-0000-000000000000")
         email = "bypass@dressify.local"
         display_name = "Furqan (Bypass)"

@@ -28,6 +28,24 @@ class OutfitsNotifier extends StateNotifier<AsyncValue<List<Outfit>>> {
     }
   }
 
+  Future<void> rename(String id, String name) async {
+    final Dio dio = _ref.read(apiClientProvider);
+    await dio.patch<dynamic>('/outfits/$id', data: <String, dynamic>{'name': name});
+    final List<Outfit> current = state.value ?? <Outfit>[];
+    state = AsyncValue<List<Outfit>>.data(
+      current.map((Outfit o) => o.id == id
+          ? Outfit(
+              id: o.id,
+              userId: o.userId,
+              name: name,
+              avatarKind: o.avatarKind,
+              items: o.items,
+              createdAt: o.createdAt,
+            )
+          : o).toList(),
+    );
+  }
+
   Future<void> delete(String id) async {
     final Dio dio = _ref.read(apiClientProvider);
     await dio.delete<dynamic>('/outfits/$id');

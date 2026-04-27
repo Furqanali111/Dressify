@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shimmer/shimmer.dart';
 
-import '../../core/enums/app_enums.dart' show ClothingType, ClothingTypeX;
+import '../../core/enums/app_enums.dart' show AvatarKindX, ClothingType, ClothingTypeX;
 import '../../core/models/clothing_item.dart';
 import '../../core/models/outfit.dart';
 import '../../core/providers/outfits_provider.dart';
@@ -15,6 +15,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/widgets/app_chip.dart';
 import '../../core/widgets/app_toast.dart';
+import '../../core/widgets/primary_button.dart';
 import 'style_me_sheet.dart';
 
 class WardrobeScreen extends ConsumerStatefulWidget {
@@ -290,15 +291,35 @@ class _ClothingCard extends ConsumerWidget {
 
   Future<void> _showContextMenu(BuildContext context, WidgetRef ref) async {
     HapticFeedback.mediumImpact();
+    final bool isFailed = item.processingStatus == 'failed';
     final _ItemAction? action = await showModalBottomSheet<_ItemAction>(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (_) => _ItemActionSheet(title: item.name),
+      builder: (_) => _ItemActionSheet(
+        title: item.name,
+        // Failed items can only be deleted; no Try On or Edit until processing succeeds.
+        actions: isFailed
+            ? const <_ItemAction>[_ItemAction.delete]
+            : const <_ItemAction>[
+                _ItemAction.tryOn,
+                _ItemAction.edit,
+                _ItemAction.delete,
+              ],
+      ),
     );
     if (action == null || !context.mounted) return;
     switch (action) {
       case _ItemAction.tryOn:
         context.pushNamed(AppRoute.tryOn.name);
+      case _ItemAction.edit:
+        await showModalBottomSheet<void>(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          builder: (_) => _EditClothingSheet(item: item),
+        );
+      case _ItemAction.rename:
+        break;
       case _ItemAction.delete:
         try {
           await ref.read(wardrobeProvider.notifier).delete(item.id);
@@ -317,14 +338,33 @@ class _ClothingCard extends ConsumerWidget {
     final TextTheme text = Theme.of(context).textTheme;
     final BorderRadius radius = BorderRadius.circular(AppRadius.card);
     final bool isProcessing = item.processingStatus == 'processing';
+    final bool isFailed = item.processingStatus == 'failed';
     final ClothingType uiType = _typeFromString(item.type);
+
+    // Determine subtitle text + colour
+    final String subtitle;
+    final Color subtitleColor;
+    if (isFailed) {
+      subtitle = 'Detection failed — hold to delete';
+      subtitleColor = c.error;
+    } else if (isProcessing) {
+      subtitle = 'Analyzing with AI…';
+      subtitleColor = c.primary;
+    } else {
+      subtitle = uiType.label;
+      subtitleColor = c.textSecondary;
+    }
 
     final Widget card = Material(
       color: c.surface,
       borderRadius: radius,
       child: InkWell(
-        onTap: isProcessing ? null : () => context.pushNamed(AppRoute.tryOn.name),
-        onLongPress: isProcessing ? null : () => _showContextMenu(context, ref),
+        onTap: (isProcessing || isFailed)
+            ? null
+            : () => context.pushNamed(AppRoute.tryOn.name),
+        onLongPress: isProcessing
+            ? null
+            : () => _showContextMenu(context, ref),
         borderRadius: radius,
         child: DecoratedBox(
           decoration: BoxDecoration(
@@ -345,7 +385,9 @@ class _ClothingCard extends ConsumerWidget {
                 Expanded(
                   child: ColoredBox(
                     color: c.background,
-                    child: _ClothingImage(item: item, fallbackType: uiType),
+                    child: isFailed
+                        ? _FailedPlaceholder(c: c)
+                        : _ClothingImage(item: item, fallbackType: uiType),
                   ),
                 ),
                 Padding(
@@ -361,10 +403,10 @@ class _ClothingCard extends ConsumerWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        isProcessing ? 'Analyzing with AI…' : uiType.label,
-                        style: text.bodySmall?.copyWith(
-                          color: isProcessing ? c.primary : c.textSecondary,
-                        ),
+                        subtitle,
+                        style: text.bodySmall?.copyWith(color: subtitleColor),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
@@ -385,6 +427,33 @@ class _ClothingCard extends ConsumerWidget {
     }
 
     return card;
+  }
+}
+
+class _FailedPlaceholder extends StatelessWidget {
+  const _FailedPlaceholder({required this.c});
+  final AppColors c;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Icon(Icons.error_outline, size: 36, color: c.error.withValues(alpha: 0.7)),
+          const SizedBox(height: 6),
+          Text(
+            'Processing\nfailed',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: c.error.withValues(alpha: 0.7),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -438,12 +507,60 @@ class _OutfitCard extends ConsumerWidget {
     final _ItemAction? action = await showModalBottomSheet<_ItemAction>(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (_) => _ItemActionSheet(title: outfit.name),
+      builder: (_) => _ItemActionSheet(
+        title: outfit.name,
+        actions: const <_ItemAction>[
+          _ItemAction.tryOn,
+          _ItemAction.rename,
+          _ItemAction.delete,
+        ],
+      ),
     );
     if (action == null || !context.mounted) return;
     switch (action) {
       case _ItemAction.tryOn:
-        context.pushNamed(AppRoute.tryOn.name);
+        context.pushNamed(AppRoute.tryOn.name, extra: outfit);
+      case _ItemAction.rename:
+        final TextEditingController ctrl =
+            TextEditingController(text: outfit.name);
+        final String? newName = await showDialog<String>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Rename Outfit'),
+            content: TextField(
+              controller: ctrl,
+              autofocus: true,
+              maxLength: 100,
+              textCapitalization: TextCapitalization.words,
+              decoration: const InputDecoration(hintText: 'Outfit name'),
+            ),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () {
+                  final String n = ctrl.text.trim();
+                  if (n.isNotEmpty) Navigator.of(ctx).pop(n);
+                },
+                child: const Text('Save'),
+              ),
+            ],
+          ),
+        );
+        ctrl.dispose();
+        if (newName == null || !context.mounted) return;
+        try {
+          await ref.read(outfitsProvider.notifier).rename(outfit.id, newName);
+          if (!context.mounted) return;
+          AppToast.success(context, 'Renamed to "$newName"');
+        } catch (_) {
+          if (!context.mounted) return;
+          AppToast.error(context, 'Failed to rename outfit');
+        }
+      case _ItemAction.edit:
+        break;
       case _ItemAction.delete:
         try {
           await ref.read(outfitsProvider.notifier).delete(outfit.id);
@@ -461,13 +578,13 @@ class _OutfitCard extends ConsumerWidget {
     final AppColors c = context.colors;
     final TextTheme text = Theme.of(context).textTheme;
     final BorderRadius radius = BorderRadius.circular(AppRadius.card);
-    final Color accent = _accentForAvatar(outfit.avatarKind, c);
+    final Color accent = AvatarKindX.accentForKind(outfit.avatarKind, fallback: c.primary);
 
     return Material(
       color: c.surface,
       borderRadius: radius,
       child: InkWell(
-        onTap: () => context.pushNamed(AppRoute.tryOn.name),
+        onTap: () => context.pushNamed(AppRoute.tryOn.name, extra: outfit),
         onLongPress: () => _showContextMenu(context, ref),
         borderRadius: radius,
         child: DecoratedBox(
@@ -697,29 +814,6 @@ ClothingType _typeFromString(String raw) {
   return ClothingType.other;
 }
 
-Color _accentForAvatar(String avatarKind, AppColors c) {
-  // Map common backend strings (e.g. 'femaleSlim') to a tint. Falls back to
-  // the brand primary so an unknown value still renders cleanly.
-  switch (avatarKind) {
-    case 'femaleSlim':
-    case 'maleSlim':
-      return const Color(0xFF8E85FF);
-    case 'femaleAthletic':
-    case 'maleAthletic':
-      return const Color(0xFF63B4FF);
-    case 'femaleAverage':
-    case 'maleAverage':
-      return const Color(0xFFFF8FA3);
-    case 'femaleCurvy':
-    case 'maleCurvy':
-      return const Color(0xFFFFB266);
-    case 'femalePlus':
-    case 'malePlus':
-      return const Color(0xFF66D9A8);
-    default:
-      return c.primary;
-  }
-}
 
 String _formatDate(DateTime d) {
   const List<String> months = <String>[
@@ -731,12 +825,46 @@ String _formatDate(DateTime d) {
 
 // ─── Action sheet ───────────────────────────────────────────────────────────
 
-enum _ItemAction { tryOn, delete }
+enum _ItemAction { tryOn, edit, rename, delete }
 
 class _ItemActionSheet extends StatelessWidget {
-  const _ItemActionSheet({required this.title});
+  const _ItemActionSheet({
+    required this.title,
+    required this.actions,
+  });
 
   final String title;
+  final List<_ItemAction> actions;
+
+  Widget _row(BuildContext context, _ItemAction action) {
+    switch (action) {
+      case _ItemAction.tryOn:
+        return _ActionRow(
+          icon: Icons.checkroom,
+          label: 'Try On',
+          onTap: () => Navigator.of(context).pop(action),
+        );
+      case _ItemAction.edit:
+        return _ActionRow(
+          icon: Icons.edit_outlined,
+          label: 'Edit Details',
+          onTap: () => Navigator.of(context).pop(action),
+        );
+      case _ItemAction.rename:
+        return _ActionRow(
+          icon: Icons.drive_file_rename_outline,
+          label: 'Rename',
+          onTap: () => Navigator.of(context).pop(action),
+        );
+      case _ItemAction.delete:
+        return _ActionRow(
+          icon: Icons.delete_outline,
+          label: 'Delete',
+          destructive: true,
+          onTap: () => Navigator.of(context).pop(action),
+        );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -777,23 +905,136 @@ class _ItemActionSheet extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: AppSpacing.md),
-            _ActionRow(
-              icon: Icons.checkroom,
-              label: 'Try On',
-              onTap: () => Navigator.of(context).pop(_ItemAction.tryOn),
-            ),
-            _ActionRow(
-              icon: Icons.delete_outline,
-              label: 'Delete',
-              destructive: true,
-              onTap: () => Navigator.of(context).pop(_ItemAction.delete),
-            ),
+            ...actions.map((a) => _row(context, a)),
             const SizedBox(height: AppSpacing.sm),
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
               child: const Text('Cancel'),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Edit clothing sheet ─────────────────────────────────────────────────────
+
+class _EditClothingSheet extends ConsumerStatefulWidget {
+  const _EditClothingSheet({required this.item});
+  final ClothingItem item;
+
+  @override
+  ConsumerState<_EditClothingSheet> createState() => _EditClothingSheetState();
+}
+
+class _EditClothingSheetState extends ConsumerState<_EditClothingSheet> {
+  late final TextEditingController _nameCtrl;
+  late final TextEditingController _colorCtrl;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameCtrl = TextEditingController(text: widget.item.name);
+    _colorCtrl = TextEditingController(text: widget.item.color ?? '');
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _colorCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    final String name = _nameCtrl.text.trim();
+    if (name.isEmpty) return;
+    setState(() => _saving = true);
+    try {
+      await ref.read(wardrobeProvider.notifier).update(
+        widget.item.id,
+        <String, dynamic>{
+          'name': name,
+          if (_colorCtrl.text.trim().isNotEmpty) 'color': _colorCtrl.text.trim(),
+        },
+      );
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      AppToast.success(context, 'Updated "$name"');
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      AppToast.error(context, 'Failed to update item');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final AppColors c = context.colors;
+    final TextTheme text = Theme.of(context).textTheme;
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: Container(
+        decoration: BoxDecoration(
+          color: c.surface,
+          borderRadius: const BorderRadius.vertical(
+            top: Radius.circular(AppRadius.sheetTop),
+          ),
+        ),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.xl,
+          AppSpacing.md,
+          AppSpacing.xl,
+          AppSpacing.xl,
+        ),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: c.border,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              Text('Edit Item', style: text.titleLarge),
+              const SizedBox(height: AppSpacing.lg),
+              TextField(
+                controller: _nameCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Name',
+                  hintText: 'Item name',
+                ),
+                textCapitalization: TextCapitalization.words,
+                maxLength: 100,
+              ),
+              const SizedBox(height: AppSpacing.md),
+              TextField(
+                controller: _colorCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Color',
+                  hintText: 'e.g. Navy Blue',
+                ),
+                textCapitalization: TextCapitalization.words,
+                maxLength: 50,
+              ),
+              const SizedBox(height: AppSpacing.xl),
+              PrimaryButton(
+                label: 'Save Changes',
+                loading: _saving,
+                onPressed: _saving ? null : _save,
+              ),
+            ],
+          ),
         ),
       ),
     );

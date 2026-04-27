@@ -132,8 +132,15 @@ class _TryOnScreenState extends ConsumerState<TryOnScreen> {
           img.dispose();
           return;
         }
-        setState(() => _garments[outfitItem.clothingItemId] =
-            _GarmentData(item: ci!, uiImage: img));
+        final _GarmentData gd = _GarmentData(item: ci, uiImage: img);
+        final Map<String, dynamic>? pos = outfitItem.position;
+        if (pos != null) {
+          gd.offset = Offset(
+            (pos['dx'] as num? ?? 0.0).toDouble(),
+            (pos['dy'] as num? ?? 0.0).toDouble(),
+          );
+        }
+        setState(() => _garments[outfitItem.clothingItemId] = gd);
       } catch (_) {
         // Skip items whose image fails to load
       }
@@ -181,11 +188,20 @@ class _TryOnScreenState extends ConsumerState<TryOnScreen> {
       if (widget.outfit?.id == null) {
         // Manual outfit — persist it for the first time
         final Dio dio = ref.read(apiClientProvider);
+        final DateTime now = DateTime.now();
+        final String name =
+            'Outfit ${now.month}/${now.day} ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
         final List<Map<String, dynamic>> items = _garments.values
-            .map((g) => <String, dynamic>{'clothing_item_id': g.item.id})
+            .map((g) => <String, dynamic>{
+                  'clothing_item_id': g.item.id,
+                  'position': <String, dynamic>{
+                    'dx': g.offset.dx,
+                    'dy': g.offset.dy,
+                  },
+                })
             .toList();
         await dio.post<dynamic>('/outfits', data: <String, dynamic>{
-          'name': 'My Outfit',
+          'name': name,
           'avatar_kind': _avatar.name,
           'items': items,
         });

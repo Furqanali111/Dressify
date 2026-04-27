@@ -60,72 +60,66 @@ async def detect_garments_in_image(image_bytes: bytes) -> list[dict]:
         [{"label": "shirt", "bbox": {"x": 0.10, "y": 0.05, "w": 0.35, "h": 0.40}}, ...]
 
     Coordinates are normalized (0.0–1.0), origin top-left.
-    Falls back to a single full-image entry if the model is unavailable or returns
-    unparseable output.
+
+    Returns an EMPTY LIST when the model runs successfully but finds no clothing —
+    the caller should treat this as an immediate 422 (user uploaded a non-clothing image).
+
+    RAISES on any model / network / parse error — the caller must handle these by
+    queueing the upload for retry rather than silently falling back to full-image mode.
     """
-    _FULL_IMAGE_FALLBACK = [{"label": "clothing", "bbox": {"x": 0.0, "y": 0.0, "w": 1.0, "h": 1.0}}]
+    from openai import AsyncOpenAI
 
-    try:
-        from openai import AsyncOpenAI, APIConnectionError, APITimeoutError
+    b64 = base64.b64encode(image_bytes).decode("utf-8")
 
-        b64 = base64.b64encode(image_bytes).decode("utf-8")
+    client = AsyncOpenAI(base_url=settings.OLLAMA_BASE_URL, api_key="ollama")
 
-        # Always use Ollama/Llama for garment detection (free, local)
-        client = AsyncOpenAI(base_url=settings.OLLAMA_BASE_URL, api_key="ollama")
-        model = "llama3.2-vision"
+    prompt = (
+        "You are a computer vision assistant specialized in fashion. "
+        "Look at this photo and identify every distinct clothing item visible on the person. "
+        "For each item, return its common name and its bounding box as normalized coordinates "
+        "(x, y = top-left corner; w, h = width and height; all values between 0.0 and 1.0). "
+        "Reply ONLY with a JSON object in exactly this format:\n"
+        '{"garments": [{"label": "shirt", "bbox": {"x": 0.10, "y": 0.05, "w": 0.35, "h": 0.40}}, ...]}\n'
+        f"List at most {_MAX_GARMENTS} items. If no clothing is visible return an empty garments array."
+    )
 
-        prompt = (
-            "You are a computer vision assistant specialized in fashion. "
-            "Look at this photo and identify every distinct clothing item visible on the person. "
-            "For each item, return its common name and its bounding box as normalized coordinates "
-            "(x, y = top-left corner; w, h = width and height; all values between 0.0 and 1.0). "
-            "Reply ONLY with a JSON object in exactly this format:\n"
-            '{"garments": [{"label": "shirt", "bbox": {"x": 0.10, "y": 0.05, "w": 0.35, "h": 0.40}}, ...]}\n'
-            f"List at most {_MAX_GARMENTS} items. If no clothing is visible return an empty garments array."
-        )
+    response = await client.chat.completions.create(
+        model="llama3.2-vision",
+        messages=[
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": prompt},
+                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}},
+                ],
+            }
+        ],
+        response_format={"type": "json_object"},
+        temperature=0.1,
+        max_tokens=300,
+    )
 
-        response = await client.chat.completions.create(
-            model=model,
-            messages=[
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": prompt},
-                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}},
-                    ],
-                }
-            ],
-            response_format={"type": "json_object"},
-            temperature=0.1,
-            max_tokens=300,
-        )
+    data = json.loads(response.choices[0].message.content)
+    raw_garments = data.get("garments", [])
 
-        data = json.loads(response.choices[0].message.content)
-        garments = data.get("garments", [])
+    # Model found no clothing — caller handles this as immediate 422
+    if not raw_garments:
+        logger.info("Garment detection: model found no clothing items in the image")
+        return []
 
-        validated: list[dict] = []
-        for g in garments:
-            bbox = g.get("bbox", {})
-            x, y, w, h = (
-                float(bbox.get("x", 0)),
-                float(bbox.get("y", 0)),
-                float(bbox.get("w", 1)),
-                float(bbox.get("h", 1)),
-            )
-            # Clamp to valid range; skip degenerate boxes
-            x, y = max(0.0, min(x, 1.0)), max(0.0, min(y, 1.0))
-            w, h = max(0.05, min(w, 1.0 - x)), max(0.05, min(h, 1.0 - y))
-            validated.append({"label": str(g.get("label", "clothing")), "bbox": {"x": x, "y": y, "w": w, "h": h}})
+    validated: list[dict] = []
+    for g in raw_garments:
+        bbox = g.get("bbox", {})
+        x = float(bbox.get("x", 0))
+        y = float(bbox.get("y", 0))
+        w = float(bbox.get("w", 1))
+        h = float(bbox.get("h", 1))
+        # Clamp to valid range; skip degenerate boxes
+        x, y = max(0.0, min(x, 1.0)), max(0.0, min(y, 1.0))
+        w, h = max(0.05, min(w, 1.0 - x)), max(0.05, min(h, 1.0 - y))
+        validated.append({"label": str(g.get("label", "clothing")), "bbox": {"x": x, "y": y, "w": w, "h": h}})
 
-        if not validated:
-            logger.warning("Garment detection returned no items — using full-image fallback")
-            return _FULL_IMAGE_FALLBACK
-
-        return validated[:_MAX_GARMENTS]
-
-    except Exception as e:
-        logger.warning(f"Garment detection failed ({type(e).__name__}: {e}) — using full-image fallback")
-        return _FULL_IMAGE_FALLBACK
+    return validated[:_MAX_GARMENTS]
 
 
 # ---------------------------------------------------------------------------

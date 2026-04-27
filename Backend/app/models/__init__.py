@@ -4,6 +4,7 @@ from app.models.profile import Profile
 from app.models.clothing_item import ClothingItem
 from app.models.outfit import Outfit, OutfitItem
 from app.models.ai_feedback import AiFeedback
+from app.models.upload_retry_queue import UploadRetryQueue
 
 # Expose all models for Alembic
 __all__ = [
@@ -13,5 +14,6 @@ __all__ = [
     "ClothingItem",
     "Outfit",
     "OutfitItem",
-    "AiFeedback"
+    "AiFeedback",
+    "UploadRetryQueue",
 ]

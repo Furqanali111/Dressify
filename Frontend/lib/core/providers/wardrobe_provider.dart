@@ -29,6 +29,18 @@ class WardrobeNotifier extends StateNotifier<AsyncValue<List<ClothingItem>>> {
     }
   }
 
+  Future<void> update(String id, Map<String, dynamic> data) async {
+    final Dio dio = _ref.read(apiClientProvider);
+    final Response<dynamic> resp =
+        await dio.patch<dynamic>('clothing/$id', data: data);
+    final ClothingItem updated =
+        ClothingItem.fromJson(resp.data as Map<String, dynamic>);
+    final List<ClothingItem> current = state.value ?? <ClothingItem>[];
+    state = AsyncValue<List<ClothingItem>>.data(
+      current.map((ClothingItem it) => it.id == id ? updated : it).toList(),
+    );
+  }
+
   Future<void> delete(String id) async {
     final Dio dio = _ref.read(apiClientProvider);
     await dio.delete<dynamic>('clothing/$id');
@@ -36,6 +48,36 @@ class WardrobeNotifier extends StateNotifier<AsyncValue<List<ClothingItem>>> {
     state = AsyncValue<List<ClothingItem>>.data(
       current.where((ClothingItem it) => it.id != id).toList(),
     );
+  }
+
+  /// Polls each item in [itemIds] every 3 s until its processing_status
+  /// leaves "processing", or until 30 s have elapsed (10 attempts).
+  Future<void> pollUntilComplete(List<String> itemIds) async {
+    const Duration interval = Duration(seconds: 3);
+    const int maxAttempts = 10;
+    final Set<String> pending = Set<String>.from(itemIds);
+
+    for (int attempt = 0; attempt < maxAttempts && pending.isNotEmpty; attempt++) {
+      await Future<void>.delayed(interval);
+      final Dio dio = _ref.read(apiClientProvider);
+      for (final String id in List<String>.from(pending)) {
+        try {
+          final Response<dynamic> resp =
+              await dio.get<dynamic>('clothing/$id');
+          final ClothingItem updated =
+              ClothingItem.fromJson(resp.data as Map<String, dynamic>);
+          if (updated.processingStatus != 'processing') pending.remove(id);
+          final List<ClothingItem> current = state.value ?? <ClothingItem>[];
+          state = AsyncValue<List<ClothingItem>>.data(
+            current
+                .map((ClothingItem it) => it.id == id ? updated : it)
+                .toList(),
+          );
+        } catch (_) {
+          // Skip individual failures; keep polling the others
+        }
+      }
+    }
   }
 
   /// Backend may return `{ items: [...] }` (with cursor) or `[...]` directly.

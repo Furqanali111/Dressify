@@ -14,6 +14,11 @@ class Settings(BaseSettings):
     JWT_ISSUER: str = "dressify-api"
     JWT_TTL_HOURS: int = 24
     BYPASS_AUTH_FURQAN_54321: bool = False
+    ENVIRONMENT: str = "development"  # "production" disables bypass auth
+
+    # Upload retry worker
+    RETRY_INTERVAL_SECONDS: int = 300   # how often the worker polls (default 5 min)
+    UPLOAD_MAX_RETRIES: int = 3         # permanent failure after this many attempts
 
     # AI Settings
     OPENAI_API_KEY: str | None = None
@@ -22,6 +27,10 @@ class Settings(BaseSettings):
     # App Settings
     ALLOWED_ORIGINS: str = "http://localhost:3000"
     LOG_LEVEL: str = "info"
+
+    @property
+    def bypass_auth_enabled(self) -> bool:
+        return self.BYPASS_AUTH_FURQAN_54321 and self.ENVIRONMENT != "production"
 
     @property
     def cors_origins(self) -> List[str]:

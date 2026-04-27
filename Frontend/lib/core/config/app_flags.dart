@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 /// Runtime config sourced from `.env` (loaded at startup) with a
@@ -16,7 +17,7 @@ class AppFlags {
   /// Skip Google sign-in for local UI work. Splash routes directly to
   /// profile setup; sign-in screen auto-advances. Both surface a visible
   /// "AUTH BYPASSED" indicator so this can't ship.
-  static bool get bypassAuth => _bool('BYPASS_AUTH', defaultValue: false);
+  static bool get bypassAuth => kDebugMode && _bool('BYPASS_AUTH', defaultValue: false);
 
   /// Backend base URL. Override per environment.
   static String get apiBaseUrl =>

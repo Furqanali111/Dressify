@@ -1,28 +1,53 @@
+import asyncio
 import logging
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from app.core.limiter import limiter
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
 from app.config import settings
+from app.core.limiter import limiter
+from app.services.retry_worker import run_retry_worker
 
-# Setup logging
 logging.basicConfig(level=settings.LOG_LEVEL.upper())
 logger = logging.getLogger(__name__)
 
-# Initialize FastAPI app
+
+# ---------------------------------------------------------------------------
+# Lifespan: start/stop background tasks
+# ---------------------------------------------------------------------------
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    retry_task = asyncio.create_task(run_retry_worker())
+    logger.info("Upload retry worker task started")
+    try:
+        yield
+    finally:
+        retry_task.cancel()
+        try:
+            await retry_task
+        except asyncio.CancelledError:
+            logger.info("Upload retry worker stopped")
+
+
+# ---------------------------------------------------------------------------
+# App
+# ---------------------------------------------------------------------------
+
 app = FastAPI(
     title="Dressify API",
     description="Backend API for Dressify Virtual Try-On App",
     version="0.1.0",
+    lifespan=lifespan,
 )
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# Set up CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
@@ -31,22 +56,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- Global Error Handlers ---
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    logger.error(f"Unhandled exception: {exc}")
-    return JSONResponse(
-        status_code=500,
-        content={"detail": "Internal Server Error"},
-    )
+    logger.error("Unhandled exception: %s", exc)
+    return JSONResponse(status_code=500, content={"detail": "Internal Server Error"})
 
-# --- Routes ---
+
 @app.get("/health")
 async def health_check():
-    """Basic health check endpoint."""
     return {"status": "ok", "version": app.version}
 
-from app.routers import auth, profile, upload, clothing, outfits, feedback
+
+# Routes
+from app.routers import auth, profile, upload, clothing, outfits, feedback  # noqa: E402
 
 app.include_router(auth.router, prefix="/api/v1")
 app.include_router(profile.router, prefix="/api/v1")
@@ -54,4 +77,3 @@ app.include_router(upload.router, prefix="/api/v1")
 app.include_router(clothing.router, prefix="/api/v1")
 app.include_router(outfits.router, prefix="/api/v1")
 app.include_router(feedback.router, prefix="/api/v1")
-
