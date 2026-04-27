@@ -141,14 +141,17 @@ Focus: Speed · Simplicity · "Good enough" realism (not perfect)
 
 ---
 
-## Phase 3: Camera & Real-Time Try-On (Planned)
+## Phase 3: Camera & Real-Time Try-On ✅ Complete
 
 **Goal:** Let users see outfits overlaid on a live camera feed.
 
-- Real-time camera feed via `camera` Flutter package
-- Body/pose detection (MediaPipe or on-device ML model) to locate anchor points from the live frame
-- Live garment overlay rendered frame-by-frame using Custom Painter
-- Capture a photo of the live try-on for sharing or saving
+- **Real-time camera feed** — `camera` package (`CameraController`, `ResolutionPreset.medium`); front/back flip; lifecycle-aware pause/resume.
+- **On-device pose detection** — `google_mlkit_pose_detection` analyses camera image stream frames (NV21 on Android, BGRA8888 on iOS); ML Kit keypoints normalised to display coordinates; throttled to one detection per 250 ms.
+- **Live garment overlay** — `CameraOverlayPainter` (`CustomPainter`) aligns garment images to pose anchors (shoulder, chest, waist, hip, feet); shoulder-span-proportional sizing; same depth ordering (shoes → bottom → dress → top/jacket) as the avatar try-on.
+- **"See on Me" per clothing item** — each wardrobe card has a camera icon button; tapping it sets `cameraGarmentsProvider` and switches to the Camera tab with the item pre-loaded; also available in the long-press action sheet.
+- **Camera tab in bottom nav** — replaced Wardrobe tab; `CameraTryOnScreen(tabMode: true)` watches `cameraGarmentsProvider` and shows an empty-state guide ("Open any item and tap See on Me") until items are selected.
+- **Capture & share** — `RepaintBoundary.toImage()` composites the live preview and garment overlay into a PNG; preview dialog with Retake / Share (`share_plus`).
+- **Garment chip bar** — in camera tab, active garments shown as dismissible chips with a "clear all" ×; modal mode shows read-only name chips.
 
 ---
 
@@ -214,6 +217,6 @@ Focus: Speed · Simplicity · "Good enough" realism (not perfect)
 
 - [ ] **Native Google Sign-In** — configure Google Cloud Console / Firebase for Android: generate SHA-1 fingerprint, create OAuth 2.0 Client ID, place `google-services.json` in `Frontend/android/app/`, add Google Services plugin to `build.gradle`.
 - [ ] **Rotate Supabase keys** — current keys may be committed; rotate in Supabase dashboard and add `.env` to `.gitignore`.
-- [ ] **Create `clothing-raw-temp` Supabase bucket** — required by the upload retry worker; create as a private bucket (no public URL) in the Supabase dashboard.
 - [ ] **Backend test suite** — `Backend/tests/` exists but assertions are stubs; implement pytest fixtures (in-memory DB, auth bypass fixture), cover upload, outfit generation, and feedback flows, wire into CI.
 - [ ] **Style Tips screen** — dedicated screen for AI-generated seasonal advice and wardrobe analytics, replacing the current shortcut that opens the Style Me sheet.
+- [ ] **Camera garment selector** — full in-camera wardrobe picker to add/remove clothing items without leaving the camera screen; currently users must use "See on Me" per item from the wardrobe tab.

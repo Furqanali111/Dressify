@@ -8,6 +8,7 @@ import 'package:shimmer/shimmer.dart';
 import '../../core/enums/app_enums.dart' show AvatarKindX, ClothingType, ClothingTypeX;
 import '../../core/models/clothing_item.dart';
 import '../../core/models/outfit.dart';
+import '../../core/providers/camera_garments_provider.dart';
 import '../../core/providers/outfits_provider.dart';
 import '../../core/providers/wardrobe_provider.dart';
 import '../../core/router/app_routes.dart';
@@ -301,6 +302,7 @@ class _ClothingCard extends ConsumerWidget {
         actions: isFailed
             ? const <_ItemAction>[_ItemAction.delete]
             : const <_ItemAction>[
+                _ItemAction.seeOnMe,
                 _ItemAction.tryOn,
                 _ItemAction.edit,
                 _ItemAction.delete,
@@ -309,6 +311,9 @@ class _ClothingCard extends ConsumerWidget {
     );
     if (action == null || !context.mounted) return;
     switch (action) {
+      case _ItemAction.seeOnMe:
+        ref.read(cameraGarmentsProvider.notifier).state = <ClothingItem>[item];
+        context.goNamed(AppRoute.camera.name);
       case _ItemAction.tryOn:
         context.pushNamed(AppRoute.tryOn.name);
       case _ItemAction.edit:
@@ -385,9 +390,28 @@ class _ClothingCard extends ConsumerWidget {
                 Expanded(
                   child: ColoredBox(
                     color: c.background,
-                    child: isFailed
-                        ? _FailedPlaceholder(c: c)
-                        : _ClothingImage(item: item, fallbackType: uiType),
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: <Widget>[
+                        isFailed
+                            ? _FailedPlaceholder(c: c)
+                            : _ClothingImage(item: item, fallbackType: uiType),
+                        // "See on Me" quick-access button
+                        if (!isFailed && !isProcessing)
+                          Positioned(
+                            right: AppSpacing.xs,
+                            bottom: AppSpacing.xs,
+                            child: _SeeOnMeButton(
+                              onTap: () {
+                                ref
+                                    .read(cameraGarmentsProvider.notifier)
+                                    .state = <ClothingItem>[item];
+                                context.goNamed(AppRoute.camera.name);
+                              },
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
                 ),
                 Padding(
@@ -427,6 +451,27 @@ class _ClothingCard extends ConsumerWidget {
     }
 
     return card;
+  }
+}
+
+class _SeeOnMeButton extends StatelessWidget {
+  const _SeeOnMeButton({required this.onTap});
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 32,
+        height: 32,
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.55),
+          shape: BoxShape.circle,
+        ),
+        child: const Icon(Icons.camera_alt_outlined, color: Colors.white, size: 16),
+      ),
+    );
   }
 }
 
@@ -518,6 +563,8 @@ class _OutfitCard extends ConsumerWidget {
     );
     if (action == null || !context.mounted) return;
     switch (action) {
+      case _ItemAction.seeOnMe:
+        break; // outfits don't support "See on Me" directly
       case _ItemAction.tryOn:
         context.pushNamed(AppRoute.tryOn.name, extra: outfit);
       case _ItemAction.rename:
@@ -825,7 +872,7 @@ String _formatDate(DateTime d) {
 
 // ─── Action sheet ───────────────────────────────────────────────────────────
 
-enum _ItemAction { tryOn, edit, rename, delete }
+enum _ItemAction { seeOnMe, tryOn, edit, rename, delete }
 
 class _ItemActionSheet extends StatelessWidget {
   const _ItemActionSheet({
@@ -838,6 +885,12 @@ class _ItemActionSheet extends StatelessWidget {
 
   Widget _row(BuildContext context, _ItemAction action) {
     switch (action) {
+      case _ItemAction.seeOnMe:
+        return _ActionRow(
+          icon: Icons.camera_alt_outlined,
+          label: 'See on Me',
+          onTap: () => Navigator.of(context).pop(action),
+        );
       case _ItemAction.tryOn:
         return _ActionRow(
           icon: Icons.checkroom,

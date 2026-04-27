@@ -48,7 +48,7 @@ class HomeScreen extends ConsumerWidget {
                   Text('Recent Outfits', style: text.titleLarge),
                   const Spacer(),
                   TextButton(
-                    onPressed: () => context.goNamed(AppRoute.wardrobe.name),
+                    onPressed: () => context.pushNamed(AppRoute.wardrobe.name),
                     style: TextButton.styleFrom(
                       padding: EdgeInsets.zero,
                       minimumSize: const Size(48, 32),
@@ -80,7 +80,7 @@ class _TopBar extends StatelessWidget {
     return Row(
       children: <Widget>[
         GestureDetector(
-          onTap: () => context.goNamed(AppRoute.wardrobe.name),
+          onTap: () => context.pushNamed(AppRoute.wardrobe.name),
           child: Container(
             width: 36,
             height: 36,
@@ -154,12 +154,12 @@ class _QuickActions extends StatelessWidget {
       _QuickAction(
         icon: Icons.checkroom,
         label: 'My Wardrobe',
-        onTap: () => context.goNamed(AppRoute.wardrobe.name),
+        onTap: () => context.pushNamed(AppRoute.wardrobe.name),
       ),
       _QuickAction(
         icon: Icons.bookmark_outline,
         label: 'Saved Looks',
-        onTap: () => context.goNamed(AppRoute.wardrobe.name),
+        onTap: () => context.pushNamed(AppRoute.wardrobe.name),
       ),
       _QuickAction(
         icon: Icons.auto_awesome_outlined,

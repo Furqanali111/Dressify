@@ -11,7 +11,7 @@ class HomeShell extends StatelessWidget {
 
   static const List<_Tab> _tabs = <_Tab>[
     _Tab(icon: Icons.home_outlined, activeIcon: Icons.home_rounded, label: 'Home'),
-    _Tab(icon: Icons.checkroom_outlined, activeIcon: Icons.checkroom, label: 'Wardrobe'),
+    _Tab(icon: Icons.camera_alt_outlined, activeIcon: Icons.camera_alt, label: 'Try On'),
     _Tab(icon: Icons.person_outline, activeIcon: Icons.person, label: 'Profile'),
   ];
 

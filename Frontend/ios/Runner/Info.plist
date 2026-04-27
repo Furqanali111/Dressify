@@ -45,5 +45,13 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Dressify uses the camera to show outfits overlaid on a live preview.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Dressify requires microphone access as part of the camera system.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Dressify reads your photo library so you can upload clothing photos.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Dressify can save your captured outfit photos to your library.</string>
 </dict>
 </plist>

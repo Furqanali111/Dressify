@@ -7,6 +7,7 @@ import '../../core/models/user.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../features/auth/sign_in_screen.dart';
 import '../../features/avatar/avatar_selection_screen.dart';
+import '../../features/camera_try_on/camera_try_on_screen.dart';
 import '../../features/feedback/ai_feedback_screen.dart';
 import '../../features/home/home_screen.dart';
 import '../../features/home/home_shell.dart';
@@ -81,10 +82,12 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
           gender: state.extra as String?,
         ),
       ),
+      // ── Shell: bottom-nav tabs ──────────────────────────────────────────
       StatefulShellRoute.indexedStack(
         builder: (_, _, StatefulNavigationShell shell) =>
             HomeShell(navigationShell: shell),
         branches: <StatefulShellBranch>[
+          // Tab 0 — Home
           StatefulShellBranch(
             routes: <RouteBase>[
               GoRoute(
@@ -94,15 +97,17 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
               ),
             ],
           ),
+          // Tab 1 — Camera (Live Try-On)
           StatefulShellBranch(
             routes: <RouteBase>[
               GoRoute(
-                path: AppRoute.wardrobe.path,
-                name: AppRoute.wardrobe.name,
-                builder: (_, _) => const WardrobeScreen(),
+                path: AppRoute.camera.path,
+                name: AppRoute.camera.name,
+                builder: (_, _) => const CameraTryOnScreen(tabMode: true),
               ),
             ],
           ),
+          // Tab 2 — Profile
           StatefulShellBranch(
             routes: <RouteBase>[
               GoRoute(
@@ -113,6 +118,13 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
             ],
           ),
         ],
+      ),
+      // ── Modal routes (pushed above shell) ──────────────────────────────
+      GoRoute(
+        path: AppRoute.wardrobe.path,
+        name: AppRoute.wardrobe.name,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, _) => const WardrobeScreen(),
       ),
       GoRoute(
         path: AppRoute.upload.path,
@@ -127,6 +139,15 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
         builder: (_, GoRouterState state) {
           final outfit = state.extra as Outfit?;
           return TryOnScreen(outfit: outfit);
+        },
+      ),
+      GoRoute(
+        path: AppRoute.cameraTryOn.path,
+        name: AppRoute.cameraTryOn.name,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, GoRouterState state) {
+          final outfit = state.extra as Outfit?;
+          return CameraTryOnScreen(outfit: outfit);
         },
       ),
       GoRoute(

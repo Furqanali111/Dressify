@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/api/api_client.dart';
 import '../../core/enums/app_enums.dart';
+import '../../core/router/app_routes.dart';
 import '../../core/models/clothing_item.dart';
 import '../../core/models/outfit.dart';
 import '../../core/providers/outfits_provider.dart';
@@ -262,7 +263,15 @@ class _TryOnScreenState extends ConsumerState<TryOnScreen> {
       body: SafeArea(
         child: Column(
           children: <Widget>[
-            _TopBar(onBack: () => context.pop()),
+            _TopBar(
+              onBack: () => context.pop(),
+              onCamera: _garments.isNotEmpty
+                  ? () => context.pushNamed(
+                        AppRoute.cameraTryOn.name,
+                        extra: widget.outfit,
+                      )
+                  : null,
+            ),
             Expanded(
               flex: 65,
               child: Stack(
@@ -405,8 +414,9 @@ class _TryOnScreenState extends ConsumerState<TryOnScreen> {
 // ---------------------------------------------------------------------------
 
 class _TopBar extends StatelessWidget {
-  const _TopBar({required this.onBack});
+  const _TopBar({required this.onBack, this.onCamera});
   final VoidCallback onBack;
+  final VoidCallback? onCamera;
 
   @override
   Widget build(BuildContext context) {
@@ -422,11 +432,16 @@ class _TopBar extends StatelessWidget {
             onPressed: onBack,
           ),
           const Spacer(),
+          if (onCamera != null)
+            IconButton(
+              icon: const Icon(Icons.camera_alt_outlined, color: Colors.white),
+              tooltip: 'Live Try-On',
+              onPressed: onCamera,
+            ),
           IconButton(
             icon: const Icon(Icons.fullscreen, color: Colors.white),
             tooltip: 'Fullscreen',
             onPressed: () {
-              // Hide status bar and nav bar for an immersive canvas view
               SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
             },
           ),

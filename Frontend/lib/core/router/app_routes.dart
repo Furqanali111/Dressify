@@ -9,6 +9,8 @@ enum AppRoute {
   profile('/profile'),
   upload('/upload'),
   tryOn('/try-on'),
+  camera('/camera'),
+  cameraTryOn('/camera-try-on'),
   aiFeedback('/feedback');
 
   const AppRoute(this.path);
