@@ -13,6 +13,7 @@ import '../../core/router/app_routes.dart';
 import '../../core/models/clothing_item.dart';
 import '../../core/models/outfit.dart';
 import '../../core/providers/outfits_provider.dart';
+import '../../core/providers/fit_scale_provider.dart';
 import '../../core/providers/profile_provider.dart';
 import '../../core/providers/wardrobe_provider.dart';
 import '../../core/theme/app_colors.dart';
@@ -376,6 +377,37 @@ class _TryOnScreenState extends ConsumerState<TryOnScreen> {
                         ],
                       ),
                     ),
+                  // Fit personalised chip
+                  if (ref.watch(fitScalesProvider).isPersonalized)
+                    Positioned(
+                      bottom: AppSpacing.sm,
+                      left: AppSpacing.md,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.md,
+                          vertical: AppSpacing.xs,
+                        ),
+                        decoration: BoxDecoration(
+                          color: c.primary.withValues(alpha: 0.88),
+                          borderRadius: BorderRadius.circular(AppRadius.thumbnail),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            Icon(Icons.check_circle_outline, size: 14, color: Colors.white),
+                            SizedBox(width: 4),
+                            Text(
+                              'Fit personalised',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   // Canvas controls
                   Positioned(
                     right: AppSpacing.md,
@@ -520,7 +552,7 @@ class _CanvasControl extends StatelessWidget {
 // Avatar preview + clothing overlay
 // ---------------------------------------------------------------------------
 
-class _AvatarPreview extends StatelessWidget {
+class _AvatarPreview extends ConsumerWidget {
   const _AvatarPreview({
     required this.kind,
     required this.garments,
@@ -532,7 +564,8 @@ class _AvatarPreview extends StatelessWidget {
   final bool loading;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final FitScales fitScales = ref.watch(fitScalesProvider);
     return SizedBox(
       width: 220,
       height: 360,
@@ -561,7 +594,7 @@ class _AvatarPreview extends StatelessWidget {
             ClipRRect(
               borderRadius: BorderRadius.circular(AppRadius.card),
               child: CustomPaint(
-                painter: _ClothingPainter(garments: garments),
+                painter: _ClothingPainter(garments: garments, fitScales: fitScales),
               ),
             ),
           // Loading indicator while garments are being fetched/decoded
@@ -587,9 +620,10 @@ class _AvatarPreview extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _ClothingPainter extends CustomPainter {
-  const _ClothingPainter({required this.garments});
+  const _ClothingPainter({required this.garments, required this.fitScales});
 
   final List<_GarmentData> garments;
+  final FitScales fitScales;
 
   // --- Avatar anatomy (normalized 0..1 within the 220×360 canvas) -----------
   static const Map<String, Offset> _avatarAnchors = <String, Offset>{
@@ -690,8 +724,8 @@ class _ClothingPainter extends CustomPainter {
   void _paintOne(Canvas canvas, Size size, _GarmentData garment) {
     final ui.Image img = garment.uiImage;
 
-    // 1. Display size: fixed width, aspect-ratio height
-    final double dispW = size.width * _widthFactor(garment.item.type);
+    // 1. Display size: fixed width scaled by user body measurements, aspect-ratio height
+    final double dispW = size.width * _widthFactor(garment.item.type) * fitScales.forType(garment.item.type);
     final double dispH = dispW / (img.width / img.height);
 
     // 2. Avatar anchor in canvas pixels
@@ -719,7 +753,7 @@ class _ClothingPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _ClothingPainter old) =>
-      old.garments != garments;
+      old.garments != garments || old.fitScales != fitScales;
 }
 
 // ---------------------------------------------------------------------------

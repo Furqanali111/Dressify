@@ -48,6 +48,12 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
   final TextEditingController _heightController = TextEditingController();
   final TextEditingController _heightInchesController = TextEditingController();
   final TextEditingController _weightController = TextEditingController();
+  // Phase 4.1 — optional body measurements
+  final TextEditingController _chestController    = TextEditingController();
+  final TextEditingController _waistController    = TextEditingController();
+  final TextEditingController _hipController      = TextEditingController();
+  final TextEditingController _shoulderController = TextEditingController();
+  bool _measurementsExpanded = false;
 
   HeightUnit _heightUnit = HeightUnit.cm;
   WeightUnit _weightUnit = WeightUnit.kg;
@@ -63,6 +69,10 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
     _heightController.dispose();
     _heightInchesController.dispose();
     _weightController.dispose();
+    _chestController.dispose();
+    _waistController.dispose();
+    _hipController.dispose();
+    _shoulderController.dispose();
     super.dispose();
   }
 
@@ -157,11 +167,23 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
       }
     }
 
+    double? parseCm(TextEditingController c) {
+      final v = double.tryParse(c.text.trim());
+      return (v != null && v > 0) ? v : null;
+    }
+
     final Map<String, dynamic> data = <String, dynamic>{
       if (heightCm != null) 'height_cm': heightCm,
       if (weightKg != null) 'weight_kg': weightKg,
       if (_bodyType != null) 'body_type': _bodyType!.name,
       if (_gender != null) 'gender': _gender,
+      // Phase 4.1 measurements (only if expanded and filled)
+      if (_measurementsExpanded) ...{
+        if (parseCm(_chestController)    != null) 'chest_cm':    parseCm(_chestController),
+        if (parseCm(_waistController)    != null) 'waist_cm':    parseCm(_waistController),
+        if (parseCm(_hipController)      != null) 'hip_cm':      parseCm(_hipController),
+        if (parseCm(_shoulderController) != null) 'shoulder_cm': parseCm(_shoulderController),
+      },
     };
 
     try {
@@ -298,6 +320,94 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                         ],
                       ),
                     ),
+                    const SizedBox(height: AppSpacing.lg),
+                    // Phase 4.1 — optional measurements
+                    GestureDetector(
+                      onTap: () => setState(
+                        () => _measurementsExpanded = !_measurementsExpanded,
+                      ),
+                      child: Row(
+                        children: <Widget>[
+                          Icon(
+                            _measurementsExpanded
+                                ? Icons.expand_less
+                                : Icons.expand_more,
+                            size: 20,
+                            color: c.textSecondary,
+                          ),
+                          const SizedBox(width: AppSpacing.xs),
+                          Text(
+                            'Add body measurements (optional)',
+                            style: text.labelMedium?.copyWith(
+                              color: c.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (_measurementsExpanded) ...<Widget>[
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        'Used to scale garments to your proportions. All values in cm.',
+                        style: text.bodySmall?.copyWith(color: c.textSecondary),
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      Row(
+                        children: <Widget>[
+                          Expanded(
+                            child: AppTextField(
+                              label: 'Chest',
+                              controller: _chestController,
+                              hint: 'e.g. 90',
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              inputFormatters: <TextInputFormatter>[
+                                FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: AppSpacing.md),
+                          Expanded(
+                            child: AppTextField(
+                              label: 'Waist',
+                              controller: _waistController,
+                              hint: 'e.g. 74',
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              inputFormatters: <TextInputFormatter>[
+                                FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      Row(
+                        children: <Widget>[
+                          Expanded(
+                            child: AppTextField(
+                              label: 'Hip',
+                              controller: _hipController,
+                              hint: 'e.g. 96',
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              inputFormatters: <TextInputFormatter>[
+                                FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: AppSpacing.md),
+                          Expanded(
+                            child: AppTextField(
+                              label: 'Shoulder',
+                              controller: _shoulderController,
+                              hint: 'e.g. 42',
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              inputFormatters: <TextInputFormatter>[
+                                FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),

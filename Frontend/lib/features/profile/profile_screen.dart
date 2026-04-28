@@ -10,6 +10,7 @@ import '../../core/router/app_routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/widgets/app_toast.dart';
+import 'measurements_sheet.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -63,6 +64,8 @@ class ProfileScreen extends ConsumerWidget {
           _ProfileHeader(onSignOut: () => _confirmSignOut(context, ref)),
           const SizedBox(height: AppSpacing.xl),
           const _BodyStatsCard(),
+          const SizedBox(height: AppSpacing.md),
+          const _MeasurementsCard(),
           const SizedBox(height: AppSpacing.xl),
           Text(
             'Settings',
@@ -318,6 +321,108 @@ class _StatPill extends StatelessWidget {
               fontWeight: FontWeight.w600,
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Body measurements card
+// ---------------------------------------------------------------------------
+
+class _MeasurementsCard extends ConsumerWidget {
+  const _MeasurementsCard();
+
+  void _openSheet(BuildContext context, Profile? profile) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        decoration: BoxDecoration(
+          color: context.colors.background,
+          borderRadius: const BorderRadius.vertical(
+            top: Radius.circular(AppRadius.sheetTop),
+          ),
+        ),
+        child: MeasurementsSheet(profile: profile),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final AppColors c = context.colors;
+    final TextTheme text = Theme.of(context).textTheme;
+    final Profile? profile = ref.watch(profileProvider).value;
+
+    String fmtCm(double? v) => v == null ? '—' : '${v.toStringAsFixed(0)} cm';
+
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: c.surface,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Text('Body Measurements', style: text.titleMedium),
+              const Spacer(),
+              TextButton(
+                onPressed: () => _openSheet(context, profile),
+                style: TextButton.styleFrom(
+                  padding: EdgeInsets.zero,
+                  minimumSize: const Size(48, 32),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: Text(
+                  profile?.hasMeasurements == true ? 'Edit' : 'Add',
+                  style: text.labelLarge?.copyWith(color: c.primary),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            'Scales garments to your proportions in the try-on canvas.',
+            style: text.bodySmall?.copyWith(color: c.textSecondary),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Row(
+            children: <Widget>[
+              Expanded(child: _StatPill(label: 'Chest',    value: fmtCm(profile?.chestCm))),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(child: _StatPill(label: 'Waist',    value: fmtCm(profile?.waistCm))),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(child: _StatPill(label: 'Hip',      value: fmtCm(profile?.hipCm))),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(child: _StatPill(label: 'Shoulder', value: fmtCm(profile?.shoulderCm))),
+            ],
+          ),
+          if (profile?.isFitPersonalized == true) ...<Widget>[
+            const SizedBox(height: AppSpacing.sm),
+            Row(
+              children: <Widget>[
+                Icon(Icons.check_circle_outline, size: 14, color: c.primary),
+                const SizedBox(width: 4),
+                Text(
+                  'Fit personalised',
+                  style: TextStyle(fontSize: 12, color: c.primary, fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );

@@ -157,12 +157,44 @@ Focus: Speed · Simplicity · "Good enough" realism (not perfect)
 
 ## Phase 4: Personalization & Advanced Fitting (Planned)
 
-**Goal:** Make the fit feel personal and accurate.
+**Goal:** Make the fit feel personal and accurate — measurements inform garment scaling, AI learns taste over time, and analytics surface wardrobe insights.
 
-- Body sliders — height/weight/proportion simulation affects garment scale in real time
-- Size-aware fitting — garment dimensions mapped to avatar body measurements
-- Style preference learning — AI remembers past feedback and outfit choices to personalise generation
-- Advanced wardrobe analytics — most-worn colours, underutilised items, outfit frequency stats
+### 4.1 Body Measurements & Real-Time Garment Scaling
+- **Profile measurement fields** — `chest_cm`, `waist_cm`, `hip_cm`, `shoulder_cm` added to `profiles` via Alembic migration; profile PATCH/GET endpoints updated.
+- **Optional measurement step** — profile setup gains an optional "Add Measurements" step (skippable); profile screen gains a "Body Measurements" edit tile.
+- **`FitScaleProvider`** — Riverpod provider derives a per-garment-type scale factor from stored measurements vs. avatar baseline; consumed by both the try-on canvas and camera overlay.
+- **Try-on canvas scaling** — `_ClothingPainter` multiplies garment dimensions by the scale factor when measurements are present; visual difference is subtle but noticeable at extremes.
+- **Camera overlay scaling** — `CameraOverlayPainter` applies the same scale factor to shoulder-span-proportional garment sizing.
+
+### 4.2 Size-Aware Fitting
+- **Garment size metadata** — `size_label` (XS/S/M/L/XL/XXL/One Size) and `fit_notes` columns added to `clothing_items`; Llama metadata extraction updated to populate them.
+- **Size badge in wardrobe** — clothing cards show a small size chip; edit-details sheet exposes `size_label`.
+- **Fit rating endpoint** — `GET /clothing/{id}/fit` compares user measurements against expected size ranges for the garment type and returns `{fit_rating: "perfect"|"may_be_snug"|"runs_large", confidence: float}`.
+- **Fit indicator in try-on** — "Check Fit" button fetches fit ratings; each garment on the canvas gets a coloured badge (✅ Perfect / ⚠️ May Be Snug / 🔵 Runs Large).
+
+### 4.3 Style Preference Learning
+- **Preference table** — `user_style_preferences` stores `liked_colors`, `liked_styles`, `liked_patterns`, `disliked_styles` as JSONB; updated by a background task after every feedback submission.
+- **Interaction logging** — `outfit_interactions` table records `viewed`, `tried`, `saved`, `dismissed`, `shared` events against clothing item IDs; logged automatically at key app moments.
+- **AI-aware generation** — outfit generation prompt includes a "User style profile" context block derived from preferences ("prefers navy, slim-fit, avoids floral").
+- **Style Profile UI** — profile screen gains a "My Style DNA" section showing colour swatches and style tags; an edit sheet allows manual overrides.
+- **"Personalized for you" badge** — outfit generation result card shows a badge when preferences were applied.
+- **`GET /users/me/style-profile`** and **`PATCH /users/me/style-profile`** endpoints.
+
+### 4.4 Wardrobe Analytics & Style Tips Screen
+- **Wear logging** — `wear_logs` table (user_id, outfit_id nullable, clothing_item_ids[], logged_at); `POST /wear-logs` endpoint; auto-logged when user opens try-on for an outfit.
+- **Analytics endpoint** — `GET /analytics/wardrobe` returns: `most_worn` (top 5 items), `underutilised` (not worn in 30+ days), `color_distribution` map, `style_breakdown` map, `outfit_frequency` (weekly counts, 4-week window), totals.
+- **Style Tips screen** — dedicated `/style-tips` route replaces the StyleMeSheet shortcut in Quick Actions; sections: stats header (total items/outfits/active streak), colour palette pie chart (CustomPainter, no new dep), most-worn row, underutilised banner, style breakdown, and embedded AI seasonal advice.
+- **`WardrobeAnalyticsProvider`** — fetches and caches analytics; pull-to-refresh support.
+
+### Implementation Order
+1. **4.1** Body measurements (standalone, low risk, unlocks 4.2)
+2. **4.4** Style Tips screen + analytics (high user-visible value, uses existing data)
+3. **4.3** Preference learning (builds on existing feedback pipeline)
+4. **4.2** Size-aware fitting (needs 4.1; most complex fitting logic)
+
+### New Dependencies
+- No mandatory new packages — CustomPainter handles the colour pie chart.
+- Optional: `fl_chart: ^0.69.0` for polished bar/line charts in the analytics screen.
 
 ---
 

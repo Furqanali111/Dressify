@@ -14,6 +14,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../core/models/clothing_item.dart';
 import '../../core/models/outfit.dart';
 import '../../core/providers/camera_garments_provider.dart';
+import '../../core/providers/fit_scale_provider.dart';
 import '../../core/providers/wardrobe_provider.dart';
 import '../../core/router/app_routes.dart';
 import '../../core/services/pose_detection_service.dart';
@@ -425,6 +426,7 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
                             garments: _garments.values.toList(),
                             anchors: _anchors,
                             displaySize: bc.biggest,
+                            fitScales: ref.watch(fitScalesProvider),
                           ),
                         ),
                       ),
@@ -529,11 +531,13 @@ class _CameraOverlayPainter extends CustomPainter {
     required this.garments,
     required this.anchors,
     required this.displaySize,
+    required this.fitScales,
   });
 
   final List<_GarmentData> garments;
   final Map<String, NormAnchor>? anchors;
   final Size displaySize;
+  final FitScales fitScales;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -569,7 +573,7 @@ class _CameraOverlayPainter extends CustomPainter {
     if (anchor == null) return;
 
     final ui.Image img = g.uiImage;
-    final double gW = shoulderSpan * _shoulderMultiplier(g.item.type);
+    final double gW = shoulderSpan * _shoulderMultiplier(g.item.type) * fitScales.forType(g.item.type);
     final double gH = gW / (img.width / img.height);
 
     final double ax = anchor.x * size.width;
@@ -586,7 +590,7 @@ class _CameraOverlayPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _CameraOverlayPainter old) =>
-      old.anchors != anchors || old.garments != garments;
+      old.anchors != anchors || old.garments != garments || old.fitScales != fitScales;
 }
 
 // ---------------------------------------------------------------------------
