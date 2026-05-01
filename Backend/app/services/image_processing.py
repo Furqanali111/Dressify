@@ -84,7 +84,7 @@ async def detect_garments_in_image(image_bytes: bytes) -> list[dict]:
     )
 
     response = await client.chat.completions.create(
-        model="llama3.2-vision",
+        model=settings.OLLAMA_VISION_MODEL,
         messages=[
             {
                 "role": "user",
@@ -196,10 +196,10 @@ async def _analyze_garment_with_vision(image_bytes: bytes) -> dict:
 
     if settings.OPENAI_API_KEY:
         client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
-        model = "gpt-4o-mini"
+        model = settings.OPENAI_API_MODEL
     else:
         client = AsyncOpenAI(base_url=settings.OLLAMA_BASE_URL, api_key="ollama")
-        model = "llama3.2-vision"
+        model = settings.OLLAMA_VISION_MODEL
 
     prompt = (
         "Analyze this clothing item image which has its background removed and is cropped tightly to the garment. "

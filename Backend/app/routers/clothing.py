@@ -16,7 +16,7 @@ from app.models.user import User
 from app.deps import get_current_user
 from app.schemas.clothing import ClothingItemResponse, ClothingItemUpdate, ClothingListResponse, FitRatingResponse
 from app.services.fit_rating import compute_fit_rating
-from app.services.storage import get_signed_url
+from app.services import storage
 from app.core.limiter import limiter
 
 logger = logging.getLogger(__name__)
@@ -177,6 +177,10 @@ async def delete_clothing_item(
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
 
+    # Delete physical files from Supabase Storage before removing the DB record
+    if item.processed_image_path:
+        storage.delete_file("clothing-processed", item.processed_image_path)
+
     try:
         await db.delete(item)
         await db.commit()
@@ -207,6 +211,17 @@ async def batch_delete_clothing(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    # Fetch the items first so we can wipe their files from Supabase Storage
+    rows_result = await db.execute(
+        select(ClothingItem.processed_image_path).where(
+            ClothingItem.id.in_(body.clothing_item_ids),
+            ClothingItem.user_id == current_user.id,
+        )
+    )
+    paths = [row.processed_image_path for row in rows_result.all() if row.processed_image_path]
+    for path in paths:
+        storage.delete_file("clothing-processed", path)
+
     try:
         await db.execute(
             delete(ClothingItem).where(
@@ -219,7 +234,7 @@ async def batch_delete_clothing(
         await db.rollback()
         logger.error("Failed to batch delete clothing items: %s", e)
         raise HTTPException(
-            status_code=400, 
+            status_code=400,
             detail="Could not delete items. They may be part of an outfit."
         )
 

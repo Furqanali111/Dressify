@@ -22,7 +22,10 @@ class Settings(BaseSettings):
 
     # AI Settings
     OPENAI_API_KEY: str | None = None
+    OPENAI_API_MODEL: str = "gpt-4o-mini"
     OLLAMA_BASE_URL: str = "http://localhost:11434/v1"
+    OLLAMA_VISION_MODEL: str = "llama3.2-vision:90b"
+    OLLAMA_TEXT_MODEL: str = "llama3.2:latest"
 
     # App Settings
     ALLOWED_ORIGINS: str = "http://localhost:3000"

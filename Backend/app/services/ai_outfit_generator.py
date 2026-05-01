@@ -26,10 +26,10 @@ def generate_outfit(
     """
     if settings.OPENAI_API_KEY:
         client = OpenAI(api_key=settings.OPENAI_API_KEY)
-        model = "gpt-4o-mini"
+        model = settings.OPENAI_API_MODEL
     else:
         client = OpenAI(base_url=settings.OLLAMA_BASE_URL, api_key="ollama")
-        model = "llama3.2"
+        model = settings.OLLAMA_TEXT_MODEL
 
     style_line = f"    - User Style Profile: {style_profile}\n" if style_profile else ""
     seed_line  = f"    - Must Include This Item: {seed_item}\n" if seed_item else ""

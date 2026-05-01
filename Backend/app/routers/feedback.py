@@ -4,7 +4,8 @@ import uuid
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
+from sqlalchemy.dialects.postgresql import JSONB
 
 from app.db import get_db
 from app.models.ai_feedback import AiFeedback
@@ -58,46 +59,74 @@ async def generate_feedback(
 
     clothing_items: list = []
     clothing_descriptions: list[str] = []
+    outfit_image_paths: list[str] = []
     if item_ids:
         ci_result = await db.execute(
-            select(ClothingItem).where(
+            select(
+                ClothingItem.id,
+                ClothingItem.name,
+                ClothingItem.type,
+                ClothingItem.sub_type,
+                ClothingItem.color,
+                ClothingItem.pattern,
+                ClothingItem.style,
+                ClothingItem.processed_image_path,
+            ).where(
                 ClothingItem.id.in_(item_ids),
                 ClothingItem.user_id == current_user.id,
             )
         )
-        clothing_items = ci_result.scalars().all()
+        clothing_rows = ci_result.all()
+        clothing_items = clothing_rows  # keep reference for style pref update
 
-        if not body.outfit_id and len(clothing_items) != len(item_ids):
+        if not body.outfit_id and len(clothing_rows) != len(item_ids):
             raise HTTPException(
                 status_code=404,
                 detail="One or more clothing items not found",
             )
 
-        for ci in clothing_items:
+        for ci in clothing_rows:
             desc = f"{ci.name} ({ci.type})"
             extras = [e for e in [ci.sub_type, ci.color, ci.pattern, ci.style] if e]
             if extras:
                 desc += f" - {', '.join(extras)}"
             clothing_descriptions.append(desc)
+            if ci.processed_image_path:
+                outfit_image_paths.append(ci.processed_image_path)
 
     outfit_details_str = (
         ", ".join(clothing_descriptions) if clothing_descriptions else "Empty Outfit"
     )
 
+    # ── Rotation Sampling: 15 underused wardrobe items (not in current outfit) ─
+    # We pick items the user hasn't worn recently by sampling randomly, excluding
+    # the items already in the outfit. This keeps the prompt lean (≤15 items)
+    # and nudges the AI to suggest underused pieces — encouraging wardrobe rotation.
+    current_outfit_ids = [str(i) for i in (item_ids or [])]
     wardrobe_result = await db.execute(
-        select(ClothingItem).where(ClothingItem.user_id == current_user.id)
+        select(
+            ClothingItem.name,
+            ClothingItem.type,
+            ClothingItem.sub_type,
+            ClothingItem.color,
+            ClothingItem.pattern,
+            ClothingItem.style,
+        )
+        .where(
+            ClothingItem.user_id == current_user.id,
+            ~ClothingItem.id.in_(item_ids or []),
+            ClothingItem.processing_status == "completed",
+        )
+        .order_by(func.random())
+        .limit(15)
     )
-    wardrobe_descriptions: list[str] = []
-    for w in wardrobe_result.scalars().all():
+    wardrobe_sample: list[str] = []
+    for w in wardrobe_result.all():
         desc = f"{w.name} ({w.type})"
         extras = [e for e in [w.sub_type, w.color, w.pattern, w.style] if e]
         if extras:
             desc += f" - {', '.join(extras)}"
-        wardrobe_descriptions.append(desc)
-
-    wardrobe_details_str = (
-        ", ".join(wardrobe_descriptions) if wardrobe_descriptions else "No other items"
-    )
+        wardrobe_sample.append(desc)
 
     weather_context = None
     if body.lat is not None and body.lon is not None:
@@ -105,7 +134,11 @@ async def generate_feedback(
 
     try:
         feedback_data = get_feedback_for_outfit(
-            outfit_details_str, body.occasion, wardrobe_details_str, weather_context
+            outfit_details_str,
+            body.occasion,
+            wardrobe_sample,
+            weather_context,
+            outfit_image_paths if outfit_image_paths else None,
         )
     except RuntimeError as e:
         raise HTTPException(status_code=503, detail=str(e))

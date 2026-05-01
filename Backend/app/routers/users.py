@@ -6,9 +6,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.db import get_db
+from app.models.clothing_item import ClothingItem
 from app.models.style_preference import UserStylePreference, OutfitInteraction
 from app.models.user import User
 from app.deps import get_current_user
+from app.services import storage
 from app.schemas.style_preference import (
     StyleProfileResponse,
     StyleProfileUpdate,
@@ -104,6 +106,18 @@ async def delete_account(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    # Wipe all clothing images from Supabase Storage BEFORE deleting the DB records
+    # This is required for GDPR/CCPA compliance — no orphaned user data in storage.
+    image_rows = (await db.execute(
+        select(ClothingItem.processed_image_path)
+        .where(
+            ClothingItem.user_id == current_user.id,
+            ClothingItem.processed_image_path.isnot(None),
+        )
+    )).all()
+    for (path,) in image_rows:
+        storage.delete_file("clothing-processed", path)
+
     try:
         await db.delete(current_user)
         await db.commit()

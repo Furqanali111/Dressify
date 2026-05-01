@@ -24,10 +24,10 @@ async def extract_clothing_metadata(item_id: UUID, image_bytes: bytes):
         # Determine client and model
         if settings.OPENAI_API_KEY:
             client = OpenAI(api_key=settings.OPENAI_API_KEY)
-            model = "gpt-4o-mini"
+            model = settings.OPENAI_API_MODEL
         else:
             client = OpenAI(base_url=settings.OLLAMA_BASE_URL, api_key="ollama")
-            model = "llama3.2-vision"
+            model = settings.OLLAMA_VISION_MODEL
             
         prompt = """
         You are an AI fashion expert. Analyze this image of a clothing item.

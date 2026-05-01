@@ -13,6 +13,7 @@ import '../../core/providers/wardrobe_analytics_provider.dart';
 import '../../core/router/app_routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
+import '../../core/utils/dio_retry.dart';
 import '../../core/widgets/app_toast.dart';
 
 class StyleTipsScreen extends ConsumerWidget {
@@ -34,21 +35,37 @@ class StyleTipsScreen extends ConsumerWidget {
       ),
       body: asyncData.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              Icon(Icons.error_outline, size: 48, color: c.error),
-              const SizedBox(height: AppSpacing.md),
-              Text('Could not load analytics', style: text.bodyMedium),
-              const SizedBox(height: AppSpacing.md),
-              TextButton(
-                onPressed: () => ref.read(wardrobeAnalyticsProvider.notifier).refresh(),
-                child: const Text('Retry'),
+        error: (Object err, _) {
+          final bool isRateLimit = err is RateLimitException;
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.xl),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Icon(
+                    isRateLimit ? Icons.hourglass_bottom_rounded : Icons.error_outline,
+                    size: 48,
+                    color: isRateLimit ? c.primary : c.error,
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  Text(
+                    isRateLimit
+                        ? 'You\u2019ve reached the request limit.\nPlease wait a moment and try again.'
+                        : 'Could not load analytics',
+                    style: text.bodyMedium,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  TextButton(
+                    onPressed: () => ref.read(wardrobeAnalyticsProvider.notifier).refresh(),
+                    child: const Text('Retry'),
+                  ),
+                ],
               ),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
         data: (analytics) {
           if (analytics == null) {
             return Center(child: Text('No data yet', style: text.bodyMedium));
