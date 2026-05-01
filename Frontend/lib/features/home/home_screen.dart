@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/models/outfit.dart';
+import '../../core/providers/notifications_provider.dart';
 import '../../core/providers/outfits_provider.dart';
 import '../../core/router/app_routes.dart';
 import '../../core/theme/app_colors.dart';
@@ -70,11 +71,12 @@ class HomeScreen extends ConsumerWidget {
   }
 }
 
-class _TopBar extends StatelessWidget {
+class _TopBar extends ConsumerWidget {
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final AppColors c = context.colors;
     final TextTheme text = Theme.of(context).textTheme;
+    final int unread = ref.watch(notificationsProvider).unreadCount;
 
     return Row(
       children: <Widget>[
@@ -108,20 +110,39 @@ class _TopBar extends StatelessWidget {
             ],
           ),
         ),
-        IconButton(
-          icon: Icon(
-            Icons.notifications_none_rounded,
-            color: c.textPrimary,
-            size: 26,
-          ),
-          onPressed: () {
-            showModalBottomSheet<void>(
-              context: context,
-              backgroundColor: Colors.transparent,
-              isScrollControlled: true,
-              builder: (_) => const NotificationsSheet(),
-            );
-          },
+        Stack(
+          clipBehavior: Clip.none,
+          children: <Widget>[
+            IconButton(
+              icon: Icon(
+                Icons.notifications_none_rounded,
+                color: c.textPrimary,
+                size: 26,
+              ),
+              onPressed: () {
+                showModalBottomSheet<void>(
+                  context: context,
+                  backgroundColor: Colors.transparent,
+                  isScrollControlled: true,
+                  builder: (_) => const NotificationsSheet(),
+                );
+              },
+            ),
+            if (unread > 0)
+              Positioned(
+                top: 10,
+                right: 10,
+                child: Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: c.error,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: c.background, width: 1.5),
+                  ),
+                ),
+              ),
+          ],
         ),
         const SizedBox(width: AppSpacing.xs),
         GestureDetector(
@@ -156,9 +177,9 @@ class _QuickActions extends StatelessWidget {
         onTap: () => context.pushNamed(AppRoute.wardrobe.name),
       ),
       _QuickAction(
-        icon: Icons.bookmark_outline,
-        label: 'Saved Looks',
-        onTap: () => context.pushNamed(AppRoute.wardrobe.name),
+        icon: Icons.bar_chart_rounded,
+        label: 'My Analytics',
+        onTap: () => context.pushNamed(AppRoute.styleTips.name),
       ),
       _QuickAction(
         icon: Icons.auto_awesome_outlined,

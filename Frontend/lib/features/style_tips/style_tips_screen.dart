@@ -91,12 +91,13 @@ class StyleTipsScreen extends ConsumerWidget {
                   _StyleBarChart(data: analytics.styleBreakdown),
                   const SizedBox(height: AppSpacing.xl),
                 ],
-                if (analytics.outfitFrequency.isNotEmpty) ...<Widget>[
-                  _SectionTitle(title: 'Outfit Frequency'),
-                  const SizedBox(height: AppSpacing.md),
+                _SectionTitle(title: 'Outfit Frequency'),
+                const SizedBox(height: AppSpacing.md),
+                if (analytics.outfitFrequency.isEmpty)
+                  const _FrequencyEmptyState()
+                else
                   _FrequencyBars(weeks: analytics.outfitFrequency),
-                  const SizedBox(height: AppSpacing.xl),
-                ],
+                const SizedBox(height: AppSpacing.xl),
                 _SectionTitle(title: 'AI Style Suggestions'),
                 const SizedBox(height: AppSpacing.xs),
                 const _AiStyleTipsSection(),
@@ -402,6 +403,41 @@ class _StyleBarChart extends StatelessWidget {
 // Weekly frequency bars
 // ---------------------------------------------------------------------------
 
+class _FrequencyEmptyState extends StatelessWidget {
+  const _FrequencyEmptyState();
+
+  @override
+  Widget build(BuildContext context) {
+    final AppColors c = context.colors;
+    final TextTheme text = Theme.of(context).textTheme;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xl, horizontal: AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: c.surface,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: c.border),
+      ),
+      child: Column(
+        children: <Widget>[
+          Icon(Icons.bar_chart_rounded, size: 40, color: c.textSecondary.withValues(alpha: 0.5)),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            'No frequency data yet',
+            style: text.titleSmall?.copyWith(color: c.textSecondary),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Try on outfits to start tracking your weekly frequency.',
+            style: text.bodySmall?.copyWith(color: c.textSecondary),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _FrequencyBars extends StatelessWidget {
   const _FrequencyBars({required this.weeks});
   final List<WeeklyFrequency> weeks;
@@ -541,6 +577,20 @@ class _AiStyleTipsSectionState extends ConsumerState<_AiStyleTipsSection> {
             ),
           ),
         ),
+        if (_selected == null) ...<Widget>[
+          const SizedBox(height: AppSpacing.xs),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              Icon(Icons.info_outline, size: 13, color: c.textSecondary),
+              const SizedBox(width: 4),
+              Text(
+                'Select an occasion above to enable',
+                style: TextStyle(fontSize: 12, color: c.textSecondary),
+              ),
+            ],
+          ),
+        ],
         if (_result != null) ...<Widget>[
           const SizedBox(height: AppSpacing.md),
           Container(

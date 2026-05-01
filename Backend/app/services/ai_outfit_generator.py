@@ -1,9 +1,16 @@
 import json
 import logging
+from pathlib import Path
+
 from openai import OpenAI, APIConnectionError, APIStatusError, APITimeoutError
+
 from app.config import settings
 
 logger = logging.getLogger(__name__)
+
+_PROMPT_TEMPLATE = (
+    Path(__file__).parent.parent / "prompts" / "outfit_generation.txt"
+).read_text(encoding="utf-8")
 
 
 def generate_outfit(
@@ -24,19 +31,16 @@ def generate_outfit(
         client = OpenAI(base_url=settings.OLLAMA_BASE_URL, api_key="ollama")
         model = "llama3.2"
 
-    prompt = f"""
-    You are an AI fashion stylist. I will give you my wardrobe and I need you to build ONE complete outfit.
-    Context:
-    - Occasion: {occasion}
-    - Current Weather: {weather or 'Unknown'}
-    - Must Include This Item: {seed_item or 'None specified'}
-    - User Style Profile: {style_profile or 'No preferences set'}
-    - My Wardrobe (ID: Name/Type): {wardrobe_details}
+    style_line = f"    - User Style Profile: {style_profile}\n" if style_profile else ""
+    seed_line  = f"    - Must Include This Item: {seed_item}\n" if seed_item else ""
 
-    Select a top, bottom, and shoes (and jacket if weather/occasion calls for it) from the wardrobe that form a cohesive outfit.
-    Return strictly a JSON object with a single key 'item_ids' containing an array of the chosen UUID strings.
-    Example: {{"item_ids": ["uuid-1", "uuid-2"]}}
-    """
+    prompt = _PROMPT_TEMPLATE.format(
+        occasion=occasion,
+        weather=weather or "Unknown",
+        seed_line=seed_line,
+        style_line=style_line,
+        wardrobe=wardrobe_details,
+    )
 
     try:
         response = client.chat.completions.create(

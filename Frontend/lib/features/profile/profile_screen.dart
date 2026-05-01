@@ -4,19 +4,153 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/models/profile.dart';
+import '../../core/models/style_profile.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/providers/profile_provider.dart';
 import '../../core/providers/style_profile_provider.dart';
-import '../../core/models/style_profile.dart';
-import 'style_dna_sheet.dart';
+import '../../core/providers/theme_provider.dart';
+import '../../core/providers/units_provider.dart';
 import '../../core/router/app_routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/widgets/app_toast.dart';
 import 'measurements_sheet.dart';
+import 'style_dna_sheet.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
+
+  void _showLegalSheet(BuildContext context, {required bool isPrivacy}) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _LegalSheet(isPrivacy: isPrivacy),
+    );
+  }
+
+  void _showThemeSheet(BuildContext context, WidgetRef ref) {
+    final notifier = ref.read(themeModeProvider.notifier);
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        final c = ctx.colors;
+        return Container(
+          decoration: BoxDecoration(
+            color: c.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.sheetTop)),
+          ),
+          padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.lg, AppSpacing.xl, AppSpacing.xxxxl),
+          child: Consumer(builder: (ctx, ref, _) => Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: c.border, borderRadius: BorderRadius.circular(2)))),
+              const SizedBox(height: AppSpacing.lg),
+              Text('App Theme', style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+              const SizedBox(height: AppSpacing.md),
+              for (final entry in [
+                (ThemeMode.system, 'System default', Icons.brightness_auto_outlined),
+                (ThemeMode.light, 'Light', Icons.light_mode_outlined),
+                (ThemeMode.dark, 'Dark', Icons.dark_mode_outlined),
+              ])
+                ListTile(
+                  leading: Icon(entry.$3, color: c.primary),
+                  title: Text(entry.$2),
+                  trailing: ref.watch(themeModeProvider) == entry.$1
+                      ? Icon(Icons.check_rounded, color: c.primary)
+                      : null,
+                  onTap: () { notifier.setMode(entry.$1); Navigator.of(ctx).pop(); },
+                ),
+            ],
+          )),
+        );
+      },
+    );
+  }
+
+  void _showUnitsSheet(BuildContext context, WidgetRef ref) {
+    final notifier = ref.read(unitsProvider.notifier);
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        final c = ctx.colors;
+        return Container(
+          decoration: BoxDecoration(
+            color: c.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.sheetTop)),
+          ),
+          padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.lg, AppSpacing.xl, AppSpacing.xxxxl),
+          child: Consumer(builder: (ctx, ref, _) => Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: c.border, borderRadius: BorderRadius.circular(2)))),
+              const SizedBox(height: AppSpacing.lg),
+              Text('Measurement Units', style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+              const SizedBox(height: AppSpacing.md),
+              for (final entry in [
+                (MeasurementUnit.metric,   'Metric (cm, kg)',   Icons.straighten),
+                (MeasurementUnit.imperial, 'Imperial (ft, lbs)', Icons.square_foot),
+              ])
+                ListTile(
+                  leading: Icon(entry.$3, color: c.primary),
+                  title: Text(entry.$2),
+                  trailing: ref.watch(unitsProvider) == entry.$1
+                      ? Icon(Icons.check_rounded, color: c.primary)
+                      : null,
+                  onTap: () { notifier.setUnit(entry.$1); Navigator.of(ctx).pop(); },
+                ),
+            ],
+          )),
+        );
+      },
+    );
+  }
+
+  void _showNotificationsSheet(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        final c = ctx.colors;
+        return Container(
+          decoration: BoxDecoration(
+            color: c.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.sheetTop)),
+          ),
+          padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.lg, AppSpacing.xl, AppSpacing.xxxxl),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: c.border, borderRadius: BorderRadius.circular(2)))),
+              const SizedBox(height: AppSpacing.lg),
+              Text('Notifications', style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+              const SizedBox(height: AppSpacing.sm),
+              Text('Push notifications are coming in a future update. Here\'s a preview:',
+                  style: Theme.of(ctx).textTheme.bodySmall?.copyWith(color: c.textSecondary)),
+              const SizedBox(height: AppSpacing.md),
+              ListTile(
+                leading: Icon(Icons.notifications_active_outlined, color: c.primary),
+                title: const Text('Upload complete'),
+                subtitle: const Text('Notify when garment processing finishes'),
+                trailing: Switch(value: true, onChanged: null, activeThumbColor: c.primary),
+              ),
+              ListTile(
+                leading: Icon(Icons.auto_awesome_outlined, color: c.primary),
+                title: const Text('Style tips'),
+                subtitle: const Text('Weekly wardrobe insight reminders'),
+                trailing: Switch(value: false, onChanged: null, activeThumbColor: c.primary),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 
   Future<void> _confirmSignOut(BuildContext context, WidgetRef ref) async {
     final bool? ok = await showDialog<bool>(
@@ -85,20 +219,20 @@ class ProfileScreen extends ConsumerWidget {
               _SettingsRow(
                 icon: Icons.straighten,
                 label: 'Units',
-                trailing: 'Metric',
-                onTap: () {},
+                trailing: ref.watch(unitsProvider.notifier).label,
+                onTap: () => _showUnitsSheet(context, ref),
               ),
               _SettingsRow(
                 icon: Icons.notifications_none,
                 label: 'Notifications',
                 trailing: 'On',
-                onTap: () {},
+                onTap: () => _showNotificationsSheet(context),
               ),
               _SettingsRow(
                 icon: Icons.dark_mode_outlined,
                 label: 'Theme',
-                trailing: 'System',
-                onTap: () {},
+                trailing: ref.watch(themeModeProvider.notifier).label,
+                onTap: () => _showThemeSheet(context, ref),
               ),
             ],
           ),
@@ -108,12 +242,12 @@ class ProfileScreen extends ConsumerWidget {
               _SettingsRow(
                 icon: Icons.lock_outline,
                 label: 'Privacy Policy',
-                onTap: () {},
+                onTap: () => _showLegalSheet(context, isPrivacy: true),
               ),
               _SettingsRow(
                 icon: Icons.description_outlined,
                 label: 'Terms of Service',
-                onTap: () {},
+                onTap: () => _showLegalSheet(context, isPrivacy: false),
               ),
               const _SettingsRow(
                 icon: Icons.info_outline,
@@ -161,14 +295,35 @@ class _ProfileHeader extends ConsumerWidget {
 
     return Row(
       children: <Widget>[
-        Container(
-          width: 80,
-          height: 80,
-          decoration: BoxDecoration(
-            color: c.primary.withValues(alpha: 0.18),
-            shape: BoxShape.circle,
+        GestureDetector(
+          onTap: () => context.pushNamed(AppRoute.avatarSelection.name),
+          child: Stack(
+            children: <Widget>[
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: c.primary.withValues(alpha: 0.18),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.person, color: c.primary, size: 40),
+              ),
+              Positioned(
+                bottom: 0,
+                right: 0,
+                child: Container(
+                  width: 24,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    color: c.primary,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: c.background, width: 2),
+                  ),
+                  child: const Icon(Icons.edit, size: 12, color: Colors.white),
+                ),
+              ),
+            ],
           ),
-          child: Icon(Icons.person, color: c.primary, size: 40),
         ),
         const SizedBox(width: AppSpacing.lg),
         Expanded(
@@ -211,22 +366,13 @@ class _BodyStatsCard extends ConsumerWidget {
     final AsyncValue<Profile?> profileState = ref.watch(profileProvider);
 
     final Profile? profile = profileState.valueOrNull;
+    final MeasurementUnit units = ref.watch(unitsProvider);
 
-    String heightLabel = '—';
-    String weightLabel = '—';
-    String bodyLabel = '—';
-
-    if (profile != null) {
-      if (profile.heightCm != null) {
-        heightLabel = '${profile.heightCm!.toStringAsFixed(0)} cm';
-      }
-      if (profile.weightKg != null) {
-        weightLabel = '${profile.weightKg!.toStringAsFixed(0)} kg';
-      }
-      if (profile.bodyType != null && profile.bodyType!.isNotEmpty) {
-        bodyLabel = _capitalize(profile.bodyType!);
-      }
-    }
+    final String heightLabel = units.formatHeight(profile?.heightCm);
+    final String weightLabel = units.formatWeight(profile?.weightKg);
+    final String bodyLabel = profile?.bodyType?.isNotEmpty == true
+        ? _capitalize(profile!.bodyType!)
+        : '—';
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
@@ -633,6 +779,154 @@ class _SettingsRow extends StatelessWidget {
             ],
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Legal sheet (Privacy Policy / Terms of Service)
+// ---------------------------------------------------------------------------
+
+class _LegalSheet extends StatelessWidget {
+  const _LegalSheet({required this.isPrivacy});
+  final bool isPrivacy;
+
+  static const List<(String, String)> _privacy = <(String, String)>[
+    (
+      'Information We Collect',
+      'We collect the clothing photos you upload, measurements and body stats you provide, style preferences, and anonymised usage data to improve the service.',
+    ),
+    (
+      'How We Use Your Data',
+      'Your data is used exclusively to power AI outfit recommendations, display your wardrobe, and improve Dressify. We do not use your photos to train external AI models without your explicit consent.',
+    ),
+    (
+      'Data Storage & Security',
+      'Your data is stored on encrypted, access-controlled servers. Clothing images are processed and stored securely. We apply industry-standard security measures at every layer.',
+    ),
+    (
+      'Data Sharing',
+      'We do not sell your personal data to third parties. We may share anonymised, aggregated statistics (e.g. popular clothing categories) for product research.',
+    ),
+    (
+      'Your Rights',
+      'You may request access to, correction of, or deletion of your data at any time by contacting us. Deleting your account removes all associated data within 30 days.',
+    ),
+    (
+      'Contact',
+      'Questions about privacy? Email us at support@dressify.app.',
+    ),
+  ];
+
+  static const List<(String, String)> _terms = <(String, String)>[
+    (
+      'Acceptance of Terms',
+      'By using Dressify you agree to these Terms of Service. If you do not agree, please do not use the app.',
+    ),
+    (
+      'Your Account',
+      'You are responsible for maintaining the confidentiality of your credentials and for all activity that occurs under your account.',
+    ),
+    (
+      'Your Content',
+      'You retain ownership of all photos and content you upload. By uploading, you grant Dressify a limited licence to process and display your content within the app solely to provide the service.',
+    ),
+    (
+      'Prohibited Uses',
+      'You may not upload illegal, offensive, or infringing content. You may not attempt to reverse-engineer, scrape, or abuse the service.',
+    ),
+    (
+      'Limitation of Liability',
+      'Dressify is provided "as is" without warranties of any kind. We are not liable for indirect or consequential damages arising from your use of the app.',
+    ),
+    (
+      'Contact',
+      'Questions about these terms? Email us at support@dressify.app.',
+    ),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final AppColors c = context.colors;
+    final TextTheme text = Theme.of(context).textTheme;
+    final String title = isPrivacy ? 'Privacy Policy' : 'Terms of Service';
+    final List<(String, String)> sections = isPrivacy ? _privacy : _terms;
+
+    return Container(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.82,
+      ),
+      decoration: BoxDecoration(
+        color: c.surface,
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(AppRadius.sheetTop),
+        ),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.xl, AppSpacing.md, AppSpacing.md, 0,
+            ),
+            child: Row(
+              children: <Widget>[
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: c.border,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const Spacer(),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.xl, AppSpacing.xs, AppSpacing.xl, AppSpacing.md,
+            ),
+            child: Text(title, style: text.titleLarge),
+          ),
+          Flexible(
+            child: ListView.separated(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.xl, 0, AppSpacing.xl, AppSpacing.xxxxl,
+              ),
+              itemCount: sections.length,
+              separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.lg),
+              itemBuilder: (_, int i) {
+                final (String heading, String body) = sections[i];
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      heading,
+                      style: text.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      body,
+                      style: text.bodyMedium?.copyWith(
+                        color: c.textSecondary,
+                        height: 1.5,
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }

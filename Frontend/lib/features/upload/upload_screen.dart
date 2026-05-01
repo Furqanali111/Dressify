@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
@@ -110,7 +111,7 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
           .toList();
 
       if (!mounted) return;
-      HapticFeedback.lightImpact();
+      items.length > 1 ? HapticFeedback.heavyImpact() : HapticFeedback.lightImpact();
       setState(() {
         _uploadedItems = items;
         _detectedType = items.isNotEmpty ? _typeFromString(items.first.type) : ClothingType.other;
@@ -126,7 +127,7 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
           .map((ClothingItem it) => it.id)
           .toList();
       if (pendingIds.isNotEmpty) {
-        ref.read(wardrobeProvider.notifier).pollUntilComplete(pendingIds);
+        unawaited(ref.read(wardrobeProvider.notifier).pollUntilComplete(pendingIds));
       }
     } on DioException catch (e) {
       if (!mounted) return;
@@ -403,85 +404,113 @@ class _Hero extends StatelessWidget {
         );
 }
 
-class _MultiItemSummary extends StatelessWidget {
-  const _MultiItemSummary({
-    required this.items,
-    required this.c,
-    required this.text,
-  });
+class _MultiItemSummary extends StatefulWidget {
+  const _MultiItemSummary({required this.items, required this.c, required this.text});
 
   final List<ClothingItem> items;
   final AppColors c;
   final TextTheme text;
 
   @override
+  State<_MultiItemSummary> createState() => _MultiItemSummaryState();
+}
+
+class _MultiItemSummaryState extends State<_MultiItemSummary>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 420),
+  )..forward();
+
+  late final Animation<double> _fade = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
+  late final Animation<Offset> _slide = Tween<Offset>(
+    begin: const Offset(0, 0.12),
+    end: Offset.zero,
+  ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic));
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.xl),
-      decoration: BoxDecoration(
-        color: c.surface,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: <Widget>[
-          Container(
-            width: 64,
-            height: 64,
-            decoration: BoxDecoration(
-              color: c.success.withValues(alpha: 0.15),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(Icons.check_circle_outline, color: c.success, size: 36),
+    final AppColors c = widget.c;
+    final TextTheme text = widget.text;
+
+    return FadeTransition(
+      opacity: _fade,
+      child: SlideTransition(
+        position: _slide,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(AppSpacing.xl),
+          decoration: BoxDecoration(
+            color: c.surface,
+            borderRadius: BorderRadius.circular(AppRadius.card),
           ),
-          const SizedBox(height: AppSpacing.lg),
-          Text(
-            '${items.length} garments extracted!',
-            style: text.titleLarge,
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            'Each item has been saved to your wardrobe.',
-            style: text.bodyMedium?.copyWith(color: c.textSecondary),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: AppSpacing.xl),
-          Wrap(
-            spacing: AppSpacing.sm,
-            runSpacing: AppSpacing.sm,
-            alignment: WrapAlignment.center,
-            children: items.map((ClothingItem item) {
-              final ClothingType type = _UploadScreenState._typeFromString(item.type);
-              return Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.md,
-                  vertical: AppSpacing.xs,
-                ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              Container(
+                width: 64,
+                height: 64,
                 decoration: BoxDecoration(
-                  color: c.primary.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(AppRadius.chip),
+                  color: c.success.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    Icon(type.icon, size: 14, color: c.primary),
-                    const SizedBox(width: 4),
-                    Text(
-                      item.name,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: c.primary,
-                      ),
+                child: Icon(Icons.check_circle_outline, color: c.success, size: 36),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              Text(
+                '${widget.items.length} garments extracted!',
+                style: text.titleLarge,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                'Each item has been saved to your wardrobe.',
+                style: text.bodyMedium?.copyWith(color: c.textSecondary),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: AppSpacing.xl),
+              Wrap(
+                spacing: AppSpacing.sm,
+                runSpacing: AppSpacing.sm,
+                alignment: WrapAlignment.center,
+                children: widget.items.map((ClothingItem item) {
+                  final ClothingType type = _UploadScreenState._typeFromString(item.type);
+                  return Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md,
+                      vertical: AppSpacing.xs,
                     ),
-                  ],
-                ),
-              );
-            }).toList(),
+                    decoration: BoxDecoration(
+                      color: c.primary.withValues(alpha: 0.10),
+                      borderRadius: BorderRadius.circular(AppRadius.chip),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        Icon(type.icon, size: 14, color: c.primary),
+                        const SizedBox(width: 4),
+                        Text(
+                          item.name,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: c.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

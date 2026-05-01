@@ -9,10 +9,16 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
 from app.config import settings
+from app.core.correlation import CorrelationIdMiddleware, RequestIdFilter
 from app.core.limiter import limiter
 from app.services.retry_worker import run_retry_worker
 
-logging.basicConfig(level=settings.LOG_LEVEL.upper())
+logging.basicConfig(
+    level=settings.LOG_LEVEL.upper(),
+    format="%(asctime)s [%(request_id)s] %(levelname)s %(name)s: %(message)s",
+)
+_root = logging.getLogger()
+_root.addFilter(RequestIdFilter())
 logger = logging.getLogger(__name__)
 
 
@@ -48,6 +54,7 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+app.add_middleware(CorrelationIdMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
@@ -69,14 +76,15 @@ async def health_check():
 
 
 # Routes
-from app.routers import auth, profile, upload, clothing, outfits, feedback, users, wear_logs, analytics  # noqa: E402
+from app.routers import auth, profile, upload, clothing, outfits, feedback, users, wear_logs, analytics, notifications  # noqa: E402
 
-app.include_router(auth.router,      prefix="/api/v1")
-app.include_router(profile.router,   prefix="/api/v1")
-app.include_router(upload.router,    prefix="/api/v1")
-app.include_router(clothing.router,  prefix="/api/v1")
-app.include_router(outfits.router,   prefix="/api/v1")
-app.include_router(feedback.router,  prefix="/api/v1")
-app.include_router(users.router,     prefix="/api/v1")
-app.include_router(wear_logs.router, prefix="/api/v1")
-app.include_router(analytics.router, prefix="/api/v1")
+app.include_router(auth.router,          prefix="/api/v1")
+app.include_router(profile.router,       prefix="/api/v1")
+app.include_router(upload.router,        prefix="/api/v1")
+app.include_router(clothing.router,      prefix="/api/v1")
+app.include_router(outfits.router,       prefix="/api/v1")
+app.include_router(feedback.router,      prefix="/api/v1")
+app.include_router(users.router,         prefix="/api/v1")
+app.include_router(wear_logs.router,     prefix="/api/v1")
+app.include_router(analytics.router,     prefix="/api/v1")
+app.include_router(notifications.router, prefix="/api/v1")

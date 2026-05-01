@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
@@ -19,9 +20,11 @@ import '../../core/providers/fit_scale_provider.dart';
 import '../../core/providers/wardrobe_provider.dart';
 import '../../core/router/app_routes.dart';
 import '../../core/services/pose_detection_service.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_constants.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/utils/app_permissions.dart';
+import '../../core/utils/garment_utils.dart';
 import '../../core/widgets/app_toast.dart';
 
 // ---------------------------------------------------------------------------
@@ -34,52 +37,6 @@ class _GarmentData {
   final ui.Image uiImage;
   void dispose() => uiImage.dispose();
 }
-
-// ---------------------------------------------------------------------------
-// Anchor key + sizing helpers  (mirrors try_on_screen.dart)
-// ---------------------------------------------------------------------------
-
-String _anchorKey(String type) => switch (type) {
-      'top' || 'jacket' || 'dress' => 'shoulder',
-      'bottom' => 'waist',
-      'shoes' => 'feet',
-      _ => 'chest',
-    };
-
-double _shoulderMultiplier(String type) => switch (type) {
-      'top' || 'jacket' => 1.35,
-      'dress' => 1.25,
-      'bottom' => 1.20,
-      'shoes' => 0.55,
-      _ => 0.90,
-    };
-
-Offset _garmentAnchorNorm(ClothingItem item) {
-  final Map<String, dynamic>? ap = item.anchorPoints;
-  final String key = _anchorKey(item.type);
-  if (ap != null && ap.containsKey(key)) {
-    final Map<String, dynamic> pt = ap[key] as Map<String, dynamic>;
-    return Offset(
-      (pt['x'] as num? ?? 0.5).toDouble(),
-      (pt['y'] as num? ?? 0.15).toDouble(),
-    );
-  }
-  return switch (item.type) {
-    'top' || 'jacket' => const Offset(0.5, 0.16),
-    'dress' => const Offset(0.5, 0.12),
-    'bottom' => const Offset(0.5, 0.07),
-    'shoes' => const Offset(0.5, 0.10),
-    _ => const Offset(0.5, 0.20),
-  };
-}
-
-int _depth(String type) => switch (type) {
-      'shoes' => 0,
-      'bottom' => 1,
-      'dress' => 2,
-      'top' || 'jacket' => 3,
-      _ => 4,
-    };
 
 // ---------------------------------------------------------------------------
 // Screen
@@ -350,6 +307,20 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
   }
 
   // ---------------------------------------------------------------------------
+  // Garment picker
+  // ---------------------------------------------------------------------------
+
+  void _openGarmentPicker(BuildContext context) {
+    HapticFeedback.lightImpact();
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const _GarmentPickerSheet(),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
   // Capture
   // ---------------------------------------------------------------------------
 
@@ -454,6 +425,7 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
             if (widget.tabMode && !hasGarments && _cameraReady)
               Center(
                 child: _EmptyTabGuide(
+                  onAdd: () => _openGarmentPicker(context),
                   onBrowse: () => context.pushNamed(AppRoute.wardrobe.name),
                 ),
               ),
@@ -516,6 +488,16 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
                   ),
                 ),
               ),
+
+            // ── Add garment button (tab mode always) ─────────────────────
+            if (widget.tabMode)
+              Positioned(
+                bottom: AppSpacing.lg,
+                left: AppSpacing.lg,
+                child: _AddGarmentPill(
+                  onTap: () => _openGarmentPicker(context),
+                ),
+              ),
           ],
         ),
       ),
@@ -546,7 +528,7 @@ class _CameraOverlayPainter extends CustomPainter {
     if (a == null || a.isEmpty) return;
 
     final List<_GarmentData> sorted = List<_GarmentData>.from(garments)
-      ..sort((a, b) => _depth(a.item.type).compareTo(_depth(b.item.type)));
+      ..sort((a, b) => garmentDepth(a.item.type).compareTo(garmentDepth(b.item.type)));
 
     final double shoulderSpan = _computeShoulderSpan(a, size);
     for (final _GarmentData g in sorted) {
@@ -570,16 +552,16 @@ class _CameraOverlayPainter extends CustomPainter {
     Map<String, NormAnchor> anchors,
     double shoulderSpan,
   ) {
-    final NormAnchor? anchor = anchors[_anchorKey(g.item.type)];
+    final NormAnchor? anchor = anchors[garmentAnchorKey(g.item.type)];
     if (anchor == null) return;
 
     final ui.Image img = g.uiImage;
-    final double gW = shoulderSpan * _shoulderMultiplier(g.item.type) * fitScales.forType(g.item.type);
+    final double gW = shoulderSpan * garmentShoulderMultiplier(g.item.type) * fitScales.forType(g.item.type);
     final double gH = gW / (img.width / img.height);
 
     final double ax = anchor.x * size.width;
     final double ay = anchor.y * size.height;
-    final Offset norm = _garmentAnchorNorm(g.item);
+    final Offset norm = garmentAnchorNorm(g.item);
 
     paintImage(
       canvas: canvas,
@@ -666,7 +648,8 @@ class _CapturePreviewDialog extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _EmptyTabGuide extends StatelessWidget {
-  const _EmptyTabGuide({required this.onBrowse});
+  const _EmptyTabGuide({required this.onAdd, required this.onBrowse});
+  final VoidCallback onAdd;
   final VoidCallback onBrowse;
 
   @override
@@ -709,19 +692,25 @@ class _EmptyTabGuide extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.xs),
               const Text(
-                'Open any clothing item and tap\n"See on Me" to try it on here.',
+                'Pick a garment from your wardrobe\nto try it on live.',
                 style: TextStyle(color: Colors.white70, fontSize: 13),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: AppSpacing.lg),
-              OutlinedButton.icon(
-                onPressed: onBrowse,
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.white,
-                  side: const BorderSide(color: Colors.white38),
+              ElevatedButton.icon(
+                onPressed: onAdd,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: Colors.black87,
                 ),
-                icon: const Icon(Icons.checkroom_outlined, size: 18),
-                label: const Text('Browse Wardrobe'),
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('Add Garment'),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              TextButton(
+                onPressed: onBrowse,
+                style: TextButton.styleFrom(foregroundColor: Colors.white70),
+                child: const Text('Browse Wardrobe'),
               ),
             ],
           ),
@@ -1021,6 +1010,194 @@ class _PillBadge extends StatelessWidget {
           Text(text, style: const TextStyle(color: Colors.white, fontSize: 14)),
         ],
       ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Add-garment pill button
+// ---------------------------------------------------------------------------
+
+class _AddGarmentPill extends StatelessWidget {
+  const _AddGarmentPill({required this.onTap});
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.60),
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Icon(Icons.add, color: Colors.white, size: 18),
+            SizedBox(width: 4),
+            Text(
+              'Add',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Garment picker sheet
+// ---------------------------------------------------------------------------
+
+class _GarmentPickerSheet extends ConsumerWidget {
+  const _GarmentPickerSheet();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final AppColors c = context.colors;
+    final TextTheme text = Theme.of(context).textTheme;
+
+    final List<ClothingItem> all = (ref.watch(wardrobeProvider).value ?? <ClothingItem>[])
+        .where((ClothingItem it) =>
+            it.processingStatus != 'processing' && it.processingStatus != 'failed')
+        .toList();
+    final List<ClothingItem> selected = ref.watch(cameraGarmentsProvider);
+    final Set<String> selectedIds = selected.map((ClothingItem it) => it.id).toSet();
+
+    return Container(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.65,
+      ),
+      decoration: BoxDecoration(
+        color: c.surface,
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(AppRadius.sheetTop),
+        ),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.xl, AppSpacing.md, AppSpacing.xl, AppSpacing.md,
+              ),
+              child: Column(
+                children: <Widget>[
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: c.border,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  Row(
+                    children: <Widget>[
+                      Text('Add Garment', style: text.titleMedium),
+                      const Spacer(),
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: const Text('Done'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            if (all.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxxl),
+                child: Center(
+                  child: Text(
+                    'No clothing items yet.\nUpload some from the wardrobe.',
+                    textAlign: TextAlign.center,
+                    style: text.bodyMedium?.copyWith(color: c.textSecondary),
+                  ),
+                ),
+              )
+            else
+              Flexible(
+                child: ListView.builder(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.xl, 0, AppSpacing.xl, AppSpacing.lg,
+                  ),
+                  itemCount: all.length,
+                  itemBuilder: (_, int i) {
+                    final ClothingItem item = all[i];
+                    final bool isSelected = selectedIds.contains(item.id);
+                    return ListTile(
+                      contentPadding: const EdgeInsets.symmetric(vertical: 4),
+                      leading: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: item.processedUrl.isNotEmpty
+                            ? CachedNetworkImage(
+                                imageUrl: item.processedUrl,
+                                width: 48,
+                                height: 48,
+                                fit: BoxFit.cover,
+                                placeholder: (_, _) => _swatch(c),
+                                errorWidget: (_, _, _) => _swatch(c),
+                              )
+                            : _swatch(c),
+                      ),
+                      title: Text(
+                        item.name,
+                        style: text.bodyMedium
+                            ?.copyWith(fontWeight: FontWeight.w600),
+                      ),
+                      subtitle: Text(
+                        item.type,
+                        style:
+                            text.bodySmall?.copyWith(color: c.textSecondary),
+                      ),
+                      trailing: Icon(
+                        isSelected
+                            ? Icons.check_circle_rounded
+                            : Icons.radio_button_unchecked,
+                        color: isSelected ? c.primary : c.border,
+                      ),
+                      onTap: () {
+                        final List<ClothingItem> current =
+                            List<ClothingItem>.from(
+                                ref.read(cameraGarmentsProvider));
+                        if (isSelected) {
+                          current.removeWhere(
+                              (ClothingItem it) => it.id == item.id);
+                        } else {
+                          current.add(item);
+                        }
+                        ref.read(cameraGarmentsProvider.notifier).state =
+                            current;
+                      },
+                    );
+                  },
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _swatch(AppColors c) {
+    return Container(
+      width: 48,
+      height: 48,
+      color: c.background,
+      child: Icon(Icons.checkroom, color: c.primary, size: 20),
     );
   }
 }

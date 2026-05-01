@@ -25,6 +25,7 @@ class Outfit {
   final String userId;
   final String name;
   final String avatarKind;
+  final bool isStarred;
   final List<OutfitItem> items;
   final DateTime createdAt;
   final bool personalized;
@@ -34,6 +35,7 @@ class Outfit {
     required this.userId,
     required this.name,
     required this.avatarKind,
+    this.isStarred = false,
     this.items = const [],
     required this.createdAt,
     this.personalized = false,
@@ -45,6 +47,7 @@ class Outfit {
       userId: json['user_id'] as String,
       name: json['name'] as String,
       avatarKind: json['avatar_kind'] as String,
+      isStarred: json['is_starred'] as bool? ?? false,
       items: (json['items'] as List<dynamic>?)
               ?.map((e) => OutfitItem.fromJson(e as Map<String, dynamic>))
               .toList() ??
@@ -54,11 +57,23 @@ class Outfit {
     );
   }
 
+  Outfit copyWith({String? name, bool? isStarred}) => Outfit(
+        id: id,
+        userId: userId,
+        name: name ?? this.name,
+        avatarKind: avatarKind,
+        isStarred: isStarred ?? this.isStarred,
+        items: items,
+        createdAt: createdAt,
+        personalized: personalized,
+      );
+
   Map<String, dynamic> toJson() => {
         'id': id,
         'user_id': userId,
         'name': name,
         'avatar_kind': avatarKind,
+        'is_starred': isStarred,
         'items': items.map((e) => e.toJson()).toList(),
         'created_at': createdAt.toIso8601String(),
       };

@@ -3,8 +3,10 @@ import logging
 
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
 from app.db import get_db
+from app.models.clothing_item import ClothingItem
 from app.models.wear_log import WearLog
 from app.models.user import User
 from app.deps import get_current_user
@@ -41,11 +43,22 @@ async def log_wear(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    # Filter clothing_item_ids to only those owned by the current user
+    safe_item_ids = None
+    if body.clothing_item_ids:
+        owned = await db.execute(
+            select(ClothingItem.id).where(
+                ClothingItem.id.in_(body.clothing_item_ids),
+                ClothingItem.user_id == current_user.id,
+            )
+        )
+        safe_item_ids = [str(row) for row in owned.scalars().all()]
+
     log = WearLog(
         id=uuid.uuid4(),
         user_id=current_user.id,
         outfit_id=body.outfit_id,
-        clothing_item_ids=[str(i) for i in body.clothing_item_ids] if body.clothing_item_ids else None,
+        clothing_item_ids=safe_item_ids,
     )
     db.add(log)
     await db.commit()

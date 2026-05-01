@@ -21,7 +21,8 @@ class OutfitCreate(BaseModel):
 
 
 class OutfitUpdate(BaseModel):
-    name: str = Field(..., min_length=1, max_length=100)
+    name: Optional[str] = Field(None, min_length=1, max_length=100)
+    is_starred: Optional[bool] = None
 
 
 class GenerateOutfitRequest(BaseModel):
@@ -37,6 +38,7 @@ class OutfitResponse(BaseModel):
     user_id: uuid.UUID
     name: str
     avatar_kind: str
+    is_starred: bool = False
     items: List[OutfitItemSchema]
     created_at: datetime
     personalized: bool = False

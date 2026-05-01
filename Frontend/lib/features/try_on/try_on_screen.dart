@@ -21,6 +21,7 @@ import '../../core/providers/wardrobe_provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_constants.dart';
 import '../../core/theme/app_spacing.dart';
+import '../../core/utils/garment_utils.dart';
 import '../../core/widgets/app_toast.dart';
 import '../../core/widgets/primary_button.dart';
 import '../../core/widgets/secondary_button.dart';
@@ -188,16 +189,22 @@ class _TryOnScreenState extends ConsumerState<TryOnScreen> {
     late final ImageStreamListener listener;
     listener = ImageStreamListener(
       (ImageInfo info, bool _) {
-        completer.complete(info.image.clone());
+        if (!completer.isCompleted) completer.complete(info.image.clone());
         stream.removeListener(listener);
       },
       onError: (Object error, StackTrace? _) {
-        completer.completeError(error);
+        if (!completer.isCompleted) completer.completeError(error);
         stream.removeListener(listener);
       },
     );
     stream.addListener(listener);
-    return completer.future;
+    return completer.future.timeout(
+      const Duration(seconds: 15),
+      onTimeout: () {
+        stream.removeListener(listener);
+        throw TimeoutException('Image load timed out: $url');
+      },
+    );
   }
 
   // ---- Actions ---------------------------------------------------------------
@@ -207,31 +214,31 @@ class _TryOnScreenState extends ConsumerState<TryOnScreen> {
         _offset = Offset.zero;
       });
 
+  Map<String, dynamic> _buildSavePayload() {
+    final DateTime now = DateTime.now();
+    final String name =
+        'Outfit ${now.month}/${now.day} ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+    final List<Map<String, dynamic>> items = _garments.values
+        .map((g) => <String, dynamic>{
+              'clothing_item_id': g.item.id,
+              'position': <String, dynamic>{'dx': g.offset.dx, 'dy': g.offset.dy},
+            })
+        .toList();
+    return <String, dynamic>{
+      'name': name,
+      'avatar_kind': _avatar.name,
+      'items': items,
+    };
+  }
+
   Future<void> _save() async {
     HapticFeedback.mediumImpact();
     setState(() => _saving = true);
 
     try {
       if (widget.outfit?.id == null) {
-        // Manual outfit — persist it for the first time
         final Dio dio = ref.read(apiClientProvider);
-        final DateTime now = DateTime.now();
-        final String name =
-            'Outfit ${now.month}/${now.day} ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
-        final List<Map<String, dynamic>> items = _garments.values
-            .map((g) => <String, dynamic>{
-                  'clothing_item_id': g.item.id,
-                  'position': <String, dynamic>{
-                    'dx': g.offset.dx,
-                    'dy': g.offset.dy,
-                  },
-                })
-            .toList();
-        await dio.post<dynamic>('/outfits', data: <String, dynamic>{
-          'name': name,
-          'avatar_kind': _avatar.name,
-          'items': items,
-        });
+        await dio.post<dynamic>('/outfits', data: _buildSavePayload());
       }
       // Refresh the outfits list in both cases
       await ref.read(outfitsProvider.notifier).fetch();
@@ -289,8 +296,15 @@ class _TryOnScreenState extends ConsumerState<TryOnScreen> {
     return Scaffold(
       backgroundColor: AppConstants.tryOnCanvasColor,
       body: SafeArea(
-        child: Column(
-          children: <Widget>[
+        child: RefreshIndicator(
+          onRefresh: () async {
+            for (final g in _garments.values) { g.dispose(); }
+            _garments.clear();
+            _resetView();
+            await _loadGarments();
+          },
+          child: Column(
+            children: <Widget>[
             _TopBar(
               onBack: () => context.pop(),
               onCamera: _garments.isNotEmpty
@@ -316,23 +330,25 @@ class _TryOnScreenState extends ConsumerState<TryOnScreen> {
                       }),
                       child: ColoredBox(
                         color: AppConstants.tryOnCanvasColor,
-                        child: Center(
-                          child: AnimatedOpacity(
-                            duration: const Duration(milliseconds: 180),
-                            opacity: _avatarVisible ? 1 : 0.15,
-                            child: Transform.translate(
-                              offset: _offset,
-                              child: Transform.scale(
-                                scale: _scale,
-                                child: _AvatarPreview(
-                                  kind: _avatar,
-                                  garments: _garments.values.toList(),
-                                  loading: _loadingGarments,
+                        child: widget.outfit == null && _garments.isEmpty && !_loadingGarments
+                            ? _TryOnEmptyState(onBrowse: () => context.pushNamed(AppRoute.wardrobe.name))
+                            : Center(
+                                child: AnimatedOpacity(
+                                  duration: const Duration(milliseconds: 180),
+                                  opacity: _avatarVisible ? 1 : 0.15,
+                                  child: Transform.translate(
+                                    offset: _offset,
+                                    child: Transform.scale(
+                                      scale: _scale,
+                                      child: _AvatarPreview(
+                                        kind: _avatar,
+                                        garments: _garments.values.toList(),
+                                        loading: _loadingGarments,
+                                      ),
+                                    ),
+                                  ),
                                 ),
                               ),
-                            ),
-                          ),
-                        ),
                       ),
                     ),
                   ),
@@ -522,6 +538,7 @@ class _TryOnScreenState extends ConsumerState<TryOnScreen> {
               ),
             ),
           ],
+          ),
         ),
       ),
     );
@@ -677,6 +694,49 @@ class _AvatarPreview extends ConsumerWidget {
 }
 
 // ---------------------------------------------------------------------------
+// Empty state — shown when no outfit is loaded
+// ---------------------------------------------------------------------------
+
+class _TryOnEmptyState extends StatelessWidget {
+  const _TryOnEmptyState({required this.onBrowse});
+  final VoidCallback onBrowse;
+
+  @override
+  Widget build(BuildContext context) {
+    final AppColors c = context.colors;
+    final TextTheme text = Theme.of(context).textTheme;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.xl),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Icon(Icons.checkroom_outlined, size: 64, color: c.textSecondary.withValues(alpha: 0.4)),
+            const SizedBox(height: AppSpacing.md),
+            Text('No outfit loaded', style: text.titleMedium?.copyWith(color: c.textSecondary)),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              'Open an outfit from your wardrobe\nto preview it here.',
+              style: text.bodySmall?.copyWith(color: c.textSecondary),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: AppSpacing.xl),
+            FilledButton.icon(
+              onPressed: onBrowse,
+              icon: const Icon(Icons.checkroom, size: 18),
+              label: const Text('Browse Wardrobe'),
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl, vertical: 12),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Clothing overlay painter
 // ---------------------------------------------------------------------------
 
@@ -695,87 +755,10 @@ class _ClothingPainter extends CustomPainter {
     'feet': Offset(0.50, 0.91),
   };
 
-  // Which avatar anchor to snap each garment type to
-  static String _anchorKey(String type) {
-    switch (type) {
-      case 'top':
-      case 'jacket':
-      case 'dress':
-        return 'shoulder';
-      case 'bottom':
-        return 'waist';
-      case 'shoes':
-        return 'feet';
-      default:
-        return 'chest';
-    }
-  }
-
-  // Garment display width as fraction of canvas width
-  static double _widthFactor(String type) {
-    switch (type) {
-      case 'top':
-      case 'jacket':
-      case 'dress':
-        return 0.72;
-      case 'bottom':
-        return 0.66;
-      case 'shoes':
-        return 0.52;
-      default:
-        return 0.42;
-    }
-  }
-
-  // Where the snap anchor sits within the garment image (normalized 0..1).
-  // Uses anchorPoints from the backend; falls back to type-based defaults.
-  static Offset _garmentAnchorNorm(ClothingItem item) {
-    final Map<String, dynamic>? ap = item.anchorPoints;
-    final String key = _anchorKey(item.type);
-    if (ap != null && ap.containsKey(key)) {
-      final Map<String, dynamic> pt = ap[key] as Map<String, dynamic>;
-      return Offset(
-        (pt['x'] as num? ?? 0.5).toDouble(),
-        (pt['y'] as num? ?? 0.15).toDouble(),
-      );
-    }
-    // Sensible defaults when backend didn't return anchor points
-    switch (item.type) {
-      case 'top':
-      case 'jacket':
-        return const Offset(0.5, 0.16);
-      case 'dress':
-        return const Offset(0.5, 0.12);
-      case 'bottom':
-        return const Offset(0.5, 0.07);
-      case 'shoes':
-        return const Offset(0.5, 0.10);
-      default:
-        return const Offset(0.5, 0.20);
-    }
-  }
-
-  // Depth order — bottoms/shoes paint first (behind tops)
-  static int _depth(String type) {
-    switch (type) {
-      case 'shoes':
-        return 0;
-      case 'bottom':
-        return 1;
-      case 'dress':
-        return 2;
-      case 'top':
-      case 'jacket':
-        return 3;
-      default:
-        return 4;
-    }
-  }
-
   @override
   void paint(Canvas canvas, Size size) {
     final List<_GarmentData> sorted = List<_GarmentData>.from(garments)
-      ..sort((a, b) => _depth(a.item.type).compareTo(_depth(b.item.type)));
+      ..sort((a, b) => garmentDepth(a.item.type).compareTo(garmentDepth(b.item.type)));
 
     for (final _GarmentData garment in sorted) {
       _paintOne(canvas, size, garment);
@@ -786,16 +769,16 @@ class _ClothingPainter extends CustomPainter {
     final ui.Image img = garment.uiImage;
 
     // 1. Display size: fixed width scaled by user body measurements, aspect-ratio height
-    final double dispW = size.width * _widthFactor(garment.item.type) * fitScales.forType(garment.item.type);
+    final double dispW = size.width * garmentWidthFactor(garment.item.type) * fitScales.forType(garment.item.type);
     final double dispH = dispW / (img.width / img.height);
 
     // 2. Avatar anchor in canvas pixels
-    final Offset avatarNorm = _avatarAnchors[_anchorKey(garment.item.type)]!;
+    final Offset avatarNorm = _avatarAnchors[garmentAnchorKey(garment.item.type)]!;
     final double avatarX = avatarNorm.dx * size.width;
     final double avatarY = avatarNorm.dy * size.height;
 
     // 3. Garment anchor in garment pixels
-    final Offset gNorm = _garmentAnchorNorm(garment.item);
+    final Offset gNorm = garmentAnchorNorm(garment.item);
     final double gAnchorX = gNorm.dx * dispW;
     final double gAnchorY = gNorm.dy * dispH;
 

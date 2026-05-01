@@ -16,6 +16,7 @@ from app.deps import get_current_user
 from app.schemas.outfit import OutfitCreate, OutfitUpdate, OutfitResponse, OutfitItemSchema, GenerateOutfitRequest
 from app.services.weather import get_current_weather
 from app.services.ai_outfit_generator import generate_outfit
+from app.services.notifications import push_notification
 from app.core.limiter import limiter
 
 logger = logging.getLogger(__name__)
@@ -29,6 +30,7 @@ def _build_outfit_response(outfit: Outfit) -> OutfitResponse:
         user_id=outfit.user_id,
         name=outfit.name,
         avatar_kind=outfit.avatar_kind,
+        is_starred=outfit.is_starred or False,
         items=[OutfitItemSchema(clothing_item_id=i.clothing_item_id, position=i.position) for i in outfit.items],
         created_at=outfit.created_at,
     )
@@ -73,6 +75,12 @@ async def create_outfit(
             position=item.position,
         ))
         outfit_item_schemas.append(item)
+
+    push_notification(
+        db, current_user.id, "outfit_saved",
+        "Outfit saved!",
+        f'"{outfit_in.name}" has been added to your wardrobe.',
+    )
 
     try:
         await db.commit()
@@ -146,7 +154,10 @@ async def update_outfit(
     if not outfit:
         raise HTTPException(status_code=404, detail="Outfit not found")
 
-    outfit.name = update_data.name
+    if update_data.name is not None:
+        outfit.name = update_data.name
+    if update_data.is_starred is not None:
+        outfit.is_starred = update_data.is_starred
 
     try:
         await db.commit()
@@ -272,6 +283,11 @@ async def delete_outfit(
     if not outfit:
         raise HTTPException(status_code=404, detail="Outfit not found")
 
-    await db.delete(outfit)
-    await db.commit()
+    try:
+        await db.delete(outfit)
+        await db.commit()
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Failed to delete outfit {outfit_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to delete outfit")
     return None

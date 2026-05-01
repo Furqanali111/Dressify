@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
 from typing import Literal, Optional
 from datetime import datetime
 import uuid
@@ -22,6 +22,24 @@ class StyleProfileUpdate(BaseModel):
     liked_styles:    Optional[list[str]] = None
     liked_patterns:  Optional[list[str]] = None
     disliked_styles: Optional[list[str]] = None
+
+    @field_validator("liked_colors", "liked_styles", "liked_patterns", "disliked_styles", mode="before")
+    @classmethod
+    def _validate_str_list(cls, v: object) -> object:
+        if v is None:
+            return v
+        if not isinstance(v, list):
+            raise ValueError("Must be a list of strings")
+        cleaned = []
+        for item in v:
+            if not isinstance(item, str):
+                raise ValueError("Each item must be a string")
+            stripped = item.strip()
+            if len(stripped) > 64:
+                raise ValueError("Each item must be 64 characters or fewer")
+            if stripped:
+                cleaned.append(stripped)
+        return cleaned
 
 
 class InteractionCreate(BaseModel):

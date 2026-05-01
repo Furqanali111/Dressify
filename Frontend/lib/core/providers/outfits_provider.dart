@@ -36,17 +36,33 @@ class OutfitsNotifier extends StateNotifier<AsyncValue<List<Outfit>>> {
     await dio.patch<dynamic>('/outfits/$id', data: <String, dynamic>{'name': name});
     final List<Outfit> current = state.value ?? <Outfit>[];
     state = AsyncValue<List<Outfit>>.data(
-      current.map((Outfit o) => o.id == id
-          ? Outfit(
-              id: o.id,
-              userId: o.userId,
-              name: name,
-              avatarKind: o.avatarKind,
-              items: o.items,
-              createdAt: o.createdAt,
-            )
-          : o).toList(),
+      current.map((Outfit o) => o.id == id ? o.copyWith(name: name) : o).toList(),
     );
+  }
+
+  Future<void> toggleStar(String id) async {
+    final List<Outfit> current = state.value ?? <Outfit>[];
+    final Outfit? target = current.cast<Outfit?>().firstWhere(
+          (Outfit? o) => o?.id == id,
+          orElse: () => null,
+        );
+    if (target == null) return;
+    final bool next = !target.isStarred;
+    // Optimistic update
+    state = AsyncValue<List<Outfit>>.data(
+      current.map((Outfit o) => o.id == id ? o.copyWith(isStarred: next) : o).toList(),
+    );
+    try {
+      final Dio dio = _ref.read(apiClientProvider);
+      await dio.patch<dynamic>('/outfits/$id', data: <String, dynamic>{'is_starred': next});
+    } catch (_) {
+      // Roll back on failure
+      state = AsyncValue<List<Outfit>>.data(
+        (state.value ?? <Outfit>[])
+            .map((Outfit o) => o.id == id ? o.copyWith(isStarred: !next) : o)
+            .toList(),
+      );
+    }
   }
 
   Future<void> delete(String id) async {

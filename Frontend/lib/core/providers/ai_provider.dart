@@ -21,6 +21,7 @@ class AiService {
     double? lat,
     double? lon,
     String? seedItemId,
+    CancelToken? cancelToken,
   }) async {
     final response = await _dio.post<Map<String, dynamic>>(
       '/outfits/generate',
@@ -31,6 +32,7 @@ class AiService {
         if (lon != null) 'lon': lon,
         if (seedItemId != null) 'seed_item_id': seedItemId,
       },
+      cancelToken: cancelToken,
     );
     return Outfit.fromJson(response.data!);
   }

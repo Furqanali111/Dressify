@@ -36,6 +36,9 @@ dependencies:
   flutter_secure_storage: ^10.0.0   # 10.x: DataStore 1.1+ (16 KB-aligned native lib)
   shared_preferences: ^2.5.0        # 2.5+: DataStore 1.1+ (16 KB-aligned native lib)
 
+  # URL launching (legal links, external pages)
+  url_launcher: ^6.3.0
+
   # Runtime config
   flutter_dotenv: ^5.2.1
 

@@ -26,7 +26,15 @@ async def get_profile(
     profile = result.scalar_one_or_none()
 
     if not profile:
-        raise HTTPException(status_code=404, detail="Profile not found")
+        profile = Profile(user_id=current_user.id)
+        db.add(profile)
+        try:
+            await db.commit()
+            await db.refresh(profile)
+        except Exception as e:
+            await db.rollback()
+            logger.error(f"Failed to auto-create profile for user {current_user.id}: {e}", exc_info=True)
+            raise HTTPException(status_code=500, detail="Failed to initialise profile")
 
     return profile
 

@@ -32,9 +32,12 @@ class _StyleMeSheetState extends ConsumerState<StyleMeSheet> {
   bool _useWeather = false;
   bool _isGenerating = false;
   bool _navigatedToTryOn = false;
+  // ignore: prefer_final_fields — reassigned on each generate call
+  CancelToken _cancelToken = CancelToken();
 
   @override
   void dispose() {
+    _cancelToken.cancel();
     if (!_navigatedToTryOn) {
       ref.read(styleProfileProvider.notifier).logInteraction(action: 'dismissed');
     }
@@ -42,6 +45,8 @@ class _StyleMeSheetState extends ConsumerState<StyleMeSheet> {
   }
 
   Future<void> _handleGenerate() async {
+    _cancelToken.cancel();
+    _cancelToken = CancelToken();
     setState(() => _isGenerating = true);
     HapticFeedback.mediumImpact();
 
@@ -94,6 +99,7 @@ class _StyleMeSheetState extends ConsumerState<StyleMeSheet> {
         avatarKind: avatarKind,
         lat: lat,
         lon: lon,
+        cancelToken: _cancelToken,
       );
 
       if (!mounted) return;

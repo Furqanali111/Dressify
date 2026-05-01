@@ -53,6 +53,42 @@ class ClothingItem {
     );
   }
 
+  ClothingItem copyWith({
+    String? id,
+    String? name,
+    String? type,
+    String? rawUrl,
+    String? processedUrl,
+    Map<String, dynamic>? anchorPoints,
+    double? detectionConfidence,
+    String? color,
+    String? pattern,
+    String? style,
+    String? subType,
+    String? sizeLabel,
+    String? fitNotes,
+    String? processingStatus,
+    DateTime? createdAt,
+  }) {
+    return ClothingItem(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      type: type ?? this.type,
+      rawUrl: rawUrl ?? this.rawUrl,
+      processedUrl: processedUrl ?? this.processedUrl,
+      anchorPoints: anchorPoints ?? this.anchorPoints,
+      detectionConfidence: detectionConfidence ?? this.detectionConfidence,
+      color: color ?? this.color,
+      pattern: pattern ?? this.pattern,
+      style: style ?? this.style,
+      subType: subType ?? this.subType,
+      sizeLabel: sizeLabel ?? this.sizeLabel,
+      fitNotes: fitNotes ?? this.fitNotes,
+      processingStatus: processingStatus ?? this.processingStatus,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
   Map<String, dynamic> toJson() => {
         'id': id,
         'name': name,

@@ -6,6 +6,13 @@ import 'package:google_sign_in/google_sign_in.dart';
 import '../models/user.dart';
 import '../api/api_client.dart';
 import '../config/app_flags.dart';
+import 'fit_rating_provider.dart';
+import 'fit_scale_provider.dart';
+import 'outfits_provider.dart';
+import 'profile_provider.dart';
+import 'style_profile_provider.dart';
+import 'wardrobe_analytics_provider.dart';
+import 'wardrobe_provider.dart';
 
 class AuthStateNotifier extends StateNotifier<User?> {
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
@@ -79,6 +86,13 @@ class AuthStateNotifier extends StateNotifier<User?> {
     await _googleSignIn.signOut();
     await _storage.delete(key: 'auth_jwt');
     state = null;
+    _ref.invalidate(profileProvider);
+    _ref.invalidate(wardrobeProvider);
+    _ref.invalidate(outfitsProvider);
+    _ref.invalidate(styleProfileProvider);
+    _ref.invalidate(wardrobeAnalyticsProvider);
+    _ref.invalidate(fitRatingProvider);
+    _ref.invalidate(fitScalesProvider);
   }
 }
 
