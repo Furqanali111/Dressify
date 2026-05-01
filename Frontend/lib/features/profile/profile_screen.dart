@@ -130,21 +130,8 @@ class ProfileScreen extends ConsumerWidget {
               const SizedBox(height: AppSpacing.lg),
               Text('Notifications', style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
               const SizedBox(height: AppSpacing.sm),
-              Text('Push notifications are coming in a future update. Here\'s a preview:',
+              Text('Push notifications are coming in a future update.',
                   style: Theme.of(ctx).textTheme.bodySmall?.copyWith(color: c.textSecondary)),
-              const SizedBox(height: AppSpacing.md),
-              ListTile(
-                leading: Icon(Icons.notifications_active_outlined, color: c.primary),
-                title: const Text('Upload complete'),
-                subtitle: const Text('Notify when garment processing finishes'),
-                trailing: Switch(value: true, onChanged: null, activeThumbColor: c.primary),
-              ),
-              ListTile(
-                leading: Icon(Icons.auto_awesome_outlined, color: c.primary),
-                title: const Text('Style tips'),
-                subtitle: const Text('Weekly wardrobe insight reminders'),
-                trailing: Switch(value: false, onChanged: null, activeThumbColor: c.primary),
-              ),
             ],
           ),
         );
@@ -747,39 +734,43 @@ class _SettingsRow extends StatelessWidget {
     final Color textColor = destructive ? c.error : c.textPrimary;
     final Color iconColor = destructive ? c.error : c.textSecondary;
 
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.lg,
-          vertical: AppSpacing.lg,
-        ),
-        child: Row(
-          children: <Widget>[
-            Icon(icon, color: iconColor, size: 22),
-            const SizedBox(width: AppSpacing.md),
-            Expanded(
-              child: Text(
-                label,
-                style: TextStyle(
-                  fontSize: 15,
-                  color: textColor,
-                  fontWeight: FontWeight.w500,
-                ),
+    final Widget content = Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.lg,
+      ),
+      child: Row(
+        children: <Widget>[
+          Icon(icon, color: iconColor, size: 22),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 15,
+                color: textColor,
+                fontWeight: FontWeight.w500,
               ),
             ),
-            if (trailing != null)
-              Text(
-                trailing!,
-                style: TextStyle(color: c.textSecondary, fontSize: 14),
-              ),
-            if (onTap != null && !destructive) ...<Widget>[
-              const SizedBox(width: AppSpacing.sm),
-              Icon(Icons.chevron_right, color: c.textSecondary, size: 20),
-            ],
+          ),
+          if (trailing != null)
+            Text(
+              trailing!,
+              style: TextStyle(color: c.textSecondary, fontSize: 14),
+            ),
+          if (onTap != null && !destructive) ...<Widget>[
+            const SizedBox(width: AppSpacing.sm),
+            Icon(Icons.chevron_right, color: c.textSecondary, size: 20),
           ],
-        ),
+        ],
       ),
+    );
+
+    if (onTap == null) return content;
+
+    return InkWell(
+      onTap: onTap,
+      child: content,
     );
   }
 }

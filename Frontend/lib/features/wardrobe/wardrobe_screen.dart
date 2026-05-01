@@ -70,6 +70,24 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen>
                 child: Row(
                   children: <Widget>[
                     Expanded(child: Text('My Wardrobe', style: text.displayMedium)),
+                    if (_tabController.index == 0)
+                      PopupMenuButton<String>(
+                        icon: Icon(Icons.sort, color: c.textPrimary),
+                        initialValue: ref.read(wardrobeProvider.notifier).sortBy,
+                        onSelected: (String value) {
+                          ref.read(wardrobeProvider.notifier).setSortBy(value);
+                        },
+                        itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                          const PopupMenuItem<String>(
+                            value: 'newest',
+                            child: Text('Newest First'),
+                          ),
+                          const PopupMenuItem<String>(
+                            value: 'oldest',
+                            child: Text('Oldest First'),
+                          ),
+                        ],
+                      ),
                   ],
                 ),
               ),
@@ -280,7 +298,27 @@ class _OutfitsTab extends ConsumerStatefulWidget {
 }
 
 class _OutfitsTabState extends ConsumerState<_OutfitsTab> {
+  final ScrollController _scroll = ScrollController();
   bool _starredOnly = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _scroll.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scroll.removeListener(_onScroll);
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scroll.position.pixels >= _scroll.position.maxScrollExtent - 200) {
+      ref.read(outfitsProvider.notifier).fetchMore();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -364,6 +402,7 @@ class _OutfitsTabState extends ConsumerState<_OutfitsTab> {
             else
               Expanded(
                 child: GridView.builder(
+                  controller: _scroll,
                   physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.fromLTRB(
                     AppSpacing.xl,
@@ -377,8 +416,18 @@ class _OutfitsTabState extends ConsumerState<_OutfitsTab> {
                     mainAxisSpacing: AppSpacing.md,
                     childAspectRatio: 0.7,
                   ),
-                  itemCount: filtered.length,
-                  itemBuilder: (_, int i) => OutfitCard(outfit: filtered[i]),
+                  itemCount: filtered.length + (ref.read(outfitsProvider.notifier).hasMore ? 1 : 0),
+                  itemBuilder: (_, int i) {
+                    if (i == filtered.length) {
+                      return const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(AppSpacing.lg),
+                          child: CircularProgressIndicator(),
+                        ),
+                      );
+                    }
+                    return OutfitCard(outfit: filtered[i]);
+                  },
                 ),
               ),
           ],

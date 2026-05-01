@@ -11,15 +11,24 @@ class OutfitsNotifier extends StateNotifier<AsyncValue<List<Outfit>>> {
   }
 
   final Ref _ref;
+  String? _nextCursor;
+  bool _isLoadingMore = false;
+
+  bool get hasMore => _nextCursor != null;
 
   Future<void> fetch() async {
     state = const AsyncValue<List<Outfit>>.loading();
+    _nextCursor = null;
     try {
       final Dio dio = _ref.read(apiClientProvider);
       final Response<dynamic> response = await dioFetchWithRetry(
         () => dio.get<dynamic>('/outfits'),
       );
-      state = AsyncValue<List<Outfit>>.data(_parse(response.data));
+      final dynamic data = response.data;
+      if (data is Map<String, dynamic>) {
+        _nextCursor = data['next_cursor'] as String?;
+      }
+      state = AsyncValue<List<Outfit>>.data(_parse(data));
     } on DioException catch (e, st) {
       if (e.response?.statusCode == 404) {
         state = const AsyncValue<List<Outfit>>.data(<Outfit>[]);
@@ -28,6 +37,31 @@ class OutfitsNotifier extends StateNotifier<AsyncValue<List<Outfit>>> {
       state = AsyncValue<List<Outfit>>.error(e, st);
     } catch (e, st) {
       state = AsyncValue<List<Outfit>>.error(e, st);
+    }
+  }
+
+  Future<void> fetchMore() async {
+    if (_nextCursor == null || _isLoadingMore) return;
+    _isLoadingMore = true;
+    try {
+      final Dio dio = _ref.read(apiClientProvider);
+      final Response<dynamic> response = await dio.get<dynamic>(
+        '/outfits',
+        queryParameters: <String, dynamic>{'cursor': _nextCursor},
+      );
+      final dynamic data = response.data;
+      if (data is Map<String, dynamic>) {
+        _nextCursor = data['next_cursor'] as String?;
+      } else {
+        _nextCursor = null;
+      }
+      final List<Outfit> newItems = _parse(data);
+      final List<Outfit> current = state.value ?? <Outfit>[];
+      state = AsyncValue<List<Outfit>>.data(<Outfit>[...current, ...newItems]);
+    } catch (_) {
+      // Silently fail; user can pull-to-refresh
+    } finally {
+      _isLoadingMore = false;
     }
   }
 

@@ -13,8 +13,16 @@ class WardrobeNotifier extends StateNotifier<AsyncValue<List<ClothingItem>>> {
   final Ref _ref;
   String? _nextCursor;
   bool _isLoadingMore = false;
+  String _sortBy = 'newest';
 
   bool get hasMore => _nextCursor != null;
+  String get sortBy => _sortBy;
+
+  void setSortBy(String sortBy) {
+    if (_sortBy == sortBy) return;
+    _sortBy = sortBy;
+    fetch();
+  }
 
   Future<void> fetch() async {
     state = const AsyncValue<List<ClothingItem>>.loading();
@@ -22,7 +30,7 @@ class WardrobeNotifier extends StateNotifier<AsyncValue<List<ClothingItem>>> {
     try {
       final Dio dio = _ref.read(apiClientProvider);
       final Response<dynamic> response = await dioFetchWithRetry(
-        () => dio.get<dynamic>('clothing'),
+        () => dio.get<dynamic>('clothing', queryParameters: <String, dynamic>{'sort_by': _sortBy}),
       );
       final dynamic data = response.data;
       if (data is Map<String, dynamic>) {
@@ -48,7 +56,10 @@ class WardrobeNotifier extends StateNotifier<AsyncValue<List<ClothingItem>>> {
       final Dio dio = _ref.read(apiClientProvider);
       final Response<dynamic> response = await dio.get<dynamic>(
         'clothing',
-        queryParameters: <String, dynamic>{'cursor': _nextCursor},
+        queryParameters: <String, dynamic>{
+          'cursor': _nextCursor,
+          'sort_by': _sortBy,
+        },
       );
       final dynamic data = response.data;
       if (data is Map<String, dynamic>) {
