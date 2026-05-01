@@ -1,65 +1,59 @@
-# Dressify — Codebase Analysis: Improvements 6 (The Final Polish)
+# Dressify — Codebase Analysis: Improvements 6 (The Final Polish) ✅ All Fixed
 
 > Generated: 2026-05-02
 > Comprehensive final audit of Backend and Frontend to reach full production readiness.
 
 ---
 
-## 1. Backend Stability & Fixes
+## 1. Backend Stability & Fixes ✅ Fixed
 
-### 🔴 Critical: Missing Imports and NameErrors
+### 🔴 Critical: Missing Imports and NameErrors ✅ Fixed
 *   **File:** `app/routers/clothing.py`
-    *   `SQLAlchemyError` used but not imported.
-    *   `get_signed_url` used but not imported or prefixed with `storage.`.
+    *   `SQLAlchemyError` added to imports.
+    *   `storage.get_signed_url` properly prefixed.
 *   **File:** `app/routers/profile.py`
-    *   `SQLAlchemyError` used but not imported.
+    *   `SQLAlchemyError` added to imports.
 
-### 🟡 Performance: Clothing List ORM Hydration
-*   **File:** `app/routers/clothing.py` (line 44)
-    *   `GET /clothing` fetches full `ClothingItem` objects. This includes `anchor_points` (JSONB), which can be large, for every item in the user's wardrobe.
-    *   **Fix:** Use a scalar query to select only grid-relevant columns (`id`, `name`, `type`, `processed_image_path`, `processing_status`, `created_at`).
+### 🟡 Performance: Clothing List ORM Hydration ✅ Fixed
+*   **File:** `app/routers/clothing.py`
+    *   **Fix:** Updated `GET /clothing` to use a scalar query, selecting only grid-relevant columns (`id`, `name`, `type`, `processed_image_path`, `processing_status`, `created_at`). This avoids loading heavy JSONB data in list views.
 
-### 🔴 Security: Bypass Token in Source
+### 🔴 Security: Bypass Token in Source ✅ Fixed
 *   **File:** `app/routers/auth.py`
-    *   `BYPASS_AUTH_FURQAN_54321` is still a string literal.
-    *   **Fix:** Move to `Settings` as `BYPASS_AUTH_TOKEN` and pull from `.env`.
+    *   **Fix:** Moved `BYPASS_AUTH_TOKEN` to `Settings` and configured it via `.env`. Conditional bypass logic is now environment-aware.
 
 ---
 
-## 2. Notification System Completion
+## 2. Notification System Completion ✅ Fixed
 
-### 🟡 Provider & UI Integration
+### 🟡 Provider & UI Integration ✅ Fixed
 *   **File:** `lib/core/providers/notifications_provider.dart`
-    *   Missing `markAsRead(String id)` method to call the new `PATCH /notifications/{id}/read` endpoint.
+    *   **Fix:** Implemented `markAsRead(String id)` and `markAllRead()` methods.
 *   **File:** `lib/features/home/notifications_sheet.dart`
-    *   Currently marks *all* as read when opening. It should allow individual read/dismissal when a tile is tapped.
+    *   **Fix:** Added "Mark all as read" button. Notification tiles are now wrapped in `InkWell` and trigger individual read status updates on tap.
 
 ---
 
-## 3. UI/UX Polish & Feature Integration
+## 3. UI/UX Polish & Feature Integration ✅ Fixed
 
-### 🟡 Wardrobe Analytics (Style Tips) Improvements
-*   **File:** `lib/features/style_tips/style_tips_screen.dart`
-    *   Rename screen to `WardrobeAnalyticsScreen` to match the content.
-    *   Implement "Navigate to Wardrobe" when tapping an item in the "Sitting in Your Closet" list.
-    *   **Missing Feature:** Add a "Recent Wear History" section using the `GET /wear-logs` backend endpoint.
+### 🟡 Wardrobe Analytics (Style Tips) Improvements ✅ Fixed
+*   **File:** `lib/features/style_tips/wardrobe_analytics_screen.dart`
+    *   **Fix:** Renamed from `StyleTipsScreen` to `WardrobeAnalyticsScreen`.
+    *   **Fix:** Tapping underutilised items now navigates to the Wardrobe.
+    *   **New Feature:** Integrated "Recent Activity" history using the `wearLogsProvider`.
 
-### 🟡 AI Feedback (Style Report) Consistency
-*   **File:** `app/services/ai_feedback.py` vs `lib/features/feedback/ai_feedback_sheet.dart`
-    *   Backend returns categories like `fit`, `style`, `color`, `versatility`.
-    *   Frontend expects `color`, `balance`, `occasion`, `accessories`.
-    *   **Fix:** Align categories so icons correctly display in the UI.
+### 🟡 AI Feedback (Style Report) Consistency ✅ Fixed
+*   **File:** `app/services/ai_feedback.py`
+    *   **Fix:** Aligned category strings (`color`, `balance`, `occasion`, `accessories`) between Backend and Frontend for icon consistency.
 
-### 🟡 AI Suggestion Dynamic Occasions
+### 🟡 AI Suggestion Dynamic Occasions ✅ Fixed
 *   **File:** `lib/features/feedback/ai_feedback_sheet.dart`
-    *   Occasion is hardcoded to `'General'`.
-    *   **Fix:** Pass the selected occasion through to the AI for more relevant feedback.
+    *   **Fix:** Replaced hardcoded occasion with a dynamic occasion selector at the top of the sheet, allowing users to regenerate feedback for different contexts.
 
 ---
 
-## 4. Production Hygiene
+## 4. Production Hygiene ✅ Fixed
 
-*   **File:** `app/main.py`
-    *   Ensure `lifespan` handles the `retry_worker` cleanup robustly (already looks decent, but verify).
-*   **Documentation**:
-    *   Ensure all `README.md` files are updated with the latest architecture.
+*   **File:** `app/main.py`: Verified lifespan tasks.
+*   **README.md**: Created a comprehensive root documentation file for the project.
+*   **Git Sanitisation**: Purged environment files from the remote repository and consolidated `.gitignore`.
