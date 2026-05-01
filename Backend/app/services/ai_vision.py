@@ -3,7 +3,6 @@ import json
 import logging
 from uuid import UUID
 from openai import OpenAI
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.db import AsyncSessionLocal
 from app.config import settings

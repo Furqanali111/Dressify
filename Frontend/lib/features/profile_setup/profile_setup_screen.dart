@@ -173,8 +173,8 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
     }
 
     final Map<String, dynamic> data = <String, dynamic>{
-      if (heightCm != null) 'height_cm': heightCm,
-      if (weightKg != null) 'weight_kg': weightKg,
+      'height_cm': ?heightCm,
+      'weight_kg': ?weightKg,
       if (_bodyType != null) 'body_type': _bodyType!.name,
       if (_gender != null) 'gender': _gender,
       // Phase 4.1 measurements (only if expanded and filled)

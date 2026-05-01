@@ -204,10 +204,14 @@ async def auto_generate_outfit(
     style_profile_str = None
     if pref:
         parts = []
-        if pref.liked_styles:    parts.append(f"Liked styles: {', '.join(pref.liked_styles)}")
-        if pref.liked_colors:    parts.append(f"Liked colors: {', '.join(pref.liked_colors)}")
-        if pref.liked_patterns:  parts.append(f"Liked patterns: {', '.join(pref.liked_patterns)}")
-        if pref.disliked_styles: parts.append(f"Disliked styles: {', '.join(pref.disliked_styles)}")
+        if pref.liked_styles:
+            parts.append(f"Liked styles: {', '.join(pref.liked_styles)}")
+        if pref.liked_colors:
+            parts.append(f"Liked colors: {', '.join(pref.liked_colors)}")
+        if pref.liked_patterns:
+            parts.append(f"Liked patterns: {', '.join(pref.liked_patterns)}")
+        if pref.disliked_styles:
+            parts.append(f"Disliked styles: {', '.join(pref.disliked_styles)}")
         style_profile_str = "; ".join(parts) if parts else None
     is_personalized = style_profile_str is not None
 
@@ -286,7 +290,7 @@ async def delete_outfit(
     try:
         await db.delete(outfit)
         await db.commit()
-    except Exception as e:
+    except SQLAlchemyError as e:
         await db.rollback()
         logger.error(f"Failed to delete outfit {outfit_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to delete outfit")

@@ -27,10 +27,10 @@ class AiService {
       '/outfits/generate',
       data: <String, dynamic>{
         'occasion': occasion,
-        if (avatarKind != null) 'avatar_kind': avatarKind,
-        if (lat != null) 'lat': lat,
-        if (lon != null) 'lon': lon,
-        if (seedItemId != null) 'seed_item_id': seedItemId,
+        'avatar_kind': ?avatarKind,
+        'lat': ?lat,
+        'lon': ?lon,
+        'seed_item_id': ?seedItemId,
       },
       cancelToken: cancelToken,
     );
@@ -50,11 +50,11 @@ class AiService {
     final response = await _dio.post<Map<String, dynamic>>(
       '/feedback',
       data: {
-        if (outfitId != null) 'outfit_id': outfitId,
-        if (clothingItemIds != null) 'clothing_item_ids': clothingItemIds,
-        if (occasion != null) 'occasion': occasion,
-        if (lat != null) 'lat': lat,
-        if (lon != null) 'lon': lon,
+        'outfit_id': ?outfitId,
+        'clothing_item_ids': ?clothingItemIds,
+        'occasion': ?occasion,
+        'lat': ?lat,
+        'lon': ?lon,
       },
     );
     return AiFeedbackResponse.fromJson(response.data!);

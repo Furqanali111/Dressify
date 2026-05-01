@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:cached_network_image/cached_network_image.dart';
@@ -414,7 +413,7 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
 
             // ── "Stand in front" guide ───────────────────────────────────
             if (_cameraReady && hasGarments && _anchors == null)
-              Center(
+              const Center(
                 child: _PillBadge(
                   icon: Icons.person_outline,
                   text: 'Stand in front of the camera',

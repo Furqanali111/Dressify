@@ -9,7 +9,6 @@ import '../../core/models/outfit.dart';
 import '../../core/providers/ai_provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
-import '../../core/widgets/app_toast.dart';
 import '../../core/widgets/primary_button.dart';
 
 class AiFeedbackSheet extends ConsumerStatefulWidget {

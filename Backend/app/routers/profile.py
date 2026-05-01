@@ -31,7 +31,7 @@ async def get_profile(
         try:
             await db.commit()
             await db.refresh(profile)
-        except Exception as e:
+        except SQLAlchemyError as e:
             await db.rollback()
             logger.error(f"Failed to auto-create profile for user {current_user.id}: {e}", exc_info=True)
             raise HTTPException(status_code=500, detail="Failed to initialise profile")
@@ -64,7 +64,7 @@ async def update_profile(
         await db.rollback()
         logger.error(f"DB integrity error updating profile for user {current_user.id}: {e}")
         raise HTTPException(status_code=409, detail="Profile update conflict — please retry")
-    except Exception as e:
+    except SQLAlchemyError as e:
         await db.rollback()
         logger.error(f"DB error updating profile for user {current_user.id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to save profile")

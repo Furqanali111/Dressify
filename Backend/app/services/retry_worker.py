@@ -22,7 +22,6 @@ import uuid
 from datetime import datetime, timezone, timedelta
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.db import AsyncSessionLocal

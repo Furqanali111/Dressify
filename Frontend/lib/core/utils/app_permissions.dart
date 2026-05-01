@@ -21,15 +21,15 @@ class AppPermissions {
 
     if (hasPermanentlyDenied && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text(
+        const SnackBar(
+          content: Text(
             'Dressify needs camera & location access. Please enable in Settings.',
           ),
           action: SnackBarAction(
             label: 'Open Settings',
             onPressed: openAppSettings,
           ),
-          duration: const Duration(seconds: 5),
+          duration: Duration(seconds: 5),
         ),
       );
     }
@@ -45,8 +45,8 @@ class AppPermissions {
 
     if (status.isPermanentlyDenied && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Camera access needed. Please enable in Settings.'),
+        const SnackBar(
+          content: Text('Camera access needed. Please enable in Settings.'),
           action: SnackBarAction(
             label: 'Settings',
             onPressed: openAppSettings,
@@ -67,8 +67,8 @@ class AppPermissions {
 
     if (status.isPermanentlyDenied && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Location access needed for weather. Enable in Settings.'),
+        const SnackBar(
+          content: Text('Location access needed for weather. Enable in Settings.'),
           action: SnackBarAction(
             label: 'Settings',
             onPressed: openAppSettings,

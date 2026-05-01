@@ -131,7 +131,6 @@ class PoseDetectionService {
       DeviceOrientation.landscapeLeft => 90,
       DeviceOrientation.portraitDown => 180,
       DeviceOrientation.landscapeRight => 270,
-      _ => 0,
     };
 
     final int rawRotation = lensDirection == CameraLensDirection.front

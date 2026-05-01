@@ -34,7 +34,7 @@ class StyleTipsScreen extends ConsumerWidget {
       ),
       body: asyncData.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, __) => Center(
+        error: (err, stack) => Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
@@ -63,19 +63,19 @@ class StyleTipsScreen extends ConsumerWidget {
                 _StatsHeader(analytics: analytics),
                 const SizedBox(height: AppSpacing.xl),
                 if (analytics.colorDistribution.isNotEmpty) ...<Widget>[
-                  _SectionTitle(title: 'Colour Palette'),
+                  const _SectionTitle(title: 'Colour Palette'),
                   const SizedBox(height: AppSpacing.md),
                   _ColorPieChart(data: analytics.colorDistribution),
                   const SizedBox(height: AppSpacing.xl),
                 ],
                 if (analytics.mostWorn.isNotEmpty) ...<Widget>[
-                  _SectionTitle(title: 'Most Worn'),
+                  const _SectionTitle(title: 'Most Worn'),
                   const SizedBox(height: AppSpacing.md),
                   _MostWornRow(items: analytics.mostWorn),
                   const SizedBox(height: AppSpacing.xl),
                 ],
                 if (analytics.underutilised.isNotEmpty) ...<Widget>[
-                  _SectionTitle(title: 'Sitting in Your Closet'),
+                  const _SectionTitle(title: 'Sitting in Your Closet'),
                   const SizedBox(height: AppSpacing.xs),
                   Text(
                     'These haven\'t been worn in the last 30 days.',
@@ -86,19 +86,19 @@ class StyleTipsScreen extends ConsumerWidget {
                   const SizedBox(height: AppSpacing.xl),
                 ],
                 if (analytics.styleBreakdown.isNotEmpty) ...<Widget>[
-                  _SectionTitle(title: 'Style Breakdown'),
+                  const _SectionTitle(title: 'Style Breakdown'),
                   const SizedBox(height: AppSpacing.md),
                   _StyleBarChart(data: analytics.styleBreakdown),
                   const SizedBox(height: AppSpacing.xl),
                 ],
-                _SectionTitle(title: 'Outfit Frequency'),
+                const _SectionTitle(title: 'Outfit Frequency'),
                 const SizedBox(height: AppSpacing.md),
                 if (analytics.outfitFrequency.isEmpty)
                   const _FrequencyEmptyState()
                 else
                   _FrequencyBars(weeks: analytics.outfitFrequency),
                 const SizedBox(height: AppSpacing.xl),
-                _SectionTitle(title: 'AI Style Suggestions'),
+                const _SectionTitle(title: 'AI Style Suggestions'),
                 const SizedBox(height: AppSpacing.xs),
                 const _AiStyleTipsSection(),
               ],
@@ -281,7 +281,7 @@ class _MostWornRow extends StatelessWidget {
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: items.length,
-        separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.md),
+        separatorBuilder: (context, index) => const SizedBox(width: AppSpacing.md),
         itemBuilder: (_, i) {
           final item = items[i];
           return SizedBox(

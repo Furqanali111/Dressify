@@ -21,14 +21,19 @@ async def get_current_weather(lat: float, lon: float) -> str | None:
             code = weather.get("weathercode", 0)
             
             condition = "Clear"
-            if code in [1, 2, 3]: condition = "Cloudy"
-            elif code in [45, 48]: condition = "Foggy"
-            elif code in [51, 53, 55, 61, 63, 65, 80, 81, 82]: condition = "Rainy"
-            elif code in [71, 73, 75, 85, 86]: condition = "Snowy"
-            elif code in [95, 96, 99]: condition = "Thunderstorm"
+            if code in [1, 2, 3]:
+                condition = "Cloudy"
+            elif code in [45, 48]:
+                condition = "Foggy"
+            elif code in [51, 53, 55, 61, 63, 65, 80, 81, 82]:
+                condition = "Rainy"
+            elif code in [71, 73, 75, 85, 86]:
+                condition = "Snowy"
+            elif code in [95, 96, 99]:
+                condition = "Thunderstorm"
                 
             return f"{temp}°F, {condition}"
             
-    except Exception as e:
+    except httpx.HTTPError as e:
         logger.error(f"Weather API failed: {e}")
         return None

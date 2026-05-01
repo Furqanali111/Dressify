@@ -1,5 +1,4 @@
 from app.security import supabase
-from app.config import settings
 import logging
 
 logger = logging.getLogger(__name__)

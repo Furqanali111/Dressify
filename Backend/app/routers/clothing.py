@@ -179,7 +179,7 @@ async def delete_clothing_item(
             status_code=409,
             detail="Cannot delete this item — it is referenced by one or more outfits",
         )
-    except Exception as e:
+    except SQLAlchemyError as e:
         await db.rollback()
         logger.error(f"DB error deleting clothing item {item_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to delete item")

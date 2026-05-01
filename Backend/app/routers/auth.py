@@ -73,7 +73,7 @@ async def google_auth(request: GoogleAuthRequest, db: AsyncSession = Depends(get
         await db.rollback()
         logger.error(f"DB integrity error upserting user {user_id}: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to persist user")
-    except Exception as e:
+    except SQLAlchemyError as e:
         await db.rollback()
         logger.error(f"DB error upserting user {user_id}: {e}", exc_info=True)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error")
