@@ -24,6 +24,11 @@ class _AiFeedbackSheetState extends ConsumerState<AiFeedbackSheet>
     with SingleTickerProviderStateMixin {
   late final AnimationController _arcController;
 
+  static const List<String> _occasions = <String>[
+    'Casual', 'Work', 'Party', 'Date Night', 'Workout', 'Loungewear',
+  ];
+
+  String _selectedOccasion = 'Casual';
   double _score = 0.0;
   String _verdict = '';
   List<AiSuggestion> _suggestions = [];
@@ -63,11 +68,14 @@ class _AiFeedbackSheetState extends ConsumerState<AiFeedbackSheet>
   }
 
   Future<void> _fetchFeedback() async {
+    setState(() {
+      _isLoading = _suggestions.isEmpty;
+      _regenerating = _suggestions.isNotEmpty;
+    });
+
     try {
       final aiService = ref.read(aiProvider);
       
-      // Use outfit_id when available — backend will persist the feedback automatically.
-      // Fall back to item IDs only when there is no persisted outfit yet.
       final String? outfitId = widget.outfit?.id;
       final List<String>? itemIds = outfitId == null &&
               (widget.outfit?.items.isNotEmpty ?? false)
@@ -77,7 +85,7 @@ class _AiFeedbackSheetState extends ConsumerState<AiFeedbackSheet>
       final response = await aiService.generateFeedback(
         outfitId: outfitId,
         clothingItemIds: itemIds,
-        occasion: 'General',
+        occasion: _selectedOccasion,
       );
 
       if (!mounted) return;
@@ -111,7 +119,6 @@ class _AiFeedbackSheetState extends ConsumerState<AiFeedbackSheet>
   }
 
   Future<void> _regenerate() async {
-    setState(() => _regenerating = true);
     _arcController.value = 0;
     await _fetchFeedback();
   }
@@ -123,7 +130,7 @@ class _AiFeedbackSheetState extends ConsumerState<AiFeedbackSheet>
     final double maxHeight = MediaQuery.of(context).size.height * 0.85;
 
     return DraggableScrollableSheet(
-      initialChildSize: 0.78,
+      initialChildSize: 0.85,
       minChildSize: 0.5,
       maxChildSize: 0.95,
       builder: (_, ScrollController scrollController) => Container(
@@ -156,7 +163,7 @@ class _AiFeedbackSheetState extends ConsumerState<AiFeedbackSheet>
                       children: <Widget>[
                         Text('Your Style Report', style: text.titleLarge),
                         Text(
-                          'Casual Weekend',
+                          '${widget.outfit?.name ?? "Custom Outfit"} · $_selectedOccasion',
                           style: text.bodySmall?.copyWith(color: c.textSecondary),
                         ),
                       ],
@@ -180,9 +187,47 @@ class _AiFeedbackSheetState extends ConsumerState<AiFeedbackSheet>
                   AppSpacing.xl,
                 ),
                 children: <Widget>[
+                  const SizedBox(height: AppSpacing.sm),
+                  Text('Occasion Context:', style: text.labelSmall?.copyWith(color: c.textSecondary)),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    height: 34,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: _occasions.length,
+                      separatorBuilder: (_, __) => const SizedBox(width: 8),
+                      itemBuilder: (_, i) {
+                        final occ = _occasions[i];
+                        final active = _selectedOccasion == occ;
+                        return GestureDetector(
+                          onTap: _regenerating || _isLoading ? null : () {
+                            setState(() => _selectedOccasion = occ);
+                            _regenerate();
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: active ? c.primary : c.surface,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: active ? c.primary : c.border),
+                            ),
+                            child: Text(
+                              occ,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: active ? Colors.white : c.textPrimary,
+                                fontWeight: active ? FontWeight.w700 : FontWeight.w400,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xl),
                   if (_isLoading)
                     const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 40),
+                      padding: EdgeInsets.symmetric(vertical: 60),
                       child: Center(child: CircularProgressIndicator()),
                     )
                   else if (_hasError) ...[
@@ -197,6 +242,12 @@ class _AiFeedbackSheetState extends ConsumerState<AiFeedbackSheet>
                             _verdict,
                             style: text.titleMedium?.copyWith(color: c.textSecondary),
                             textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: AppSpacing.lg),
+                          TextButton.icon(
+                            onPressed: _regenerate,
+                            icon: const Icon(Icons.refresh),
+                            label: const Text('Retry'),
                           ),
                         ],
                       ),
@@ -224,19 +275,6 @@ class _AiFeedbackSheetState extends ConsumerState<AiFeedbackSheet>
                       const SizedBox(height: AppSpacing.md),
                     ],
                   ],
-                  Center(
-                    child: TextButton.icon(
-                      onPressed: _regenerating ? null : _regenerate,
-                      icon: _regenerating
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.refresh),
-                      label: const Text('Regenerate Feedback'),
-                    ),
-                  ),
                 ],
               ),
             ),

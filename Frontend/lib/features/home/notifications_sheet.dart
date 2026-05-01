@@ -83,6 +83,11 @@ class _NotificationsSheetState extends ConsumerState<NotificationsSheet> {
                 children: <Widget>[
                   Text('Notifications', style: text.titleLarge),
                   const Spacer(),
+                  if (state.unreadCount > 0)
+                    TextButton(
+                      onPressed: () => ref.read(notificationsProvider.notifier).markAllRead(),
+                      child: const Text('Mark all as read'),
+                    ),
                   IconButton(
                     icon: const Icon(Icons.close),
                     onPressed: () => Navigator.of(context).pop(),
@@ -175,64 +180,68 @@ class _NotificationTile extends StatelessWidget {
     final TextTheme text = Theme.of(context).textTheme;
     final bool unread = !item.isRead;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: c.primary.withValues(alpha: unread ? 0.15 : 0.08),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              _iconForType(item.type),
-              size: 18,
-              color: c.primary.withValues(alpha: unread ? 1.0 : 0.6),
-            ),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  item.title,
-                  style: text.bodyMedium?.copyWith(
-                    fontWeight: unread ? FontWeight.w700 : FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  item.body,
-                  style: text.bodySmall?.copyWith(
-                    color: c.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  _timeAgo(item.createdAt),
-                  style: text.bodySmall?.copyWith(
-                    color: c.textSecondary.withValues(alpha: 0.7),
-                    fontSize: 11,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (unread)
+    return InkWell(
+      onTap: () => ref.read(notificationsProvider.notifier).markAsRead(item.id),
+      borderRadius: BorderRadius.circular(AppRadius.input),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm, horizontal: AppSpacing.xs),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
             Container(
-              width: 8,
-              height: 8,
-              margin: const EdgeInsets.only(top: 4, left: AppSpacing.sm),
+              width: 36,
+              height: 36,
               decoration: BoxDecoration(
-                color: c.primary,
+                color: c.primary.withValues(alpha: unread ? 0.15 : 0.08),
                 shape: BoxShape.circle,
               ),
+              child: Icon(
+                _iconForType(item.type),
+                size: 18,
+                color: c.primary.withValues(alpha: unread ? 1.0 : 0.6),
+              ),
             ),
-        ],
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    item.title,
+                    style: text.bodyMedium?.copyWith(
+                      fontWeight: unread ? FontWeight.w700 : FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    item.body,
+                    style: text.bodySmall?.copyWith(
+                      color: c.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _timeAgo(item.createdAt),
+                    style: text.bodySmall?.copyWith(
+                      color: c.textSecondary.withValues(alpha: 0.7),
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (unread)
+              Container(
+                width: 8,
+                height: 8,
+                margin: const EdgeInsets.only(top: 4, left: AppSpacing.sm),
+                decoration: BoxDecoration(
+                  color: c.primary,
+                  shape: BoxShape.circle,
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

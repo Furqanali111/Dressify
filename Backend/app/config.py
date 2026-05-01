@@ -1,5 +1,6 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 
 class Settings(BaseSettings):
@@ -14,6 +15,7 @@ class Settings(BaseSettings):
     JWT_ISSUER: str = "dressify-api"
     JWT_TTL_HOURS: int = 24
     BYPASS_AUTH_FURQAN_54321: bool = False
+    BYPASS_AUTH_TOKEN: str = "BYPASS_AUTH_FURQAN_54321"
     ENVIRONMENT: str = "development"  # "production" disables bypass auth
 
     # Upload retry worker

@@ -179,12 +179,12 @@ class _QuickActions extends StatelessWidget {
       _QuickAction(
         icon: Icons.bar_chart_rounded,
         label: 'My Analytics',
-        onTap: () => context.pushNamed(AppRoute.styleTips.name),
+        onTap: () => context.pushNamed(AppRoute.analytics.name),
       ),
       _QuickAction(
         icon: Icons.auto_awesome_outlined,
-        label: 'Style Tips',
-        onTap: () => context.pushNamed(AppRoute.styleTips.name),
+        label: 'Style Report',
+        onTap: () => context.pushNamed(AppRoute.analytics.name),
       ),
     ];
 

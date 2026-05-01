@@ -12,7 +12,7 @@ enum AppRoute {
   camera('/camera'),
   cameraTryOn('/camera-try-on'),
   aiFeedback('/feedback'),
-  styleTips('/style-tips');
+  analytics('/analytics');
 
   const AppRoute(this.path);
 

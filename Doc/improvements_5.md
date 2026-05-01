@@ -5,11 +5,11 @@
 
 ---
 
-## 1. Security Risk: Bypass Auth Hardcoded Token in Production Code (`auth.py`) — (ignored for now)
+## 1. Security Risk: Bypass Auth Hardcoded Token in Production Code (`auth.py`) ✅ Fixed
 
 *   **File:** `app/routers/auth.py` line 31
-*   **Issue:** The dev bypass token `"BYPASS_AUTH_FURQAN_54321"` is a **hardcoded string literal** inside the router.
-*   **Fix (pending):** Move the bypass token to `.env` / `Settings` as `BYPASS_AUTH_TOKEN: str | None = None`.
+*   **Issue:** The dev bypass token `"BYPASS_AUTH_FURQAN_54321"` was a hardcoded string literal inside the router.
+*   **Fix:** Moved the bypass token to `.env` / `Settings` as `BYPASS_AUTH_TOKEN` and updated the router to use the configuration value. The bypass is also now conditionally disabled if `ENVIRONMENT="production"`.
 
 ---
 

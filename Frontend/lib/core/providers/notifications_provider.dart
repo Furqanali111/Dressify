@@ -53,14 +53,38 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
           .map((e) => NotificationItem.fromJson(e as Map<String, dynamic>))
           .toList();
 
-      if (state.unreadCount > 0) {
-        await dio.post<dynamic>('/notifications/read-all');
-      }
-
-      state = state.copyWith(items: items, unreadCount: 0, loading: false);
+      state = state.copyWith(items: items, loading: false);
     } catch (_) {
       state = state.copyWith(loading: false);
     }
+  }
+
+  Future<void> markAsRead(String id) async {
+    final List<NotificationItem> current = state.items;
+    final int idx = current.indexWhere((it) => it.id == id);
+    if (idx == -1 || current[idx].isRead) return;
+
+    // Optimistic update
+    final List<NotificationItem> next = List<NotificationItem>.from(current);
+    next[idx] = next[idx].copyWith(isRead: true);
+    state = state.copyWith(items: next, unreadCount: (state.unreadCount - 1).clamp(0, 999));
+
+    try {
+      final Dio dio = _ref.read(apiClientProvider);
+      await dio.patch<dynamic>('/notifications/$id/read');
+    } catch (_) {
+      // Rollback on failure if needed, but usually not critical for read status
+    }
+  }
+
+  Future<void> markAllRead() async {
+    if (state.unreadCount == 0) return;
+    try {
+      final Dio dio = _ref.read(apiClientProvider);
+      await dio.post<dynamic>('/notifications/read-all');
+      final List<NotificationItem> next = state.items.map((it) => it.copyWith(isRead: true)).toList();
+      state = state.copyWith(items: next, unreadCount: 0);
+    } catch (_) {}
   }
 
   void reset() => state = const NotificationsState();

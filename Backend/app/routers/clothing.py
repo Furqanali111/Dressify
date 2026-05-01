@@ -26,7 +26,7 @@ router = APIRouter(prefix="/clothing", tags=["Clothing"])
 
 def inject_urls(item: ClothingItem) -> ClothingItemResponse:
     resp = ClothingItemResponse.model_validate(item)
-    resp.processed_url = get_signed_url("clothing-processed", item.processed_image_path) if item.processed_image_path else ""
+    resp.processed_url = storage.get_signed_url("clothing-processed", item.processed_image_path) if item.processed_image_path else ""
     return resp
 
 
@@ -41,7 +41,16 @@ async def get_clothing(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    query = select(ClothingItem).where(ClothingItem.user_id == current_user.id)
+    # Optimize: Select only columns needed for grid view
+    query = select(
+        ClothingItem.id,
+        ClothingItem.name,
+        ClothingItem.type,
+        ClothingItem.processed_image_path,
+        ClothingItem.processing_status,
+        ClothingItem.created_at,
+    ).where(ClothingItem.user_id == current_user.id)
+    
     if type:
         query = query.where(ClothingItem.type == type)
 
@@ -61,7 +70,7 @@ async def get_clothing(
         query = query.order_by(ClothingItem.created_at.desc()).limit(limit + 1)
     
     result = await db.execute(query)
-    items = result.scalars().all()
+    items = result.all()
 
     next_cursor = None
     if len(items) > limit:

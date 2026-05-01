@@ -23,15 +23,17 @@ class AiService {
     String? seedItemId,
     CancelToken? cancelToken,
   }) async {
-    final response = await _dio.post<Map<String, dynamic>>(
+    final Map<String, dynamic> data = <String, dynamic>{
+      'occasion': occasion,
+    };
+    if (avatarKind != null) data['avatar_kind'] = avatarKind;
+    if (lat != null) data['lat'] = lat;
+    if (lon != null) data['lon'] = lon;
+    if (seedItemId != null) data['seed_item_id'] = seedItemId;
+
+    final Response<Map<String, dynamic>> response = await _dio.post<Map<String, dynamic>>(
       '/outfits/generate',
-      data: <String, dynamic>{
-        'occasion': occasion,
-        'avatar_kind': ?avatarKind,
-        'lat': ?lat,
-        'lon': ?lon,
-        'seed_item_id': ?seedItemId,
-      },
+      data: data,
       cancelToken: cancelToken,
     );
     return Outfit.fromJson(response.data!);
@@ -47,15 +49,16 @@ class AiService {
     assert(outfitId != null || (clothingItemIds != null && clothingItemIds.isNotEmpty),
         'Must provide either outfitId or clothingItemIds');
 
-    final response = await _dio.post<Map<String, dynamic>>(
+    final Map<String, dynamic> data = <String, dynamic>{};
+    if (outfitId != null) data['outfit_id'] = outfitId;
+    if (clothingItemIds != null) data['clothing_item_ids'] = clothingItemIds;
+    if (occasion != null) data['occasion'] = occasion;
+    if (lat != null) data['lat'] = lat;
+    if (lon != null) data['lon'] = lon;
+
+    final Response<Map<String, dynamic>> response = await _dio.post<Map<String, dynamic>>(
       '/feedback',
-      data: {
-        'outfit_id': ?outfitId,
-        'clothing_item_ids': ?clothingItemIds,
-        'occasion': ?occasion,
-        'lat': ?lat,
-        'lon': ?lon,
-      },
+      data: data,
     );
     return AiFeedbackResponse.fromJson(response.data!);
   }
