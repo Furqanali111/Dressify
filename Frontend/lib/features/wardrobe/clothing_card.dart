@@ -8,6 +8,7 @@ import 'package:shimmer/shimmer.dart';
 import '../../core/enums/app_enums.dart' show ClothingType, ClothingTypeX;
 import '../../core/models/clothing_item.dart';
 import '../../core/providers/camera_garments_provider.dart';
+import '../../core/providers/outfits_provider.dart';
 import '../../core/providers/wardrobe_provider.dart';
 import '../../core/router/app_routes.dart';
 import '../../core/theme/app_colors.dart';
@@ -62,6 +63,17 @@ class ClothingCard extends ConsumerWidget {
         );
       case WardrobeAction.rename:
         break;
+      case WardrobeAction.logWear:
+        // Log wear for a single item is not directly supported by the unified /wear-logs yet 
+        // without an outfit, but we can call it with a single item ID.
+        try {
+          await ref.read(outfitsProvider.notifier).logWear(clothingItemIds: <String>[item.id]);
+          if (!context.mounted) return;
+          AppToast.success(context, 'Wear logged for ${item.name}');
+        } catch (_) {
+          if (!context.mounted) return;
+          AppToast.error(context, 'Failed to log wear');
+        }
       case WardrobeAction.delete:
         final bool? confirm = await showDialog<bool>(
           context: context,

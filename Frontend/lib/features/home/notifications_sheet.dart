@@ -114,8 +114,13 @@ class _NotificationsSheetState extends ConsumerState<NotificationsSheet> {
                             height: 1,
                             color: c.border.withValues(alpha: 0.5),
                           ),
-                          itemBuilder: (_, int i) =>
-                              _NotificationTile(item: state.items[i]),
+                          itemBuilder: (_, int i) {
+                            final item = state.items[i];
+                            return _NotificationTile(
+                              item: item,
+                              onRead: () => ref.read(notificationsProvider.notifier).markAsRead(item.id),
+                            );
+                          },
                         ),
             ),
             Padding(
@@ -171,8 +176,9 @@ class _EmptyState extends StatelessWidget {
 }
 
 class _NotificationTile extends StatelessWidget {
-  const _NotificationTile({required this.item});
+  const _NotificationTile({required this.item, required this.onRead});
   final NotificationItem item;
+  final VoidCallback onRead;
 
   @override
   Widget build(BuildContext context) {
@@ -181,7 +187,7 @@ class _NotificationTile extends StatelessWidget {
     final bool unread = !item.isRead;
 
     return InkWell(
-      onTap: () => ref.read(notificationsProvider.notifier).markAsRead(item.id),
+      onTap: onRead,
       borderRadius: BorderRadius.circular(AppRadius.input),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm, horizontal: AppSpacing.xs),

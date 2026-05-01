@@ -10,6 +10,7 @@ import '../../core/router/app_routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/widgets/primary_button.dart';
+import '../wardrobe/style_me_sheet.dart';
 import 'notifications_sheet.dart';
 
 class HomeScreen extends ConsumerWidget {
@@ -124,7 +125,7 @@ class _TopBar extends ConsumerWidget {
                   context: context,
                   backgroundColor: Colors.transparent,
                   isScrollControlled: true,
-                  builder: (_) => const NotificationsSheet(),
+                  builder: (_) => NotificationsSheet(),
                 );
               },
             ),
@@ -183,8 +184,13 @@ class _QuickActions extends StatelessWidget {
       ),
       _QuickAction(
         icon: Icons.auto_awesome_outlined,
-        label: 'Style Report',
-        onTap: () => context.pushNamed(AppRoute.analytics.name),
+        label: 'Generate Look',
+        onTap: () => showModalBottomSheet<void>(
+          context: context,
+          backgroundColor: Colors.transparent,
+          isScrollControlled: true,
+          builder: (_) => StyleMeSheet(),
+        ),
       ),
     ];
 

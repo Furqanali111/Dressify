@@ -55,8 +55,10 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen>
     final AppColors c = context.colors;
     final TextTheme text = Theme.of(context).textTheme;
 
-    return SafeArea(
-      child: Stack(
+    return Scaffold(
+      backgroundColor: c.background,
+      body: SafeArea(
+        child: Stack(
         children: <Widget>[
           Column(
             children: <Widget>[
@@ -190,6 +192,7 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen>
             ),
           ),
         ],
+        ),
       ),
     );
   }

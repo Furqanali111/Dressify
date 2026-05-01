@@ -38,9 +38,6 @@ class _StyleMeSheetState extends ConsumerState<StyleMeSheet> {
   @override
   void dispose() {
     _cancelToken.cancel();
-    if (!_navigatedToTryOn) {
-      ref.read(styleProfileProvider.notifier).logInteraction(action: 'dismissed');
-    }
     super.dispose();
   }
 

@@ -15,6 +15,24 @@ class NotificationItem {
   final bool isRead;
   final DateTime createdAt;
 
+  NotificationItem copyWith({
+    String? id,
+    String? type,
+    String? title,
+    String? body,
+    bool? isRead,
+    DateTime? createdAt,
+  }) {
+    return NotificationItem(
+      id: id ?? this.id,
+      type: type ?? this.type,
+      title: title ?? this.title,
+      body: body ?? this.body,
+      isRead: isRead ?? this.isRead,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
   factory NotificationItem.fromJson(Map<String, dynamic> json) {
     return NotificationItem(
       id: json['id'] as String,

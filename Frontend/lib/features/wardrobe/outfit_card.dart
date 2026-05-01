@@ -44,7 +44,7 @@ class OutfitCard extends ConsumerWidget {
     switch (action) {
       case WardrobeAction.logWear:
         try {
-          await ref.read(outfitsProvider.notifier).logWear(outfit.id);
+          await ref.read(outfitsProvider.notifier).logWear(outfitId: outfit.id);
           if (!context.mounted) return;
           AppToast.success(context, 'Wear logged! \u{1F457}');
         } catch (_) {
