@@ -83,3 +83,31 @@ async def mark_all_read(
     )
     await db.commit()
     return UnreadCountResponse(count=0)
+
+
+@router.patch("/{notification_id}/read", response_model=NotificationResponse)
+@limiter.limit("120/minute")
+async def mark_one_read(
+    notification_id: uuid.UUID,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Mark a single notification as read. Returns the updated notification."""
+    result = await db.execute(
+        select(Notification).where(
+            Notification.id == notification_id,
+            Notification.user_id == current_user.id,
+        )
+    )
+    notif = result.scalar_one_or_none()
+    if not notif:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Notification not found")
+
+    if not notif.is_read:
+        notif.is_read = True
+        await db.commit()
+        await db.refresh(notif)
+
+    return notif

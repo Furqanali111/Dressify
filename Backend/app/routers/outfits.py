@@ -198,15 +198,28 @@ async def auto_generate_outfit(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    wardrobe_result = await db.execute(select(ClothingItem).where(ClothingItem.user_id == current_user.id))
-    wardrobe_items = wardrobe_result.scalars().all()
-    if not wardrobe_items:
+    wardrobe_result = await db.execute(
+        select(
+            ClothingItem.id,
+            ClothingItem.name,
+            ClothingItem.type,
+            ClothingItem.sub_type,
+            ClothingItem.color,
+            ClothingItem.pattern,
+            ClothingItem.style,
+        ).where(
+            ClothingItem.user_id == current_user.id,
+            ClothingItem.processing_status == "completed",
+        )
+    )
+    wardrobe_rows = wardrobe_result.all()
+    if not wardrobe_rows:
         raise HTTPException(status_code=400, detail="Wardrobe is empty")
 
     wardrobe_descriptions = []
     seed_item_details = None
 
-    for w in wardrobe_items:
+    for w in wardrobe_rows:
         desc = f"ID: {w.id} | {w.name} ({w.type})"
         extras = [e for e in [w.sub_type, w.color, w.pattern, w.style] if e]
         if extras:
@@ -216,6 +229,9 @@ async def auto_generate_outfit(
             seed_item_details = desc
 
     wardrobe_details_str = "\n".join(wardrobe_descriptions)
+
+    # Build a list of valid IDs for sanitising AI output
+    valid_ids = [str(w.id) for w in wardrobe_rows]
 
     pref_result = await db.execute(
         select(UserStylePreference).where(UserStylePreference.user_id == current_user.id)
@@ -250,7 +266,6 @@ async def auto_generate_outfit(
     if not chosen_ids:
         raise HTTPException(status_code=500, detail="AI could not generate an outfit")
 
-    valid_ids = [str(w.id) for w in wardrobe_items]
     final_ids = [uid for uid in chosen_ids if str(uid) in valid_ids]
 
     if not final_ids:

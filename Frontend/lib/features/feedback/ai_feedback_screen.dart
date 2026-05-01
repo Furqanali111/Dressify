@@ -37,7 +37,7 @@ class AiFeedbackScreen extends ConsumerWidget {
           icon: Icon(Icons.arrow_back, color: c.textPrimary),
           onPressed: () => context.pop(),
         ),
-        title: Text('Style Tips', style: text.headlineMedium),
+        title: Text('AI Style Report', style: text.headlineMedium),
       ),
       body: outfits.when(
         loading: () => const Center(child: CircularProgressIndicator()),

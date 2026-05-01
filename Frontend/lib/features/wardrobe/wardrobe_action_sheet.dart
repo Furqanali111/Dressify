@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 
-enum WardrobeAction { seeOnMe, tryOn, edit, rename, delete }
+enum WardrobeAction { logWear, seeOnMe, tryOn, edit, rename, delete }
 
 class WardrobeActionSheet extends StatelessWidget {
   const WardrobeActionSheet({
@@ -17,6 +17,12 @@ class WardrobeActionSheet extends StatelessWidget {
 
   Widget _row(BuildContext context, WardrobeAction action) {
     switch (action) {
+      case WardrobeAction.logWear:
+        return _ActionRow(
+          icon: Icons.checkroom_outlined,
+          label: 'Log Wear',
+          onTap: () => Navigator.of(context).pop(action),
+        );
       case WardrobeAction.seeOnMe:
         return _ActionRow(
           icon: Icons.camera_alt_outlined,

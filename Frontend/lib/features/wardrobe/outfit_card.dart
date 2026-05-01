@@ -33,6 +33,7 @@ class OutfitCard extends ConsumerWidget {
       builder: (_) => WardrobeActionSheet(
         title: outfit.name,
         actions: const <WardrobeAction>[
+          WardrobeAction.logWear,
           WardrobeAction.tryOn,
           WardrobeAction.rename,
           WardrobeAction.delete,
@@ -41,6 +42,15 @@ class OutfitCard extends ConsumerWidget {
     );
     if (action == null || !context.mounted) return;
     switch (action) {
+      case WardrobeAction.logWear:
+        try {
+          await ref.read(outfitsProvider.notifier).logWear(outfit.id);
+          if (!context.mounted) return;
+          AppToast.success(context, 'Wear logged! \u{1F457}');
+        } catch (_) {
+          if (!context.mounted) return;
+          AppToast.error(context, 'Failed to log wear');
+        }
       case WardrobeAction.seeOnMe:
         break;
       case WardrobeAction.tryOn:

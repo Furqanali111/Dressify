@@ -10,6 +10,7 @@ import '../../core/providers/profile_provider.dart';
 import '../../core/providers/style_profile_provider.dart';
 import '../../core/providers/theme_provider.dart';
 import '../../core/providers/units_provider.dart';
+import '../../core/api/api_client.dart';
 import '../../core/router/app_routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
@@ -171,6 +172,49 @@ class ProfileScreen extends ConsumerWidget {
     }
   }
 
+  Future<void> _confirmDeleteAccount(BuildContext context, WidgetRef ref) async {
+    final bool? ok = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.card),
+        ),
+        title: const Text('Delete account?'),
+        content: const Text(
+          'This will permanently delete your account, all outfits, wardrobe items, and images. '
+          'This action cannot be undone.',
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: TextButton.styleFrom(foregroundColor: ctx.colors.error),
+            child: const Text('Delete Forever'),
+          ),
+        ],
+      ),
+    );
+
+    if (ok == true && context.mounted) {
+      HapticFeedback.heavyImpact();
+      try {
+        final dio = ref.read(apiClientProvider);
+        await dio.delete<void>('/users/me');
+        if (!context.mounted) return;
+        await ref.read(authStateProvider.notifier).signOut();
+        if (!context.mounted) return;
+        AppToast.info(context, 'Account deleted');
+        context.goNamed(AppRoute.signIn.name);
+      } catch (_) {
+        if (!context.mounted) return;
+        AppToast.error(context, 'Could not delete account. Please try again.');
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final AppColors c = context.colors;
@@ -252,6 +296,26 @@ class ProfileScreen extends ConsumerWidget {
                 label: 'Sign Out',
                 destructive: true,
                 onTap: () => _confirmSignOut(context, ref),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          // ── Danger Zone ────────────────────────────────────────────────
+          Text(
+            'Danger Zone',
+            style: text.labelMedium?.copyWith(
+              color: c.error,
+              letterSpacing: 0.6,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          _SettingsCard(
+            children: <Widget>[
+              _SettingsRow(
+                icon: Icons.delete_forever_outlined,
+                label: 'Delete Account',
+                destructive: true,
+                onTap: () => _confirmDeleteAccount(context, ref),
               ),
             ],
           ),

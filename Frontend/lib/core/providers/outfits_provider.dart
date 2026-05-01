@@ -108,6 +108,15 @@ class OutfitsNotifier extends StateNotifier<AsyncValue<List<Outfit>>> {
     );
   }
 
+  /// Log a wear for the given outfit. Fires-and-forgets — caller handles error.
+  Future<void> logWear(String outfitId) async {
+    final Dio dio = _ref.read(apiClientProvider);
+    await dio.post<dynamic>(
+      '/wear-logs',
+      data: <String, dynamic>{'outfit_id': outfitId},
+    );
+  }
+
   static List<Outfit> _parse(dynamic data) {
     final List<dynamic> raw = data is Map<String, dynamic>
         ? (data['items'] as List<dynamic>? ?? const <dynamic>[])

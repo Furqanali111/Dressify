@@ -1,30 +1,108 @@
-Frontend/Library/PackageCache
-.idea
-.vscode
+# =============================================================================
+# Dressify — Root .gitignore
+# Covers: root workspace, Backend (Python/FastAPI), Frontend (Flutter/Dart)
+# =============================================================================
+
+# =============================================================================
+# General / Editor
+# =============================================================================
 .DS_Store
+.history
+.atom/
+.build/
+.buildlog/
+.svn/
+.swiftpm/
+.claude
+migrate_working_dir/
+
+# Logs & temp files
 *.log
 *.tmp
-node_modules
-dist
-build
-coverage
-.env
-*.env
 *.bak
 *.backup
 *.swp
 *.swo
 *.swn
-.dart_tool/
-.packages
-.pub/
-.flutter-plugins
-.flutter-plugins-dependencies
-.flutter-versions
+*.class
+*.pyc
+
+# IDE — IntelliJ / Android Studio
 *.iml
-.claude
-.idea
-.venv
+*.ipr
+*.iws
+.idea/
+
+# VS Code (uncommit if you want to share launch configs)
+.vscode/
+
+# Node (unlikely, but safe)
+node_modules/
+dist/
+
+# =============================================================================
+# Python / Backend
+# =============================================================================
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+.env
+*.env
+.env.local
 .env.production
-venv
-__pycache__
+.env.staging
+.coverage
+coverage/
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+dist/
+build/
+*.egg-info/
+
+# Alembic generated (keep migrations, ignore temp files)
+Backend/alembic/__pycache__/
+
+# =============================================================================
+# Flutter / Dart / Frontend
+# =============================================================================
+
+# Dart tool & pub cache
+Frontend/.dart_tool/
+Frontend/.pub/
+Frontend/.pub-cache/
+Frontend/.packages
+Frontend/.flutter-plugins
+Frontend/.flutter-plugins-dependencies
+Frontend/.flutter-versions
+Frontend/.dart_tool/
+
+# Build output
+Frontend/build/
+Frontend/coverage/
+
+# Flutter doc generation
+Frontend/**/doc/api/
+
+# iOS Flutter build marker
+Frontend/**/ios/Flutter/.last_build_id
+
+# Android Studio build artifacts
+Frontend/android/app/debug/
+Frontend/android/app/profile/
+Frontend/android/app/release/
+
+# Symbolication & obfuscation maps
+Frontend/app.*.symbols
+Frontend/app.*.map.json
+
+# Library package cache
+Frontend/Library/PackageCache/
+
+# IntelliJ under Frontend
+Frontend/.idea/
