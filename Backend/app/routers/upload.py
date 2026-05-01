@@ -3,6 +3,7 @@ import uuid
 from datetime import datetime, timezone, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, BackgroundTasks, Request
+from starlette.concurrency import run_in_threadpool
 from PIL import UnidentifiedImageError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -88,7 +89,7 @@ async def upload_clothing(
 
         # 2a. Extract garment pixels (crop + bg removal)
         try:
-            garment_bytes = extract_garment(image_bytes, garment["bbox"])
+            garment_bytes = await run_in_threadpool(extract_garment, image_bytes, garment["bbox"])
         except UnidentifiedImageError:
             logger.warning("Garment %d skipped — unrecognised image format", idx + 1)
             continue

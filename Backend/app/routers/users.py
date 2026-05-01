@@ -1,7 +1,7 @@
 import logging
 import uuid
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, status, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -95,3 +95,21 @@ async def log_interaction(
     await db.commit()
     await db.refresh(interaction)
     return interaction
+
+
+@router.delete("/users/me", status_code=status.HTTP_204_NO_CONTENT)
+@limiter.limit("5/minute")
+async def delete_account(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        await db.delete(current_user)
+        await db.commit()
+    except Exception as e:
+        await db.rollback()
+        logger.error("Failed to delete user account: %s", e)
+        raise HTTPException(status_code=500, detail="Could not delete account")
+
+    return None

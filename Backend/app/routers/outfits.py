@@ -1,5 +1,7 @@
 import logging
 import uuid
+from typing import Optional
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
@@ -13,7 +15,7 @@ from app.models.style_preference import UserStylePreference
 from app.models.user import User
 from app.models.clothing_item import ClothingItem
 from app.deps import get_current_user
-from app.schemas.outfit import OutfitCreate, OutfitUpdate, OutfitResponse, OutfitItemSchema, GenerateOutfitRequest
+from app.schemas.outfit import OutfitCreate, OutfitUpdate, OutfitResponse, OutfitItemSchema, GenerateOutfitRequest, OutfitListResponse
 from app.services.weather import get_current_weather
 from app.services.ai_outfit_generator import generate_outfit
 from app.services.notifications import push_notification
@@ -100,20 +102,38 @@ async def create_outfit(
     )
 
 
-@router.get("", response_model=list[OutfitResponse])
+@router.get("", response_model=OutfitListResponse)
 @limiter.limit("60/minute")
 async def get_outfits(
     request: Request,
+    cursor: Optional[str] = None,
+    limit: int = 30,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(
-        select(Outfit)
-        .where(Outfit.user_id == current_user.id)
-        .options(selectinload(Outfit.items))
-    )
+    query = select(Outfit).where(Outfit.user_id == current_user.id)
+    
+    if cursor:
+        try:
+            cursor_time = datetime.fromisoformat(cursor)
+            query = query.where(Outfit.created_at < cursor_time)
+        except ValueError:
+            pass
+            
+    query = query.order_by(Outfit.created_at.desc()).limit(limit + 1).options(selectinload(Outfit.items))
+    
+    result = await db.execute(query)
     outfits = result.scalars().all()
-    return [_build_outfit_response(o) for o in outfits]
+    
+    next_cursor = None
+    if len(outfits) > limit:
+        next_cursor = outfits[limit - 1].created_at.isoformat()
+        outfits = outfits[:limit]
+        
+    return OutfitListResponse(
+        items=[_build_outfit_response(o) for o in outfits],
+        next_cursor=next_cursor,
+    )
 
 
 @router.get("/{outfit_id}", response_model=OutfitResponse)

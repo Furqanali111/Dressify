@@ -44,3 +44,8 @@ class OutfitResponse(BaseModel):
     personalized: bool = False
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class OutfitListResponse(BaseModel):
+    items: List[OutfitResponse]
+    next_cursor: Optional[str] = None

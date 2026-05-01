@@ -6,7 +6,8 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, delete
+from pydantic import BaseModel
 
 from app.db import get_db
 from app.models.clothing_item import ClothingItem
@@ -34,6 +35,7 @@ def inject_urls(item: ClothingItem) -> ClothingItemResponse:
 async def get_clothing(
     request: Request,
     type: Optional[str] = None,
+    sort_by: Optional[str] = "newest",
     cursor: Optional[str] = None,
     limit: int = 30,
     current_user: User = Depends(get_current_user),
@@ -46,11 +48,17 @@ async def get_clothing(
     if cursor:
         try:
             cursor_time = datetime.fromisoformat(cursor)
-            query = query.where(ClothingItem.created_at < cursor_time)
+            if sort_by == "oldest":
+                query = query.where(ClothingItem.created_at > cursor_time)
+            else:
+                query = query.where(ClothingItem.created_at < cursor_time)
         except ValueError:
             pass
 
-    query = query.order_by(ClothingItem.created_at.desc()).limit(limit + 1)
+    if sort_by == "oldest":
+        query = query.order_by(ClothingItem.created_at.asc()).limit(limit + 1)
+    else:
+        query = query.order_by(ClothingItem.created_at.desc()).limit(limit + 1)
     
     result = await db.execute(query)
     items = result.scalars().all()
@@ -183,5 +191,36 @@ async def delete_clothing_item(
         await db.rollback()
         logger.error(f"DB error deleting clothing item {item_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to delete item")
+
+    return None
+
+
+class BatchDeleteRequest(BaseModel):
+    clothing_item_ids: list[uuid.UUID]
+
+
+@router.post("/batch-delete", status_code=status.HTTP_204_NO_CONTENT)
+@limiter.limit("10/minute")
+async def batch_delete_clothing(
+    request: Request,
+    body: BatchDeleteRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        await db.execute(
+            delete(ClothingItem).where(
+                ClothingItem.id.in_(body.clothing_item_ids),
+                ClothingItem.user_id == current_user.id
+            )
+        )
+        await db.commit()
+    except SQLAlchemyError as e:
+        await db.rollback()
+        logger.error("Failed to batch delete clothing items: %s", e)
+        raise HTTPException(
+            status_code=400, 
+            detail="Could not delete items. They may be part of an outfit."
+        )
 
     return None
