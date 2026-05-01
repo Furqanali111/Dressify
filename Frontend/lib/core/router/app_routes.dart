@@ -11,7 +11,8 @@ enum AppRoute {
   tryOn('/try-on'),
   camera('/camera'),
   cameraTryOn('/camera-try-on'),
-  aiFeedback('/feedback');
+  aiFeedback('/feedback'),
+  styleTips('/style-tips');
 
   const AppRoute(this.path);
 

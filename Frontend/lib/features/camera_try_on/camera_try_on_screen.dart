@@ -14,6 +14,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../core/models/clothing_item.dart';
 import '../../core/models/outfit.dart';
 import '../../core/providers/camera_garments_provider.dart';
+import '../../core/providers/fit_rating_provider.dart';
 import '../../core/providers/fit_scale_provider.dart';
 import '../../core/providers/wardrobe_provider.dart';
 import '../../core/router/app_routes.dart';
@@ -886,30 +887,48 @@ class _GarmentChip extends StatelessWidget {
 // Garment name chips (modal mode — read-only)
 // ---------------------------------------------------------------------------
 
-class _GarmentNameChips extends StatelessWidget {
+class _GarmentNameChips extends ConsumerWidget {
   const _GarmentNameChips({required this.garments});
   final List<_GarmentData> garments;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Wrap(
       spacing: AppSpacing.xs,
       runSpacing: AppSpacing.xs,
-      children: garments
-          .map(
-            (g) => Container(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.55),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
-                g.item.name,
-                style: const TextStyle(color: Colors.white, fontSize: 12),
-              ),
-            ),
-          )
-          .toList(),
+      children: garments.map((g) {
+        final fitAsync = ref.watch(fitRatingProvider(g.item.id));
+        final fit = fitAsync.valueOrNull;
+
+        final Color? badgeColor = fit == null ? null : switch (fit.rating) {
+          FitRating.perfect    => Colors.green.shade600,
+          FitRating.mayBeSnug  => Colors.orange.shade600,
+          FitRating.runsLarge  => Colors.blue.shade600,
+          FitRating.unknown    => null,
+        };
+
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 4),
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.55),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              if (badgeColor != null) ...<Widget>[
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(color: badgeColor, shape: BoxShape.circle),
+                ),
+                const SizedBox(width: 4),
+              ],
+              Text(g.item.name, style: const TextStyle(color: Colors.white, fontSize: 12)),
+            ],
+          ),
+        );
+      }).toList(),
     );
   }
 }

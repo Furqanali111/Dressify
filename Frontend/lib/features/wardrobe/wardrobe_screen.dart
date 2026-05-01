@@ -454,6 +454,23 @@ class _ClothingCard extends ConsumerWidget {
                         isFailed
                             ? _FailedPlaceholder(c: c)
                             : _ClothingImage(item: item, fallbackType: uiType),
+                        // Size label chip
+                        if (!isFailed && !isProcessing && item.sizeLabel != null && item.sizeLabel != 'Unknown')
+                          Positioned(
+                            top: AppSpacing.xs,
+                            right: AppSpacing.xs,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.55),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                item.sizeLabel!,
+                                style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700),
+                              ),
+                            ),
+                          ),
                         // "See on Me" quick-access button
                         if (!isFailed && !isProcessing)
                           Positioned(
@@ -1062,8 +1079,11 @@ class _EditClothingSheet extends ConsumerStatefulWidget {
 }
 
 class _EditClothingSheetState extends ConsumerState<_EditClothingSheet> {
+  static const List<String> _sizeOptions = <String>['XS', 'S', 'M', 'L', 'XL', 'XXL', 'One Size'];
+
   late final TextEditingController _nameCtrl;
   late final TextEditingController _colorCtrl;
+  String? _selectedSize;
   bool _saving = false;
 
   @override
@@ -1071,6 +1091,8 @@ class _EditClothingSheetState extends ConsumerState<_EditClothingSheet> {
     super.initState();
     _nameCtrl = TextEditingController(text: widget.item.name);
     _colorCtrl = TextEditingController(text: widget.item.color ?? '');
+    final sl = widget.item.sizeLabel;
+    _selectedSize = (sl != null && _sizeOptions.contains(sl)) ? sl : null;
   }
 
   @override
@@ -1090,6 +1112,7 @@ class _EditClothingSheetState extends ConsumerState<_EditClothingSheet> {
         <String, dynamic>{
           'name': name,
           if (_colorCtrl.text.trim().isNotEmpty) 'color': _colorCtrl.text.trim(),
+          if (_selectedSize != null) 'size_label': _selectedSize,
         },
       );
       if (!mounted) return;
@@ -1159,6 +1182,14 @@ class _EditClothingSheetState extends ConsumerState<_EditClothingSheet> {
                 ),
                 textCapitalization: TextCapitalization.words,
                 maxLength: 50,
+              ),
+              const SizedBox(height: AppSpacing.md),
+              DropdownButtonFormField<String>(
+                initialValue: _selectedSize,
+                decoration: const InputDecoration(labelText: 'Size'),
+                hint: const Text('Select size'),
+                items: _sizeOptions.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                onChanged: (v) => setState(() => _selectedSize = v),
               ),
               const SizedBox(height: AppSpacing.xl),
               PrimaryButton(

@@ -16,6 +16,7 @@ import '../../features/profile/profile_screen.dart';
 import '../../features/profile_setup/profile_setup_screen.dart';
 import '../../features/splash/splash_screen.dart';
 import '../../features/try_on/try_on_screen.dart';
+import '../../features/style_tips/style_tips_screen.dart';
 import '../../features/upload/upload_screen.dart';
 import '../../features/wardrobe/wardrobe_screen.dart';
 import 'app_routes.dart';
@@ -155,6 +156,12 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
         name: AppRoute.aiFeedback.name,
         parentNavigatorKey: _rootNavigatorKey,
         builder: (_, _) => const AiFeedbackScreen(),
+      ),
+      GoRoute(
+        path: AppRoute.styleTips.path,
+        name: AppRoute.styleTips.name,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, _) => const StyleTipsScreen(),
       ),
     ],
   );

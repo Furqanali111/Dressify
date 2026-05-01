@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/providers/ai_provider.dart';
 import '../../core/providers/profile_provider.dart';
+import '../../core/providers/style_profile_provider.dart';
 import '../../core/router/app_routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
@@ -30,6 +31,15 @@ class _StyleMeSheetState extends ConsumerState<StyleMeSheet> {
   String? _selectedOccasion;
   bool _useWeather = false;
   bool _isGenerating = false;
+  bool _navigatedToTryOn = false;
+
+  @override
+  void dispose() {
+    if (!_navigatedToTryOn) {
+      ref.read(styleProfileProvider.notifier).logInteraction(action: 'dismissed');
+    }
+    super.dispose();
+  }
 
   Future<void> _handleGenerate() async {
     setState(() => _isGenerating = true);
@@ -87,10 +97,14 @@ class _StyleMeSheetState extends ConsumerState<StyleMeSheet> {
       );
 
       if (!mounted) return;
-      
+      _navigatedToTryOn = true;
       context.pop(); // Close sheet
       context.pushNamed(AppRoute.tryOn.name, extra: outfit);
-      AppToast.success(context, 'Generated ${_selectedOccasion ?? 'Outfit'}$weatherContext!');
+      if (outfit.personalized) {
+        AppToast.success(context, '✨ Personalized for you!');
+      } else {
+        AppToast.success(context, 'Generated ${_selectedOccasion ?? 'Outfit'}$weatherContext!');
+      }
     } on DioException catch (e) {
       if (!mounted) return;
       setState(() => _isGenerating = false);

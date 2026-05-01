@@ -11,6 +11,7 @@ def generate_outfit(
     occasion: str,
     weather: str | None,
     seed_item: str | None,
+    style_profile: str | None = None,
 ) -> list[str]:
     """Return a list of string UUIDs chosen by the AI stylist.
 
@@ -29,6 +30,7 @@ def generate_outfit(
     - Occasion: {occasion}
     - Current Weather: {weather or 'Unknown'}
     - Must Include This Item: {seed_item or 'None specified'}
+    - User Style Profile: {style_profile or 'No preferences set'}
     - My Wardrobe (ID: Name/Type): {wardrobe_details}
 
     Select a top, bottom, and shoes (and jacket if weather/occasion calls for it) from the wardrobe that form a cohesive outfit.

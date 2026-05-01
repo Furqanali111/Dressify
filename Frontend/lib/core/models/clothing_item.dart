@@ -10,6 +10,8 @@ class ClothingItem {
   final String? pattern;
   final String? style;
   final String? subType;
+  final String? sizeLabel;
+  final String? fitNotes;
   final String processingStatus;
   final DateTime createdAt;
 
@@ -25,6 +27,8 @@ class ClothingItem {
     this.pattern,
     this.style,
     this.subType,
+    this.sizeLabel,
+    this.fitNotes,
     required this.processingStatus,
     required this.createdAt,
   });
@@ -42,6 +46,8 @@ class ClothingItem {
       pattern: json['pattern'] as String?,
       style: json['style'] as String?,
       subType: json['sub_type'] as String?,
+      sizeLabel: json['size_label'] as String?,
+      fitNotes: json['fit_notes'] as String?,
       processingStatus: json['processing_status'] as String,
       createdAt: DateTime.parse(json['created_at'] as String),
     );
@@ -59,6 +65,8 @@ class ClothingItem {
         'pattern': pattern,
         'style': style,
         'sub_type': subType,
+        'size_label': sizeLabel,
+        'fit_notes': fitNotes,
         'processing_status': processingStatus,
         'created_at': createdAt.toIso8601String(),
       };

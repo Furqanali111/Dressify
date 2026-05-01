@@ -13,8 +13,10 @@ import '../../core/router/app_routes.dart';
 import '../../core/models/clothing_item.dart';
 import '../../core/models/outfit.dart';
 import '../../core/providers/outfits_provider.dart';
+import '../../core/providers/fit_rating_provider.dart';
 import '../../core/providers/fit_scale_provider.dart';
 import '../../core/providers/profile_provider.dart';
+import '../../core/providers/style_profile_provider.dart';
 import '../../core/providers/wardrobe_provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_constants.dart';
@@ -59,6 +61,7 @@ class _TryOnScreenState extends ConsumerState<TryOnScreen> {
   bool _avatarVisible = true;
   bool _saved = false;
   bool _saving = false;
+  bool _showFitBadges = false;
 
   // Garment loading
   final Map<String, _GarmentData> _garments = {};
@@ -70,6 +73,24 @@ class _TryOnScreenState extends ConsumerState<TryOnScreen> {
   void initState() {
     super.initState();
     _loadGarments();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(styleProfileProvider.notifier).logInteraction(
+        action: 'tried',
+        outfitId: widget.outfit?.id,
+      );
+      _logWearEvent();
+    });
+  }
+
+  Future<void> _logWearEvent() async {
+    final outfitId = widget.outfit?.id;
+    if (outfitId == null) return;
+    try {
+      final dio = ref.read(apiClientProvider);
+      await dio.post<void>('/wear-logs', data: {'outfit_id': outfitId});
+    } catch (_) {
+      // best-effort; failures are silent
+    }
   }
 
   @override
@@ -222,6 +243,11 @@ class _TryOnScreenState extends ConsumerState<TryOnScreen> {
       });
       HapticFeedback.lightImpact();
       AppToast.success(context, 'Outfit saved');
+      ref.read(styleProfileProvider.notifier).logInteraction(
+        action: 'saved',
+        outfitId: widget.outfit?.id,
+        clothingItemIds: _garments.keys.toList(),
+      );
       Future<void>.delayed(AppConstants.saveFeedbackDuration, () {
         if (mounted) setState(() => _saved = false);
       });
@@ -273,6 +299,10 @@ class _TryOnScreenState extends ConsumerState<TryOnScreen> {
                         extra: widget.outfit,
                       )
                   : null,
+              onCheckFit: _garments.isNotEmpty
+                  ? () => setState(() => _showFitBadges = !_showFitBadges)
+                  : null,
+              fitActive: _showFitBadges,
             ),
             Expanded(
               flex: 65,
@@ -408,6 +438,26 @@ class _TryOnScreenState extends ConsumerState<TryOnScreen> {
                         ),
                       ),
                     ),
+                  // Fit rating badges
+                  if (_showFitBadges)
+                    Positioned(
+                      top: AppSpacing.sm,
+                      left: AppSpacing.md,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: _garments.values.map((g) {
+                          final fitAsync = ref.watch(fitRatingProvider(g.item.id));
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 4),
+                            child: fitAsync.when(
+                              data: (fit) => _FitBadge(name: g.item.name, fit: fit),
+                              loading: () => const SizedBox.shrink(),
+                              error: (_, _) => const SizedBox.shrink(),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
                   // Canvas controls
                   Positioned(
                     right: AppSpacing.md,
@@ -483,9 +533,11 @@ class _TryOnScreenState extends ConsumerState<TryOnScreen> {
 // ---------------------------------------------------------------------------
 
 class _TopBar extends StatelessWidget {
-  const _TopBar({required this.onBack, this.onCamera});
+  const _TopBar({required this.onBack, this.onCamera, this.onCheckFit, this.fitActive = false});
   final VoidCallback onBack;
   final VoidCallback? onCamera;
+  final VoidCallback? onCheckFit;
+  final bool fitActive;
 
   @override
   Widget build(BuildContext context) {
@@ -501,6 +553,15 @@ class _TopBar extends StatelessWidget {
             onPressed: onBack,
           ),
           const Spacer(),
+          if (onCheckFit != null)
+            IconButton(
+              icon: Icon(
+                Icons.straighten,
+                color: fitActive ? Colors.greenAccent : Colors.white,
+              ),
+              tooltip: 'Check Fit',
+              onPressed: onCheckFit,
+            ),
           if (onCamera != null)
             IconButton(
               icon: const Icon(Icons.camera_alt_outlined, color: Colors.white),
@@ -754,6 +815,45 @@ class _ClothingPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _ClothingPainter old) =>
       old.garments != garments || old.fitScales != fitScales;
+}
+
+// ---------------------------------------------------------------------------
+// Fit badge (shown when "Check Fit" is active)
+// ---------------------------------------------------------------------------
+
+class _FitBadge extends StatelessWidget {
+  const _FitBadge({required this.name, required this.fit});
+  final String name;
+  final FitResult fit;
+
+  @override
+  Widget build(BuildContext context) {
+    final (Color bg, IconData icon, String label) = switch (fit.rating) {
+      FitRating.perfect    => (Colors.green.shade700,  Icons.check_circle_outline, 'Perfect fit'),
+      FitRating.mayBeSnug  => (Colors.orange.shade700, Icons.warning_amber_rounded, 'May be snug'),
+      FitRating.runsLarge  => (Colors.blue.shade700,   Icons.info_outline,          'Runs large'),
+      FitRating.unknown    => (Colors.grey.shade700,   Icons.help_outline,          'Unknown fit'),
+    };
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: bg.withValues(alpha: 0.90),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Icon(icon, size: 13, color: Colors.white),
+          const SizedBox(width: 4),
+          Text(
+            '$name · $label',
+            style: const TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------

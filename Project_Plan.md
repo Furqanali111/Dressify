@@ -155,46 +155,40 @@ Focus: Speed · Simplicity · "Good enough" realism (not perfect)
 
 ---
 
-## Phase 4: Personalization & Advanced Fitting (Planned)
+## Phase 4: Personalization & Advanced Fitting ✅ Complete
 
 **Goal:** Make the fit feel personal and accurate — measurements inform garment scaling, AI learns taste over time, and analytics surface wardrobe insights.
 
 ### 4.1 Body Measurements & Real-Time Garment Scaling
-- **Profile measurement fields** — `chest_cm`, `waist_cm`, `hip_cm`, `shoulder_cm` added to `profiles` via Alembic migration; profile PATCH/GET endpoints updated.
-- **Optional measurement step** — profile setup gains an optional "Add Measurements" step (skippable); profile screen gains a "Body Measurements" edit tile.
-- **`FitScaleProvider`** — Riverpod provider derives a per-garment-type scale factor from stored measurements vs. avatar baseline; consumed by both the try-on canvas and camera overlay.
-- **Try-on canvas scaling** — `_ClothingPainter` multiplies garment dimensions by the scale factor when measurements are present; visual difference is subtle but noticeable at extremes.
+- **Profile measurement fields** — `chest_cm`, `waist_cm`, `hip_cm`, `shoulder_cm` added to `profiles` via Alembic migration; profile PATCH/GET endpoints and `ProfileResponse` schema updated.
+- **Fit scale helper** — `compute_fit_scales()` derives per-garment-type scale factors (top/bottom/dress) by comparing user measurements against per-avatar baseline tables; exposed as `fit_scale_top/bottom/dress` on `ProfileResponse` via `@model_validator`.
+- **Optional measurement step** — profile setup gains an expandable "Body Measurements" section (skippable); profile screen gains a `_MeasurementsCard` showing cm pills and a "Fit personalised ✓" row; dedicated edit sheet with inline validation.
+- **`FitScalesProvider`** — Riverpod provider reads `profileProvider`, derives `{top, bottom, dress}` scale factors; falls back to 1.0 when measurements are absent.
+- **Try-on canvas scaling** — `_ClothingPainter` multiplies garment dimensions by the relevant scale factor; "Fit personalised" chip shown when active.
 - **Camera overlay scaling** — `CameraOverlayPainter` applies the same scale factor to shoulder-span-proportional garment sizing.
 
 ### 4.2 Size-Aware Fitting
-- **Garment size metadata** — `size_label` (XS/S/M/L/XL/XXL/One Size) and `fit_notes` columns added to `clothing_items`; Llama metadata extraction updated to populate them.
-- **Size badge in wardrobe** — clothing cards show a small size chip; edit-details sheet exposes `size_label`.
-- **Fit rating endpoint** — `GET /clothing/{id}/fit` compares user measurements against expected size ranges for the garment type and returns `{fit_rating: "perfect"|"may_be_snug"|"runs_large", confidence: float}`.
-- **Fit indicator in try-on** — "Check Fit" button fetches fit ratings; each garment on the canvas gets a coloured badge (✅ Perfect / ⚠️ May Be Snug / 🔵 Runs Large).
+- **Garment size metadata** — `size_label` (XS/S/M/L/XL/XXL/One Size) and `fit_notes` columns added to `clothing_items` via Alembic migration; Llama vision prompt updated to extract `size_label` automatically on upload.
+- **Size badge in wardrobe** — clothing cards show a small size chip in the top-right corner; edit-details sheet exposes a `size_label` dropdown.
+- **Fit rating service** — `compute_fit_rating(size_label, garment_type, measurements)` uses a size-range lookup table to return `fit_rating: "perfect"|"may_be_snug"|"runs_large"|"unknown"` with a `confidence` float.
+- **`GET /clothing/{id}/fit`** — authenticated endpoint (rate-limited 30/min) backed by the fit rating service.
+- **Fit indicator in try-on** — "Check Fit" icon button in the top bar triggers `FitRatingProvider` (family provider) for all loaded garments; coloured pills rendered on canvas (✅ green / ⚠️ amber / 🔵 blue) and as floating labels in the camera overlay.
 
 ### 4.3 Style Preference Learning
-- **Preference table** — `user_style_preferences` stores `liked_colors`, `liked_styles`, `liked_patterns`, `disliked_styles` as JSONB; updated by a background task after every feedback submission.
-- **Interaction logging** — `outfit_interactions` table records `viewed`, `tried`, `saved`, `dismissed`, `shared` events against clothing item IDs; logged automatically at key app moments.
-- **AI-aware generation** — outfit generation prompt includes a "User style profile" context block derived from preferences ("prefers navy, slim-fit, avoids floral").
-- **Style Profile UI** — profile screen gains a "My Style DNA" section showing colour swatches and style tags; an edit sheet allows manual overrides.
-- **"Personalized for you" badge** — outfit generation result card shows a badge when preferences were applied.
-- **`GET /users/me/style-profile`** and **`PATCH /users/me/style-profile`** endpoints.
+- **Database tables** — `user_style_preferences` (JSONB `liked_colors`, `liked_styles`, `liked_patterns`, `disliked_styles`) and `outfit_interactions` (action enum: viewed/tried/saved/dismissed/shared) created via Alembic migration.
+- **`POST /interactions`** — logs an outfit interaction event and upserts the `user_style_preferences` summary in the same request.
+- **`GET /users/me/style-profile`** and **`PATCH /users/me/style-profile`** — fetch and manually override preference fields.
+- **Background preference update** — `update_style_preferences_from_feedback()` runs as a FastAPI `BackgroundTask` after every feedback `POST`; increments liked/disliked fields based on score and suggestion keywords.
+- **AI-aware generation** — outfit generation prompt includes a "User style profile" block when preferences exist; `OutfitGenerationResponse` adds a `personalized: bool` flag.
+- **Style Profile UI** — profile screen "My Style DNA" section shows colour swatches and style/pattern chips; `StyleDnaSheet` provides chip-based multi-select with `PATCH` save; "✨ Personalised for you" banner shown in the Style Me sheet and AI tips result card.
+- **Interaction logging in app** — `POST /interactions` fired automatically on outfit try-on open (`tried`), outfit save (`saved`), and AI suggestion dismiss (`dismissed`).
 
 ### 4.4 Wardrobe Analytics & Style Tips Screen
-- **Wear logging** — `wear_logs` table (user_id, outfit_id nullable, clothing_item_ids[], logged_at); `POST /wear-logs` endpoint; auto-logged when user opens try-on for an outfit.
-- **Analytics endpoint** — `GET /analytics/wardrobe` returns: `most_worn` (top 5 items), `underutilised` (not worn in 30+ days), `color_distribution` map, `style_breakdown` map, `outfit_frequency` (weekly counts, 4-week window), totals.
-- **Style Tips screen** — dedicated `/style-tips` route replaces the StyleMeSheet shortcut in Quick Actions; sections: stats header (total items/outfits/active streak), colour palette pie chart (CustomPainter, no new dep), most-worn row, underutilised banner, style breakdown, and embedded AI seasonal advice.
-- **`WardrobeAnalyticsProvider`** — fetches and caches analytics; pull-to-refresh support.
-
-### Implementation Order
-1. **4.1** Body measurements (standalone, low risk, unlocks 4.2)
-2. **4.4** Style Tips screen + analytics (high user-visible value, uses existing data)
-3. **4.3** Preference learning (builds on existing feedback pipeline)
-4. **4.2** Size-aware fitting (needs 4.1; most complex fitting logic)
-
-### New Dependencies
-- No mandatory new packages — CustomPainter handles the colour pie chart.
-- Optional: `fl_chart: ^0.69.0` for polished bar/line charts in the analytics screen.
+- **Wear logging** — `wear_logs` table (`user_id`, `outfit_id` nullable, `clothing_item_ids[]`, `logged_at`); `POST /wear-logs` (rate-limited 60/min); auto-logged silently whenever a user opens the try-on screen for an existing outfit.
+- **Analytics endpoint** — `GET /analytics/wardrobe` (rate-limited 10/min) returns: `most_worn` (top 5 by log count), `underutilised` (no wear in 30 days), `color_distribution` map, `style_breakdown` map, `outfit_frequency` (ISO-week counts, 4-week window), `total_items`, `total_outfits`.
+- **Style Tips screen** — dedicated `/style-tips` route (modal, pushed above shell); sections: stats header cards, colour palette donut chart (`CustomPainter`, no new dep), most-worn horizontal scroll, underutilised item chips, style breakdown horizontal bar chart, AI Style Suggestions (occasion chips + generate button → outfit result card with "Try It").
+- **Home Quick Actions wired** — "Style Tips" tile navigates to `/style-tips` via `context.pushNamed`; replaced the former `StyleMeSheet` modal shortcut.
+- **`WardrobeAnalyticsProvider`** — `AsyncNotifier`; fetches and caches analytics with pull-to-refresh support.
 
 ---
 
@@ -232,6 +226,10 @@ Focus: Speed · Simplicity · "Good enough" realism (not perfect)
 | AI generates outfit suggestions from wardrobe | ✅ |
 | Transient upload failures are retried automatically | ✅ |
 | Auth bypass cannot reach production | ✅ |
+| Garment scaling personalised to body measurements | ✅ |
+| Size-aware fit rating shown per garment in try-on | ✅ |
+| AI outfit generation learns from user style preferences | ✅ |
+| Wardrobe analytics and Style Tips screen available | ✅ |
 
 ---
 
@@ -250,5 +248,4 @@ Focus: Speed · Simplicity · "Good enough" realism (not perfect)
 - [ ] **Native Google Sign-In** — configure Google Cloud Console / Firebase for Android: generate SHA-1 fingerprint, create OAuth 2.0 Client ID, place `google-services.json` in `Frontend/android/app/`, add Google Services plugin to `build.gradle`.
 - [ ] **Rotate Supabase keys** — current keys may be committed; rotate in Supabase dashboard and add `.env` to `.gitignore`.
 - [ ] **Backend test suite** — `Backend/tests/` exists but assertions are stubs; implement pytest fixtures (in-memory DB, auth bypass fixture), cover upload, outfit generation, and feedback flows, wire into CI.
-- [ ] **Style Tips screen** — dedicated screen for AI-generated seasonal advice and wardrobe analytics, replacing the current shortcut that opens the Style Me sheet.
 - [ ] **Camera garment selector** — full in-camera wardrobe picker to add/remove clothing items without leaving the camera screen; currently users must use "See on Me" per item from the wardrobe tab.

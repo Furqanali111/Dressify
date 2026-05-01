@@ -27,6 +27,7 @@ class Outfit {
   final String avatarKind;
   final List<OutfitItem> items;
   final DateTime createdAt;
+  final bool personalized;
 
   const Outfit({
     required this.id,
@@ -35,6 +36,7 @@ class Outfit {
     required this.avatarKind,
     this.items = const [],
     required this.createdAt,
+    this.personalized = false,
   });
 
   factory Outfit.fromJson(Map<String, dynamic> json) {
@@ -48,6 +50,7 @@ class Outfit {
               .toList() ??
           const [],
       createdAt: DateTime.parse(json['created_at'] as String),
+      personalized: json['personalized'] as bool? ?? false,
     );
   }
 

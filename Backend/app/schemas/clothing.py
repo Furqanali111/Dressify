@@ -1,7 +1,10 @@
 from pydantic import BaseModel, ConfigDict, Field
-from typing import Optional
+from typing import Literal, Optional
 from datetime import datetime
 import uuid
+
+
+_VALID_SIZE_LABELS = {"XS", "S", "M", "L", "XL", "XXL", "One Size", "Unknown"}
 
 
 class ClothingItemResponse(BaseModel):
@@ -15,6 +18,8 @@ class ClothingItemResponse(BaseModel):
     pattern: Optional[str] = None
     style: Optional[str] = None
     sub_type: Optional[str] = None
+    size_label: Optional[str] = None
+    fit_notes: Optional[str] = None
     processing_status: str
     created_at: datetime
 
@@ -28,8 +33,16 @@ class ClothingItemUpdate(BaseModel):
     pattern: Optional[str] = Field(None, max_length=50)
     style: Optional[str] = Field(None, max_length=50)
     sub_type: Optional[str] = Field(None, max_length=100)
+    size_label: Optional[str] = Field(None, max_length=10)
+    fit_notes: Optional[str] = Field(None, max_length=500)
 
 
 class ClothingListResponse(BaseModel):
     items: list[ClothingItemResponse]
     next_cursor: Optional[str] = None
+
+
+class FitRatingResponse(BaseModel):
+    item_id: uuid.UUID
+    fit_rating: Literal["perfect", "may_be_snug", "runs_large", "unknown"]
+    confidence: float

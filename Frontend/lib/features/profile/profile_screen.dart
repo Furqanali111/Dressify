@@ -6,6 +6,9 @@ import 'package:go_router/go_router.dart';
 import '../../core/models/profile.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/providers/profile_provider.dart';
+import '../../core/providers/style_profile_provider.dart';
+import '../../core/models/style_profile.dart';
+import 'style_dna_sheet.dart';
 import '../../core/router/app_routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
@@ -66,6 +69,8 @@ class ProfileScreen extends ConsumerWidget {
           const _BodyStatsCard(),
           const SizedBox(height: AppSpacing.md),
           const _MeasurementsCard(),
+          const SizedBox(height: AppSpacing.md),
+          const _StyleDnaCard(),
           const SizedBox(height: AppSpacing.xl),
           Text(
             'Settings',
@@ -423,6 +428,121 @@ class _MeasurementsCard extends ConsumerWidget {
               ],
             ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Style DNA card
+// ---------------------------------------------------------------------------
+
+class _StyleDnaCard extends ConsumerWidget {
+  const _StyleDnaCard();
+
+  void _openSheet(BuildContext context, StyleProfile? profile) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => StyleDnaSheet(profile: profile),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final AppColors c = context.colors;
+    final TextTheme text = Theme.of(context).textTheme;
+    final StyleProfile? profile = ref.watch(styleProfileProvider).valueOrNull;
+
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: c.surface,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        boxShadow: <BoxShadow>[
+          BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 10, offset: const Offset(0, 3)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Text('My Style DNA', style: text.titleMedium),
+              const Spacer(),
+              TextButton(
+                onPressed: () => _openSheet(context, profile),
+                style: TextButton.styleFrom(
+                  padding: EdgeInsets.zero,
+                  minimumSize: const Size(48, 32),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: Text(
+                  profile?.hasPreferences == true ? 'Edit' : 'Set Up',
+                  style: text.labelLarge?.copyWith(color: c.primary),
+                ),
+              ),
+            ],
+          ),
+          if (profile == null || !profile.hasPreferences)
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.xs),
+              child: Text(
+                'Add your style preferences to get personalised outfit suggestions.',
+                style: text.bodySmall?.copyWith(color: c.textSecondary),
+              ),
+            )
+          else ...<Widget>[
+            const SizedBox(height: AppSpacing.sm),
+            if (profile.likedColors.isNotEmpty)
+              _DnaRow(label: 'Colors', items: profile.likedColors, color: c.primary),
+            if (profile.likedStyles.isNotEmpty)
+              _DnaRow(label: 'Styles', items: profile.likedStyles, color: c.primary),
+            if (profile.likedPatterns.isNotEmpty)
+              _DnaRow(label: 'Patterns', items: profile.likedPatterns, color: c.primary),
+            if (profile.dislikedStyles.isNotEmpty)
+              _DnaRow(label: 'Avoid', items: profile.dislikedStyles, color: c.error),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _DnaRow extends StatelessWidget {
+  const _DnaRow({required this.label, required this.items, required this.color});
+  final String label;
+  final List<String> items;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          SizedBox(
+            width: 60,
+            child: Text(label,
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: context.colors.textSecondary)),
+          ),
+          Expanded(
+            child: Wrap(
+              spacing: 4,
+              runSpacing: 4,
+              children: items.map((s) => Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(s, style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w600)),
+              )).toList(),
+            ),
+          ),
         ],
       ),
     );

@@ -37,7 +37,8 @@ async def extract_clothing_metadata(item_id: UUID, image_bytes: bytes):
             "color": "primary color of the item (e.g., navy blue, red)",
             "pattern": "pattern on the item (e.g., solid, striped, floral, graphic print)",
             "style": "style or vibe (e.g., casual, formal, vintage, sporty)",
-            "sub_type": "specific type of clothing (e.g., polo T-shirt, zipper hoodie, cargo pants, bomber jacket)"
+            "sub_type": "specific type of clothing (e.g., polo T-shirt, zipper hoodie, cargo pants, bomber jacket)",
+            "size_label": "size visible on tag or label — must be exactly one of: XS, S, M, L, XL, XXL, One Size, Unknown"
         }
         """
 
@@ -74,6 +75,9 @@ async def extract_clothing_metadata(item_id: UUID, image_bytes: bytes):
                 item.pattern = metadata.get("pattern")
                 item.style = metadata.get("style")
                 item.sub_type = metadata.get("sub_type")
+                raw_size = metadata.get("size_label", "Unknown")
+                valid = {"XS", "S", "M", "L", "XL", "XXL", "One Size", "Unknown"}
+                item.size_label = raw_size if raw_size in valid else "Unknown"
                 item.processing_status = "completed"
                 await session.commit()
                 logger.info(f"Successfully extracted and saved metadata for item {item_id}")

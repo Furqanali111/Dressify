@@ -9,6 +9,7 @@ from sqlalchemy.orm import selectinload
 
 from app.db import get_db
 from app.models.outfit import Outfit, OutfitItem
+from app.models.style_preference import UserStylePreference
 from app.models.user import User
 from app.models.clothing_item import ClothingItem
 from app.deps import get_current_user
@@ -185,12 +186,26 @@ async def auto_generate_outfit(
 
     wardrobe_details_str = "\n".join(wardrobe_descriptions)
 
+    pref_result = await db.execute(
+        select(UserStylePreference).where(UserStylePreference.user_id == current_user.id)
+    )
+    pref = pref_result.scalar_one_or_none()
+    style_profile_str = None
+    if pref:
+        parts = []
+        if pref.liked_styles:    parts.append(f"Liked styles: {', '.join(pref.liked_styles)}")
+        if pref.liked_colors:    parts.append(f"Liked colors: {', '.join(pref.liked_colors)}")
+        if pref.liked_patterns:  parts.append(f"Liked patterns: {', '.join(pref.liked_patterns)}")
+        if pref.disliked_styles: parts.append(f"Disliked styles: {', '.join(pref.disliked_styles)}")
+        style_profile_str = "; ".join(parts) if parts else None
+    is_personalized = style_profile_str is not None
+
     weather_context = None
     if body.lat is not None and body.lon is not None:
         weather_context = await get_current_weather(body.lat, body.lon)
 
     try:
-        chosen_ids = generate_outfit(wardrobe_details_str, body.occasion, weather_context, seed_item_details)
+        chosen_ids = generate_outfit(wardrobe_details_str, body.occasion, weather_context, seed_item_details, style_profile_str)
     except RuntimeError as e:
         raise HTTPException(status_code=503, detail=str(e))
     except Exception as e:
@@ -239,6 +254,7 @@ async def auto_generate_outfit(
         avatar_kind=new_outfit.avatar_kind,
         items=outfit_item_schemas,
         created_at=new_outfit.created_at,
+        personalized=is_personalized,
     )
 
 

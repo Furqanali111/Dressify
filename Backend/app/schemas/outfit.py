@@ -39,5 +39,6 @@ class OutfitResponse(BaseModel):
     avatar_kind: str
     items: List[OutfitItemSchema]
     created_at: datetime
+    personalized: bool = False
 
     model_config = ConfigDict(from_attributes=True)

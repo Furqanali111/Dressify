@@ -10,9 +10,11 @@ from sqlalchemy import select
 
 from app.db import get_db
 from app.models.clothing_item import ClothingItem
+from app.models.profile import Profile
 from app.models.user import User
 from app.deps import get_current_user
-from app.schemas.clothing import ClothingItemResponse, ClothingItemUpdate, ClothingListResponse
+from app.schemas.clothing import ClothingItemResponse, ClothingItemUpdate, ClothingListResponse, FitRatingResponse
+from app.services.fit_rating import compute_fit_rating
 from app.services.storage import get_signed_url
 from app.core.limiter import limiter
 
@@ -118,6 +120,36 @@ async def update_clothing_item(
         raise HTTPException(status_code=500, detail="Failed to update item")
 
     return inject_urls(item)
+
+
+@router.get("/{item_id}/fit", response_model=FitRatingResponse)
+@limiter.limit("30/minute")
+async def get_clothing_fit(
+    request: Request,
+    item_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    item_result = await db.execute(
+        select(ClothingItem).where(
+            ClothingItem.id == item_id,
+            ClothingItem.user_id == current_user.id,
+        )
+    )
+    item = item_result.scalar_one_or_none()
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
+
+    profile_result = await db.execute(
+        select(Profile).where(Profile.user_id == current_user.id)
+    )
+    profile = profile_result.scalar_one_or_none()
+
+    chest_cm = float(profile.chest_cm) if profile and profile.chest_cm else None
+    waist_cm = float(profile.waist_cm) if profile and profile.waist_cm else None
+
+    rating = compute_fit_rating(item.size_label, item.type, chest_cm, waist_cm)
+    return FitRatingResponse(item_id=item_id, **rating)
 
 
 @router.delete("/{item_id}", status_code=status.HTTP_204_NO_CONTENT)

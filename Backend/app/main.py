@@ -69,11 +69,14 @@ async def health_check():
 
 
 # Routes
-from app.routers import auth, profile, upload, clothing, outfits, feedback  # noqa: E402
+from app.routers import auth, profile, upload, clothing, outfits, feedback, users, wear_logs, analytics  # noqa: E402
 
-app.include_router(auth.router, prefix="/api/v1")
-app.include_router(profile.router, prefix="/api/v1")
-app.include_router(upload.router, prefix="/api/v1")
-app.include_router(clothing.router, prefix="/api/v1")
-app.include_router(outfits.router, prefix="/api/v1")
-app.include_router(feedback.router, prefix="/api/v1")
+app.include_router(auth.router,      prefix="/api/v1")
+app.include_router(profile.router,   prefix="/api/v1")
+app.include_router(upload.router,    prefix="/api/v1")
+app.include_router(clothing.router,  prefix="/api/v1")
+app.include_router(outfits.router,   prefix="/api/v1")
+app.include_router(feedback.router,  prefix="/api/v1")
+app.include_router(users.router,     prefix="/api/v1")
+app.include_router(wear_logs.router, prefix="/api/v1")
+app.include_router(analytics.router, prefix="/api/v1")

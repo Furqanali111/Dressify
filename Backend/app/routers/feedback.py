@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 import logging
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -14,6 +14,7 @@ from app.models.user import User
 from app.deps import get_current_user
 from app.schemas.feedback import FeedbackRequest, AiFeedbackResponse
 from app.services.ai_feedback import get_feedback_for_outfit
+from app.services.style_preferences import update_style_preferences_from_feedback
 from app.services.weather import get_current_weather
 from app.core.limiter import limiter
 
@@ -27,6 +28,7 @@ router = APIRouter(prefix="/feedback", tags=["AI Feedback"])
 async def generate_feedback(
     request: Request,
     body: FeedbackRequest,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -54,6 +56,7 @@ async def generate_feedback(
             detail="Must provide either outfit_id or clothing_item_ids",
         )
 
+    clothing_items: list = []
     clothing_descriptions: list[str] = []
     if item_ids:
         ci_result = await db.execute(
@@ -109,6 +112,19 @@ async def generate_feedback(
     except Exception as e:
         logger.error(f"Unexpected error generating feedback: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Feedback generation failed")
+
+    item_styles   = [ci.style   for ci in clothing_items if ci.style]
+    item_colors   = [ci.color   for ci in clothing_items if ci.color]
+    item_patterns = [ci.pattern for ci in clothing_items if ci.pattern]
+    background_tasks.add_task(
+        update_style_preferences_from_feedback,
+        str(current_user.id),
+        feedback_data["score"],
+        feedback_data.get("suggestions", []),
+        item_styles,
+        item_colors,
+        item_patterns,
+    )
 
     feedback_id = uuid.uuid4()
 
