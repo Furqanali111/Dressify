@@ -11,6 +11,18 @@ Future<void> main() async {
     DeviceOrientation.portraitUp,
   ]);
 
+  ErrorWidget.builder = (FlutterErrorDetails details) => Material(
+    child: Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Text(
+          'Something went wrong.\n${details.exception}',
+          textAlign: TextAlign.center,
+        ),
+      ),
+    ),
+  );
+
   // Load .env if present. Missing file is fine — AppFlags falls back to
   // --dart-define values, then to hardcoded defaults.
   try {

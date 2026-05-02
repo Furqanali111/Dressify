@@ -75,7 +75,9 @@ class WearLogsNotifier extends StateNotifier<WearLogsState> {
         items: [...state.items, ...newItems],
         nextCursor: cursor,
       );
-    } catch (_) {}
+    } catch (_) {
+      state = state.copyWith(loading: false);
+    }
   }
 }
 

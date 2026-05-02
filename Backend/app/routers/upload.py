@@ -101,7 +101,7 @@ async def upload_clothing(
             continue
 
         # 2b. Store in processed bucket (no raw image saved)
-        if not upload_file("clothing-processed", processed_path, garment_bytes, "image/png"):
+        if not upload_file(settings.CLOTHING_BUCKET, processed_path, garment_bytes, "image/png"):
             logger.warning("Garment %d storage failed, skipping", idx + 1)
             continue
 
@@ -144,7 +144,7 @@ async def upload_clothing(
         background_tasks.add_task(extract_clothing_metadata, item.id, garment_bytes)
         
         await db.refresh(item)
-        processed_url = get_signed_url("clothing-processed", processed_path) or ""
+        processed_url = get_signed_url(settings.CLOTHING_BUCKET, processed_path) or ""
         resp = ClothingItemResponse.model_validate(item)
         resp.processed_url = processed_url
         response_items.append(resp)

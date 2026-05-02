@@ -62,7 +62,7 @@ async def extract_clothing_metadata(item_id: UUID, image_bytes: bytes):
             max_tokens=150
         )
         
-        content = response.choices[0].message.content
+        content = response.choices[0].message.content or '{}'
         metadata = json.loads(content)
         
         # Save to DB

@@ -23,7 +23,7 @@ class WearLog extends Equatable {
         clothingItemIds: (json['clothing_item_ids'] as List<dynamic>?)
             ?.map((e) => e.toString())
             .toList(),
-        loggedAt: DateTime.parse(json['logged_at'] as String).toLocal(),
+        loggedAt: DateTime.tryParse(json['logged_at'] as String? ?? '')?.toLocal() ?? DateTime.now(),
       );
 
   Map<String, dynamic> toJson() => {

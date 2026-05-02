@@ -106,3 +106,6 @@ Frontend/Library/PackageCache/
 
 # IntelliJ under Frontend
 Frontend/.idea/
+
+# Auto-generated macOS Flutter plugin registrant — rebuilt by `flutter pub get`
+Frontend/macos/Flutter/GeneratedPluginRegistrant.swift

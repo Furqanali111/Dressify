@@ -39,11 +39,16 @@ def _build_outfit_response(outfit: Outfit) -> OutfitResponse:
 
 
 @router.post("", response_model=OutfitResponse)
+@limiter.limit("20/minute")
 async def create_outfit(
+    request: Request,
     outfit_in: OutfitCreate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    if len(outfit_in.items) > MAX_OUTFIT_ITEMS:
+        raise HTTPException(status_code=400, detail=f"Outfit cannot contain more than {MAX_OUTFIT_ITEMS} items")
+
     if outfit_in.items:
         requested_ids = [item.clothing_item_id for item in outfit_in.items]
         owned_result = await db.execute(
@@ -78,12 +83,6 @@ async def create_outfit(
         ))
         outfit_item_schemas.append(item)
 
-    push_notification(
-        db, current_user.id, "outfit_saved",
-        "Outfit saved!",
-        f'"{outfit_in.name}" has been added to your wardrobe.',
-    )
-
     try:
         await db.commit()
     except IntegrityError as e:
@@ -92,6 +91,14 @@ async def create_outfit(
         raise HTTPException(status_code=400, detail="Invalid clothing item reference")
 
     await db.refresh(outfit)
+
+    # Push notification after commit so a rollback can't silently drop it
+    push_notification(
+        db, current_user.id, "outfit_saved",
+        "Outfit saved!",
+        f'"{outfit_in.name}" has been added to your wardrobe.',
+    )
+    await db.commit()
     return OutfitResponse(
         id=outfit.id,
         user_id=outfit.user_id,
@@ -118,7 +125,7 @@ async def get_outfits(
             cursor_time = datetime.fromisoformat(cursor)
             query = query.where(Outfit.created_at < cursor_time)
         except ValueError:
-            pass
+            raise HTTPException(status_code=400, detail="Invalid cursor format")
             
     query = query.order_by(Outfit.created_at.desc()).limit(limit + 1).options(selectinload(Outfit.items))
     
@@ -188,6 +195,9 @@ async def update_outfit(
         raise HTTPException(status_code=500, detail="Failed to update outfit")
 
     return _build_outfit_response(outfit)
+
+
+MAX_OUTFIT_ITEMS = 20
 
 
 @router.post("/generate", response_model=OutfitResponse)
@@ -323,7 +333,7 @@ async def delete_outfit(
         raise HTTPException(status_code=404, detail="Outfit not found")
 
     try:
-        await db.delete(outfit)
+        db.delete(outfit)
         await db.commit()
     except SQLAlchemyError as e:
         await db.rollback()

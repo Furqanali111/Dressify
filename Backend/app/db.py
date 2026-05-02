@@ -7,12 +7,14 @@ import asyncio
 if sys.platform == 'win32':
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
-# Convert standard postgres URL to asyncpg URL if necessary
+# Convert bare postgres URL to psycopg async driver if no driver already specified
 DATABASE_URL = settings.DATABASE_URL
-if DATABASE_URL.startswith("postgresql://"):
-    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg://", 1)
-elif DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+psycopg://", 1)
+_scheme = DATABASE_URL.split("://")[0]
+if "+" not in _scheme:
+    if _scheme == "postgresql":
+        DATABASE_URL = "postgresql+psycopg://" + DATABASE_URL[len("postgresql://"):]
+    elif _scheme == "postgres":
+        DATABASE_URL = "postgresql+psycopg://" + DATABASE_URL[len("postgres://"):]
 
 engine = create_async_engine(DATABASE_URL, echo=False)
 AsyncSessionLocal = async_sessionmaker(

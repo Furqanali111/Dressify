@@ -56,8 +56,8 @@ class _EditClothingSheetState extends ConsumerState<EditClothingSheet> {
         },
       );
       if (!mounted) return;
-      Navigator.of(context).pop();
       AppToast.success(context, 'Updated "$name"');
+      Navigator.of(context).pop();
     } catch (_) {
       if (!mounted) return;
       setState(() => _saving = false);

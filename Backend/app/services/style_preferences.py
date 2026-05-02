@@ -19,7 +19,7 @@ def _merge_unique(existing: Optional[list], additions: list[str]) -> list[str]:
 
 async def update_style_preferences_from_feedback(
     user_id: str,
-    score: int,
+    score: float,
     suggestions: list[str],
     item_styles: list[str],
     item_colors: list[str],

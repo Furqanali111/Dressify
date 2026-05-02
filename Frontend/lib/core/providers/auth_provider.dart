@@ -5,6 +5,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../models/user.dart';
 import '../api/api_client.dart';
+import '../api/auth_interceptor.dart';
 import '../config/app_flags.dart';
 import 'fit_rating_provider.dart';
 import 'fit_scale_provider.dart';
@@ -67,13 +68,15 @@ class AuthStateNotifier extends StateNotifier<User?> {
         'id_token': idToken,
       });
 
-      final jwt = response.data['jwt'] as String;
+      final data = response.data as Map<String, dynamic>? ?? <String, dynamic>{};
+      final jwt = data['jwt'] as String? ?? '';
+      if (jwt.isEmpty) throw Exception('No JWT in auth response');
       await _storage.write(key: 'auth_jwt', value: jwt);
 
-      final userJson = response.data['user'] as Map<String, dynamic>;
-      state = User.fromJson(userJson);
+      final userJson = data['user'] as Map<String, dynamic>?;
+      if (userJson != null) state = User.fromJson(userJson);
 
-      return response.data['has_profile'] as bool;
+      return data['has_profile'] as bool? ?? false;
     } catch (e) {
       debugPrint('Google sign in error: $e');
       rethrow;
@@ -85,6 +88,10 @@ class AuthStateNotifier extends StateNotifier<User?> {
   Future<void> signOut() async {
     await _googleSignIn.signOut();
     await _storage.delete(key: 'auth_jwt');
+    _ref.read(apiClientProvider).interceptors
+        .whereType<AuthInterceptor>()
+        .firstOrNull
+        ?.updateCache(null);
     state = null;
     _ref.invalidate(profileProvider);
     _ref.invalidate(wardrobeProvider);

@@ -17,7 +17,7 @@ class OutfitItemSchema(BaseModel):
 class OutfitCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
     avatar_kind: AvatarKind
-    items: List[OutfitItemSchema]
+    items: List[OutfitItemSchema] = Field(..., min_length=1)
 
 
 class OutfitUpdate(BaseModel):
@@ -37,7 +37,7 @@ class OutfitResponse(BaseModel):
     id: uuid.UUID
     user_id: uuid.UUID
     name: str
-    avatar_kind: str
+    avatar_kind: AvatarKind
     is_starred: bool = False
     items: List[OutfitItemSchema]
     created_at: datetime

@@ -34,7 +34,7 @@ class FitScales {
 /// Reads fit scale factors from the latest [profileProvider] value.
 /// Returns [FitScales()] (all 1.0) when profile is absent or has no measurements.
 final fitScalesProvider = Provider<FitScales>((ref) {
-  final profile = ref.watch(profileProvider).value;
+  final profile = ref.watch(profileProvider).valueOrNull;
   if (profile == null) return const FitScales();
   return FitScales(
     top:    profile.fitScaleTop,

@@ -48,8 +48,8 @@ class ClothingItem {
       subType: json['sub_type'] as String?,
       sizeLabel: json['size_label'] as String?,
       fitNotes: json['fit_notes'] as String?,
-      processingStatus: json['processing_status'] as String,
-      createdAt: DateTime.parse(json['created_at'] as String),
+      processingStatus: json['processing_status'] as String? ?? 'processing',
+      createdAt: DateTime.tryParse(json['created_at'] as String? ?? '') ?? DateTime.now(),
     );
   }
 

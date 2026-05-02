@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, cast, String
 
+from app.config import settings
 from app.db import get_db
 from app.models.clothing_item import ClothingItem
 from app.models.outfit import Outfit
@@ -90,7 +91,7 @@ async def get_wardrobe_analytics(
     item_map = {str(row.id): row for row in item_rows}
 
     def _worn_item(row, count: int) -> WornItem:
-        url = get_signed_url("clothing-processed", row.processed_image_path) if row.processed_image_path else ""
+        url = get_signed_url(settings.CLOTHING_BUCKET, row.processed_image_path) if row.processed_image_path else ""
         return WornItem(id=str(row.id), name=row.name, type=row.type, wear_count=count, processed_url=url)
 
     most_worn = [

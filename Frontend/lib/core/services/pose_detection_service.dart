@@ -166,7 +166,7 @@ class PoseDetectionService {
       double ny = l.y / imgH;
       // Mirror X for front camera so overlay matches what the user sees.
       if (lensDirection == CameraLensDirection.front) nx = 1.0 - nx;
-      return NormAnchor(nx.clamp(0.0, 1.0), ny.clamp(0.0, 1.0));
+      return NormAnchor(nx, ny);
     }
 
     final NormAnchor? ls = lm(PoseLandmarkType.leftShoulder);

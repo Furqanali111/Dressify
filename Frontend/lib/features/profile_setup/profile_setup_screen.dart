@@ -13,7 +13,29 @@ import '../../core/widgets/app_text_field.dart';
 import '../../core/widgets/primary_button.dart';
 import '../../core/widgets/unit_toggle.dart';
 
+const double _kFeetToCm = 30.48;
+const double _kLbsToKg = 0.453592;
+
 enum HeightUnit { cm, ftIn }
+
+enum Gender {
+  female,
+  male,
+  other;
+
+  String get label {
+    switch (this) {
+      case Gender.female:
+        return 'Female';
+      case Gender.male:
+        return 'Male';
+      case Gender.other:
+        return 'Other';
+    }
+  }
+
+  String get apiValue => label;
+}
 
 enum WeightUnit { kg, lbs }
 
@@ -58,7 +80,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
   HeightUnit _heightUnit = HeightUnit.cm;
   WeightUnit _weightUnit = WeightUnit.kg;
   BodyType? _bodyType;
-  String? _gender;
+  Gender? _gender;
 
   String? _heightError;
   String? _weightError;
@@ -152,18 +174,21 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
       if (_heightUnit == HeightUnit.cm) {
         heightCm = double.tryParse(_heightController.text);
       } else {
-        final ft = double.tryParse(_heightController.text) ?? 0;
-        final inch = _heightInchesController.text.isEmpty ? 0 : (double.tryParse(_heightInchesController.text) ?? 0);
-        heightCm = (ft * 30.48) + (inch * 2.54);
+        final double? ft = double.tryParse(_heightController.text);
+        final double inch = _heightInchesController.text.isEmpty
+            ? 0
+            : (double.tryParse(_heightInchesController.text) ?? 0);
+        if (ft != null) heightCm = (ft * _kFeetToCm) + (inch * 2.54);
       }
     }
-    
+
     double? weightKg;
     if (_weightController.text.isNotEmpty) {
       if (_weightUnit == WeightUnit.kg) {
         weightKg = double.tryParse(_weightController.text);
       } else {
-        weightKg = (double.tryParse(_weightController.text) ?? 0) * 0.453592;
+        final double? lbs = double.tryParse(_weightController.text);
+        if (lbs != null) weightKg = lbs * _kLbsToKg;
       }
     }
 
@@ -176,7 +201,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
       'height_cm': heightCm,
       'weight_kg': weightKg,
       if (_bodyType != null) 'body_type': _bodyType!.name,
-      if (_gender != null) 'gender': _gender,
+      if (_gender != null) 'gender': _gender!.apiValue,
       // Phase 4.1 measurements (only if expanded and filled)
       if (_measurementsExpanded) ...{
         if (parseCm(_chestController)    != null) 'chest_cm':    parseCm(_chestController),
@@ -189,11 +214,17 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
     try {
       await ref.read(profileProvider.notifier).updateProfile(data);
     } catch (e) {
-      // Allow moving forward even if API fails for now
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Profile save failed — you can update it later in settings.'),
+          ),
+        );
+      }
     }
 
     if (!mounted) return;
-    context.goNamed(AppRoute.avatarSelection.name, extra: _gender);
+    context.goNamed(AppRoute.avatarSelection.name, extra: _gender?.apiValue);
   }
 
   void _handleSkip() {
@@ -294,30 +325,19 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                       'Gender',
                       style: text.labelMedium?.copyWith(color: c.textSecondary),
                     ),
-                    const SizedBox(height: AppSpacing.sm),
-                    SizedBox(
-                      height: 36,
-                      child: ListView(
-                        scrollDirection: Axis.horizontal,
-                        children: <Widget>[
-                          AppChip(
-                            label: 'Female',
-                            selected: _gender == 'Female',
-                            onTap: () => setState(() => _gender = 'Female'),
+                    const SizedBox(height: AppSpacing.xs),
+                    RadioGroup<Gender>(
+                      groupValue: _gender,
+                      onChanged: (Gender? v) => setState(() => _gender = v),
+                      child: Column(
+                        children: Gender.values.map(
+                          (Gender g) => RadioListTile<Gender>(
+                            title: Text(g.label, style: text.bodyMedium),
+                            value: g,
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
                           ),
-                          const SizedBox(width: AppSpacing.sm),
-                          AppChip(
-                            label: 'Male',
-                            selected: _gender == 'Male',
-                            onTap: () => setState(() => _gender = 'Male'),
-                          ),
-                          const SizedBox(width: AppSpacing.sm),
-                          AppChip(
-                            label: 'Other',
-                            selected: _gender == 'Other',
-                            onTap: () => setState(() => _gender = 'Other'),
-                          ),
-                        ],
+                        ).toList(),
                       ),
                     ),
                     const SizedBox(height: AppSpacing.lg),

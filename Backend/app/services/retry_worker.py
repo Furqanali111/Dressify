@@ -36,6 +36,10 @@ from app.services.storage import download_file, upload_file, delete_file
 
 logger = logging.getLogger(__name__)
 
+_MAX_CONSECUTIVE_FAILURES = 5
+_BASE_BACKOFF_SECONDS = 60
+_MAX_BACKOFF_SECONDS = 600
+
 
 # ---------------------------------------------------------------------------
 # Entry point
@@ -53,9 +57,6 @@ async def run_retry_worker() -> None:
         settings.UPLOAD_MAX_RETRIES,
     )
     consecutive_failures = 0
-    _MAX_CONSECUTIVE_FAILURES = 5
-    _BASE_BACKOFF = 60  # seconds
-    _MAX_BACKOFF = 600  # 10 minutes
 
     while True:
         await asyncio.sleep(settings.RETRY_INTERVAL_SECONDS)
@@ -68,7 +69,7 @@ async def run_retry_worker() -> None:
             consecutive_failures += 1
             logger.exception("Retry worker tick raised unexpectedly (failure %d)", consecutive_failures)
             if consecutive_failures >= _MAX_CONSECUTIVE_FAILURES:
-                backoff = min(_BASE_BACKOFF * (2 ** (consecutive_failures - _MAX_CONSECUTIVE_FAILURES)), _MAX_BACKOFF)
+                backoff = min(_BASE_BACKOFF_SECONDS * (2 ** (consecutive_failures - _MAX_CONSECUTIVE_FAILURES)), _MAX_BACKOFF_SECONDS)
                 logger.critical(
                     "RETRY WORKER: %d consecutive tick failures — backing off %ds. "
                     "Check DB connectivity and Ollama availability.",
@@ -178,7 +179,7 @@ async def _do_retry(entry: UploadRetryQueue) -> None:
                 continue
 
             # 4b. Upload to processed bucket
-            if not upload_file("clothing-processed", processed_path, garment_bytes, "image/png"):
+            if not upload_file(settings.CLOTHING_BUCKET, processed_path, garment_bytes, "image/png"):
                 logger.warning("Retry %s garment %d storage failed", entry.id, idx)
                 continue
 

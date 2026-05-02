@@ -102,7 +102,11 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
           if (!mounted || total <= 0) return;
           setState(() => _progress = (sent / total * 0.8).clamp(0.0, 0.8));
         },
-        options: Options(contentType: 'multipart/form-data'),
+        options: Options(
+          contentType: 'multipart/form-data',
+          sendTimeout: const Duration(seconds: 120),
+          receiveTimeout: const Duration(seconds: 120),
+        ),
       );
 
       // Backend now returns a list of extracted garments
@@ -127,7 +131,7 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
           .map((ClothingItem it) => it.id)
           .toList();
       if (pendingIds.isNotEmpty) {
-        unawaited(ref.read(wardrobeProvider.notifier).pollUntilComplete(pendingIds));
+        ref.read(wardrobeProvider.notifier).pollUntilComplete(pendingIds).ignore();
       }
     } on DioException catch (e) {
       if (!mounted) return;

@@ -1,7 +1,7 @@
 import logging
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from gotrue.errors import AuthApiError
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,6 +15,7 @@ from app.models.profile import Profile
 from app.security import supabase, create_access_token
 from app.deps import get_current_user
 from app.config import settings
+from app.core.limiter import limiter
 
 logger = logging.getLogger(__name__)
 
@@ -22,13 +23,14 @@ router = APIRouter(tags=["Auth"])
 
 
 @router.post("/auth/google", response_model=AuthResponse)
-async def google_auth(request: GoogleAuthRequest, db: AsyncSession = Depends(get_db)):
+@limiter.limit("10/minute")
+async def google_auth(request: Request, body: GoogleAuthRequest, db: AsyncSession = Depends(get_db)):
     user_id: uuid.UUID
     email: str | None
     display_name: str | None
     avatar_url: str | None
 
-    if settings.bypass_auth_enabled and request.id_token == settings.BYPASS_AUTH_TOKEN:
+    if settings.bypass_auth_enabled and body.id_token == settings.BYPASS_AUTH_TOKEN:
         user_id = uuid.UUID("00000000-0000-0000-0000-000000000000")
         email = "bypass@dressify.local"
         display_name = "Furqan (Bypass)"
@@ -37,7 +39,7 @@ async def google_auth(request: GoogleAuthRequest, db: AsyncSession = Depends(get
         try:
             auth_response = supabase.auth.sign_in_with_id_token({
                 "provider": "google",
-                "id_token": request.id_token,
+                "id_token": body.id_token,
             })
         except AuthApiError as e:
             logger.warning(f"Supabase auth rejected token: {e}")
@@ -52,8 +54,9 @@ async def google_auth(request: GoogleAuthRequest, db: AsyncSession = Depends(get
 
         user_id = uuid.UUID(sb_user.id)
         email = sb_user.email
-        display_name = sb_user.user_metadata.get("full_name") or sb_user.user_metadata.get("name")
-        avatar_url = sb_user.user_metadata.get("avatar_url") or sb_user.user_metadata.get("picture")
+        meta = sb_user.user_metadata or {}
+        display_name = meta.get("full_name") or meta.get("name")
+        avatar_url = meta.get("avatar_url") or meta.get("picture")
 
     # Upsert user
     result = await db.execute(select(User).where(User.id == user_id))

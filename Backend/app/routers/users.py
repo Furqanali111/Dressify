@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import uuid
 
@@ -5,6 +6,7 @@ from fastapi import APIRouter, Depends, Request, status, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
+from app.config import settings
 from app.db import get_db
 from app.models.clothing_item import ClothingItem
 from app.models.style_preference import UserStylePreference, OutfitInteraction
@@ -116,10 +118,10 @@ async def delete_account(
         )
     )).all()
     for (path,) in image_rows:
-        storage.delete_file("clothing-processed", path)
+        await asyncio.to_thread(storage.delete_file, settings.CLOTHING_BUCKET, path)
 
     try:
-        await db.delete(current_user)
+        db.delete(current_user)
         await db.commit()
     except Exception as e:
         await db.rollback()

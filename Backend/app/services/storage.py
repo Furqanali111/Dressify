@@ -13,7 +13,7 @@ def upload_file(bucket_name: str, file_path: str, file_bytes: bytes, content_typ
         )
         return True
     except Exception as e:
-        logger.error(f"Failed to upload to {bucket_name}/{file_path}: {e}")
+        logger.error(f"Failed to upload to {bucket_name}/{file_path}: {e}", exc_info=True)
         return False
 
 
@@ -22,7 +22,7 @@ def download_file(bucket_name: str, file_path: str) -> bytes | None:
     try:
         return supabase.storage.from_(bucket_name).download(file_path)
     except Exception as e:
-        logger.error(f"Failed to download {bucket_name}/{file_path}: {e}")
+        logger.error(f"Failed to download {bucket_name}/{file_path}: {e}", exc_info=True)
         return None
 
 
@@ -32,7 +32,7 @@ def delete_file(bucket_name: str, file_path: str) -> bool:
         supabase.storage.from_(bucket_name).remove([file_path])
         return True
     except Exception as e:
-        logger.error(f"Failed to delete {bucket_name}/{file_path}: {e}")
+        logger.error(f"Failed to delete {bucket_name}/{file_path}: {e}", exc_info=True)
         return False
 
 
@@ -43,5 +43,5 @@ def get_signed_url(bucket_name: str, file_path: str, expires_in: int = 3600) -> 
             return res["signedURL"]
         return res
     except Exception as e:
-        logger.error(f"Failed to get signed url for {bucket_name}/{file_path}: {e}")
+        logger.error(f"Failed to get signed url for {bucket_name}/{file_path}: {e}", exc_info=True)
         return None

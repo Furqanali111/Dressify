@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete
 from pydantic import BaseModel
 
+from app.config import settings
 from app.db import get_db
 from app.models.clothing_item import ClothingItem
 from app.models.profile import Profile
@@ -26,7 +27,7 @@ router = APIRouter(prefix="/clothing", tags=["Clothing"])
 
 def inject_urls(item: ClothingItem) -> ClothingItemResponse:
     resp = ClothingItemResponse.model_validate(item)
-    resp.processed_url = storage.get_signed_url("clothing-processed", item.processed_image_path) if item.processed_image_path else ""
+    resp.processed_url = storage.get_signed_url(settings.CLOTHING_BUCKET, item.processed_image_path) if item.processed_image_path else ""
     return resp
 
 
@@ -62,7 +63,7 @@ async def get_clothing(
             else:
                 query = query.where(ClothingItem.created_at < cursor_time)
         except ValueError:
-            pass
+            raise HTTPException(status_code=400, detail="Invalid cursor format")
 
     if sort_by == "oldest":
         query = query.order_by(ClothingItem.created_at.asc()).limit(limit + 1)
@@ -188,10 +189,10 @@ async def delete_clothing_item(
 
     # Delete physical files from Supabase Storage before removing the DB record
     if item.processed_image_path:
-        storage.delete_file("clothing-processed", item.processed_image_path)
+        storage.delete_file(settings.CLOTHING_BUCKET, item.processed_image_path)
 
     try:
-        await db.delete(item)
+        db.delete(item)
         await db.commit()
     except IntegrityError as e:
         await db.rollback()
@@ -229,7 +230,7 @@ async def batch_delete_clothing(
     )
     paths = [row.processed_image_path for row in rows_result.all() if row.processed_image_path]
     for path in paths:
-        storage.delete_file("clothing-processed", path)
+        storage.delete_file(settings.CLOTHING_BUCKET, path)
 
     try:
         await db.execute(

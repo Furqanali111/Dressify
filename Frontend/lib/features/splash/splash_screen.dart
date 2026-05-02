@@ -52,9 +52,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
       // Eagerly fetch profile so it's ready in global state
       await ref.read(profileProvider.notifier).fetchProfile();
       if (!mounted) return;
+      // Request permissions before navigating so context is still valid
+      await AppPermissions.requestStartupPermissions(context);
+      if (!mounted) return;
       context.goNamed(AppRoute.home.name);
-      // Request camera + location permissions after login
-      if (mounted) AppPermissions.requestStartupPermissions(context);
       return;
     }
 

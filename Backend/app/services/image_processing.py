@@ -45,7 +45,7 @@ def _resize_for_seg(img: Image.Image) -> Image.Image:
     if max(w, h) <= _SEG_MAX_PX:
         return img
     scale = _SEG_MAX_PX / max(w, h)
-    return img.resize((int(w * scale), int(h * scale)), Image.LANCZOS)
+    return img.resize((int(w * scale), int(h * scale)), Image.Resampling.LANCZOS)
 
 
 # ---------------------------------------------------------------------------

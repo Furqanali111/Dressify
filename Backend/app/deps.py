@@ -31,7 +31,4 @@ async def get_current_user(
             detail="User not found",
         )
         
-    # Optional: Set local postgres variables for Row Level Security (RLS) here if making queries via same session
-    # await db.execute(text("set local request.jwt.claims to '...'"))
-    
     return user

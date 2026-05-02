@@ -54,19 +54,30 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+_MAX_BODY_SIZE = 20 * 1024 * 1024  # 20 MB
+
+
+@app.middleware("http")
+async def limit_body_size(request: Request, call_next):
+    content_length = request.headers.get("content-length")
+    if content_length and int(content_length) > _MAX_BODY_SIZE:
+        return JSONResponse(status_code=413, content={"detail": "Request body too large"})
+    return await call_next(request)
+
+
 app.add_middleware(CorrelationIdMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    logger.error("Unhandled exception: %s", exc)
+    logger.error("Unhandled exception: %s", exc, exc_info=True)
     return JSONResponse(status_code=500, content={"detail": "Internal Server Error"})
 
 

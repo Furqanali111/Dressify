@@ -1,6 +1,6 @@
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List
-from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 
 class Settings(BaseSettings):
@@ -14,6 +14,16 @@ class Settings(BaseSettings):
     JWT_SECRET: str
     JWT_ISSUER: str = "dressify-api"
     JWT_TTL_HOURS: int = 24
+
+    @field_validator("JWT_TTL_HOURS")
+    @classmethod
+    def jwt_ttl_must_be_positive(cls, v: int) -> int:
+        if v <= 0:
+            raise ValueError("JWT_TTL_HOURS must be a positive integer")
+        return v
+
+    # Storage Settings
+    CLOTHING_BUCKET: str = "clothing-processed"
     BYPASS_AUTH_FURQAN_54321: bool = False
     BYPASS_AUTH_TOKEN: str = "BYPASS_AUTH_FURQAN_54321"
     ENVIRONMENT: str = "development"  # "production" disables bypass auth

@@ -119,6 +119,7 @@ class _TryOnScreenState extends ConsumerState<TryOnScreen> {
   Future<void> _loadGarments() async {
     final outfit = widget.outfit;
     if (outfit == null || outfit.items.isEmpty) return;
+    if (_loadingGarments) return;
 
     setState(() => _loadingGarments = true);
 
@@ -872,8 +873,9 @@ class _DetailsPanel extends StatelessWidget {
     final String itemName = garments.isNotEmpty
         ? garments.first.item.name
         : (outfit?.name ?? 'Try On');
-    final String itemSubtitle = outfit != null
-        ? '${outfit!.items.length} item${outfit!.items.length == 1 ? '' : 's'}'
+    final int? outfitItemCount = outfit?.items.length;
+    final String itemSubtitle = outfitItemCount != null
+        ? '$outfitItemCount item${outfitItemCount == 1 ? '' : 's'}'
         : garments.isNotEmpty
             ? garments.first.item.type
             : '';

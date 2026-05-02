@@ -418,11 +418,10 @@ class _UnderutilisedList extends ConsumerWidget {
       spacing: AppSpacing.sm,
       runSpacing: AppSpacing.sm,
       children: items.map((item) => GestureDetector(
-        onTap: () => Navigator.of(context).maybePop().then((_) {
-          if (context.mounted) {
-            // Navigate to wardrobe to find the item
-          }
-        }),
+        onTap: () {
+          Navigator.of(context).maybePop();
+          if (context.mounted) context.goNamed(AppRoute.wardrobe.name);
+        },
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 6),
           decoration: BoxDecoration(
@@ -599,7 +598,7 @@ class _AiStyleTipsSectionState extends ConsumerState<_AiStyleTipsSection> {
     setState(() { _loading = true; _result = null; });
 
     try {
-      final profile = ref.read(profileProvider).value;
+      final profile = ref.read(profileProvider).valueOrNull;
       final outfit = await ref.read(aiProvider).generateOutfit(
         occasion: _selected!,
         avatarKind: profile?.avatarKind,

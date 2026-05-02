@@ -2,9 +2,9 @@ import uuid
 import logging
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, update
+from sqlalchemy import delete, select, func, update
 
 from app.db import get_db
 from app.models.notification import Notification
@@ -85,6 +85,20 @@ async def mark_all_read(
     return UnreadCountResponse(count=0)
 
 
+@router.delete("", status_code=204)
+@limiter.limit("10/minute")
+async def delete_all_notifications(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete all notifications for the current user."""
+    await db.execute(
+        delete(Notification).where(Notification.user_id == current_user.id)
+    )
+    await db.commit()
+
+
 @router.patch("/{notification_id}/read", response_model=NotificationResponse)
 @limiter.limit("120/minute")
 async def mark_one_read(
@@ -102,7 +116,6 @@ async def mark_one_read(
     )
     notif = result.scalar_one_or_none()
     if not notif:
-        from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Notification not found")
 
     if not notif.is_read:

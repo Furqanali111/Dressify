@@ -1,5 +1,8 @@
 from __future__ import annotations
+import logging
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 # Avatar baseline measurements: (chest_cm, waist_cm, hip_cm, shoulder_cm)
 _BASELINES: dict[str, tuple[float, float, float, float]] = {
@@ -48,6 +51,7 @@ def compute_fit_scales(
 
     baseline = _BASELINES.get(avatar_kind or "")
     if baseline is None:
+        logger.warning("Unknown avatar_kind %r — falling back to 1.0 scales", avatar_kind)
         return (1.0, 1.0, 1.0)
 
     base_chest, base_waist, base_hip, base_shoulder = baseline

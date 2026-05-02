@@ -24,5 +24,5 @@ class FitResult {
 final fitRatingProvider = FutureProvider.family<FitResult, String>((ref, itemId) async {
   final dio = ref.read(apiClientProvider);
   final response = await dio.get<Map<String, dynamic>>('clothing/$itemId/fit');
-  return FitResult.fromJson(response.data!);
+  return FitResult.fromJson(response.data ?? <String, dynamic>{});
 });

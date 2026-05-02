@@ -253,7 +253,8 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
 
   Future<void> _loadItems(List<ClothingItem> items) async {
     final List<String> ids = items.map((ClothingItem it) => it.id).toList();
-    if (ids.join(',') == _lastLoadedIds.join(',')) return;
+    final Set<String> newSet = ids.toSet();
+    if (newSet.length == _lastLoadedIds.length && newSet.containsAll(_lastLoadedIds)) return;
 
     if (mounted) setState(() => _loadingGarments = true);
 
@@ -1063,7 +1064,8 @@ class _GarmentPickerSheet extends ConsumerWidget {
     final AppColors c = context.colors;
     final TextTheme text = Theme.of(context).textTheme;
 
-    final List<ClothingItem> all = (ref.watch(wardrobeProvider).value ?? <ClothingItem>[])
+    final AsyncValue<List<ClothingItem>> wardrobeAsync = ref.watch(wardrobeProvider);
+    final List<ClothingItem> all = (wardrobeAsync.value ?? <ClothingItem>[])
         .where((ClothingItem it) =>
             it.processingStatus != 'processing' && it.processingStatus != 'failed')
         .toList();
@@ -1116,7 +1118,12 @@ class _GarmentPickerSheet extends ConsumerWidget {
                 ],
               ),
             ),
-            if (all.isEmpty)
+            if (wardrobeAsync.isLoading)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: AppSpacing.xxxl),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (all.isEmpty)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxxl),
                 child: Center(

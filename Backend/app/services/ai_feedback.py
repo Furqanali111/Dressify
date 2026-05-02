@@ -68,7 +68,7 @@ def get_feedback_for_outfit(
     if outfit_image_paths:
         for path in outfit_image_paths[:_MAX_VISION_IMAGES]:
             try:
-                img_bytes = download_file("clothing-processed", path)
+                img_bytes = download_file(settings.CLOTHING_BUCKET, path)
                 if img_bytes:
                     data_url = _image_to_data_url(img_bytes)
                     vision_blocks.append({

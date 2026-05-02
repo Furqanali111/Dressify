@@ -40,7 +40,7 @@ async def get_current_weather(lat: float, lon: float) -> Optional[str]:
     Results are cached per (rounded lat, lon) for 15 minutes.
     """
     key = _cache_key(lat, lon)
-    now = time.monotonic()
+    now = time.time()
 
     cached_value, expires_at = _weather_cache.get(key, (None, 0.0))
     if expires_at > now:
