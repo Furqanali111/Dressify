@@ -1,4 +1,4 @@
-import 'package:dressify_frontend/app.dart';
+import 'package:dressify/app.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 

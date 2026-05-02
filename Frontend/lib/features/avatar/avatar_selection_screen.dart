@@ -143,11 +143,15 @@ class _AvatarCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final AppColors c = context.colors;
     final BorderRadius radius = BorderRadius.circular(AppRadius.card);
+    final double screenW = MediaQuery.of(context).size.width;
+    
+    // Scale widths/heights based on screen size
+    final double cardWidth = (screenW * 0.4).clamp(140.0, 180.0);
+    final double cardHeight = (cardWidth * 1.6);
 
     final Widget card = AnimatedContainer(
       duration: const Duration(milliseconds: 180),
       curve: Curves.easeOut,
-      width: 140,
       decoration: BoxDecoration(
         color: c.surface,
         borderRadius: radius,
@@ -180,9 +184,10 @@ class _AvatarCard extends StatelessWidget {
                   child: Text(
                     kind.label,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 13,
+                    style: TextStyle(
+                      fontSize: (screenW / 30).clamp(12.0, 15.0),
                       fontWeight: FontWeight.w600,
+                      color: selected ? c.primary : c.textPrimary,
                     ),
                   ),
                 ),
@@ -207,23 +212,19 @@ class _AvatarCard extends StatelessWidget {
       ),
     );
 
-    final Widget tappable = Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: radius,
-        child: card,
-      ),
-    );
-
     return SizedBox(
-      width: 140,
-      height: 240,
-      child: selected
-          ? tappable
-              .animate(target: 1)
-              .scaleXY(begin: 1, end: 1.04, duration: 180.ms, curve: Curves.easeOut)
-          : tappable,
+      width: cardWidth,
+      height: cardHeight,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: radius,
+          child: card,
+        ),
+      )
+          .animate(target: selected ? 1 : 0)
+          .scaleXY(begin: 1, end: 1.03, duration: 180.ms, curve: Curves.easeOut),
     );
   }
 }
@@ -235,22 +236,35 @@ class _AvatarIllustration extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final double screenW = MediaQuery.of(context).size.width;
+    final double illustrationSize = (screenW / 3).clamp(100.0, 140.0);
+
     return DecoratedBox(
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: <Color>[
-            kind.accent.withValues(alpha: 0.18),
-            kind.accent.withValues(alpha: 0.05),
+            kind.accent.withValues(alpha: 0.15),
+            kind.accent.withValues(alpha: 0.03),
           ],
         ),
       ),
       child: Center(
-        child: Image.asset(
-          kind.assetPath,
-          height: 160,
-          fit: BoxFit.contain,
+        child: Container(
+          width: illustrationSize,
+          height: illustrationSize,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: Colors.white.withValues(alpha: 0.05),
+          ),
+          child: Center(
+            child: Image.asset(
+              kind.assetPath,
+              height: illustrationSize * 0.85,
+              fit: BoxFit.contain,
+            ),
+          ),
         ),
       ),
     );

@@ -1,6 +1,6 @@
 {
-    "name": "dressify_frontend",
-    "short_name": "dressify_frontend",
+    "name": "Dressify",
+    "short_name": "Dressify",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

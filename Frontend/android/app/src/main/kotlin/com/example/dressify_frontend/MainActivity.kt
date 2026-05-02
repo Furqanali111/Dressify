@@ -1,4 +1,4 @@
-package com.example.dressify_frontend
+package com.dressify
 
 import io.flutter.embedding.android.FlutterActivity
 
