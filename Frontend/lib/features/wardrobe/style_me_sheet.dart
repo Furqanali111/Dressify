@@ -8,7 +8,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/providers/ai_provider.dart';
 import '../../core/providers/profile_provider.dart';
-import '../../core/providers/style_profile_provider.dart';
 import '../../core/router/app_routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
@@ -26,11 +25,17 @@ class StyleMeSheet extends ConsumerStatefulWidget {
 
 class _StyleMeSheetState extends ConsumerState<StyleMeSheet> {
   final List<String> _occasions = const <String>[
-    'Casual', 'Work', 'Party', 'Date Night', 'Workout', 'Loungewear'
+    'Casual',
+    'Work',
+    'Party',
+    'Date Night',
+    'Workout',
+    'Loungewear',
   ];
   String? _selectedOccasion;
   bool _useWeather = false;
   bool _isGenerating = false;
+  // ignore: unused_field
   bool _navigatedToTryOn = false;
   // ignore: prefer_final_fields — reassigned on each generate call
   CancelToken _cancelToken = CancelToken();
@@ -64,23 +69,26 @@ class _StyleMeSheetState extends ConsumerState<StyleMeSheet> {
             throw Exception('Location permissions denied.');
           }
         }
-        
+
         if (permission == LocationPermission.deniedForever) {
           throw Exception('Location permissions permanently denied.');
         }
 
         final Position position = await Geolocator.getCurrentPosition(
-            locationSettings: const LocationSettings(
-              accuracy: LocationAccuracy.low,
-              timeLimit: Duration(seconds: 5),
-            ),
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.low,
+            timeLimit: Duration(seconds: 5),
+          ),
         );
         lat = position.latitude;
         lon = position.longitude;
         weatherContext = ' (weather included)';
       } catch (e) {
         if (mounted) {
-          AppToast.error(context, 'Could not get weather: ${e.toString().split('Exception:').last}');
+          AppToast.error(
+            context,
+            'Could not get weather: ${e.toString().split('Exception:').last}',
+          );
         }
         setState(() => _useWeather = false);
       }
@@ -106,13 +114,19 @@ class _StyleMeSheetState extends ConsumerState<StyleMeSheet> {
       if (outfit.personalized) {
         AppToast.success(context, '✨ Personalized for you!');
       } else {
-        AppToast.success(context, 'Generated ${_selectedOccasion ?? 'Outfit'}$weatherContext!');
+        AppToast.success(
+          context,
+          'Generated ${_selectedOccasion ?? 'Outfit'}$weatherContext!',
+        );
       }
     } on DioException catch (e) {
       if (!mounted) return;
       setState(() => _isGenerating = false);
-      debugPrint('[StyleMe] outfit_generation_failed: status=${e.response?.statusCode} occasion=$_selectedOccasion error=${e.message}');
-      if (e.response?.statusCode == 400 && e.response?.data['detail'] == 'Wardrobe is empty') {
+      debugPrint(
+        '[StyleMe] outfit_generation_failed: status=${e.response?.statusCode} occasion=$_selectedOccasion error=${e.message}',
+      );
+      if (e.response?.statusCode == 400 &&
+          e.response?.data['detail'] == 'Wardrobe is empty') {
         AppToast.error(context, 'Your wardrobe is empty! Add clothes first.');
       } else {
         AppToast.error(context, 'Failed to generate outfit. Try again.');
@@ -120,7 +134,9 @@ class _StyleMeSheetState extends ConsumerState<StyleMeSheet> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _isGenerating = false);
-      debugPrint('[StyleMe] outfit_generation_failed: occasion=$_selectedOccasion error=$e');
+      debugPrint(
+        '[StyleMe] outfit_generation_failed: occasion=$_selectedOccasion error=$e',
+      );
       AppToast.error(context, 'Something went wrong.');
     }
   }
@@ -131,16 +147,27 @@ class _StyleMeSheetState extends ConsumerState<StyleMeSheet> {
     final TextTheme text = Theme.of(context).textTheme;
 
     return ClipRRect(
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.sheetTop)),
+      borderRadius: const BorderRadius.vertical(
+        top: Radius.circular(AppRadius.sheetTop),
+      ),
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
         child: Container(
           decoration: BoxDecoration(
             color: c.surface.withValues(alpha: 0.8),
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.sheetTop)),
-            border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.2))),
+            borderRadius: const BorderRadius.vertical(
+              top: Radius.circular(AppRadius.sheetTop),
+            ),
+            border: Border(
+              top: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
+            ),
           ),
-          padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.md, AppSpacing.xl, AppSpacing.xl),
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.xl,
+            AppSpacing.md,
+            AppSpacing.xl,
+            AppSpacing.xl,
+          ),
           child: SafeArea(
             top: false,
             child: Column(
@@ -160,14 +187,21 @@ class _StyleMeSheetState extends ConsumerState<StyleMeSheet> {
                 const SizedBox(height: AppSpacing.xl),
                 Row(
                   children: <Widget>[
-                    Image.asset('assets/icons/05_icon_magic_wand.png',
-                        width: 30, height: 30, color: c.primary),
+                    Image.asset(
+                      'assets/icons/05_icon_magic_wand.png',
+                      width: 30,
+                      height: 30,
+                      color: c.primary,
+                    ),
                     const SizedBox(width: AppSpacing.sm),
                     Text('Style Me', style: text.headlineSmall),
                   ],
                 ),
                 const SizedBox(height: AppSpacing.md),
-                Text('What is the occasion?', style: text.bodyMedium?.copyWith(color: c.textSecondary)),
+                Text(
+                  'What is the occasion?',
+                  style: text.bodyMedium?.copyWith(color: c.textSecondary),
+                ),
                 const SizedBox(height: AppSpacing.md),
                 Wrap(
                   spacing: AppSpacing.sm,
@@ -196,15 +230,29 @@ class _StyleMeSheetState extends ConsumerState<StyleMeSheet> {
                           color: c.primary.withValues(alpha: 0.1),
                           shape: BoxShape.circle,
                         ),
-                        child: Icon(Icons.wb_sunny_outlined, color: c.primary, size: 20),
+                        child: Icon(
+                          Icons.wb_sunny_outlined,
+                          color: c.primary,
+                          size: 20,
+                        ),
                       ),
                       const SizedBox(width: AppSpacing.md),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: <Widget>[
-                            Text('Include Local Weather', style: text.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
-                            Text('Requires location access', style: text.bodySmall?.copyWith(color: c.textSecondary)),
+                            Text(
+                              'Include Local Weather',
+                              style: text.bodyMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            Text(
+                              'Requires location access',
+                              style: text.bodySmall?.copyWith(
+                                color: c.textSecondary,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -212,7 +260,8 @@ class _StyleMeSheetState extends ConsumerState<StyleMeSheet> {
                         value: _useWeather,
                         onChanged: (bool val) async {
                           if (val) {
-                            final bool granted = await AppPermissions.ensureLocation(context);
+                            final bool granted =
+                                await AppPermissions.ensureLocation(context);
                             if (!mounted) return;
                             setState(() => _useWeather = granted);
                           } else {
@@ -228,7 +277,9 @@ class _StyleMeSheetState extends ConsumerState<StyleMeSheet> {
                 PrimaryButton(
                   label: _isGenerating ? 'Generating...' : 'Generate Outfit',
                   loading: _isGenerating,
-                  onPressed: _selectedOccasion == null || _isGenerating ? null : _handleGenerate,
+                  onPressed: _selectedOccasion == null || _isGenerating
+                      ? null
+                      : _handleGenerate,
                 ),
               ],
             ),

@@ -318,6 +318,7 @@ class _StatCard extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _SectionTitle extends StatelessWidget {
+  // ignore: unused_element_parameter
   const _SectionTitle({super.key, required this.title});
   final String title;
 
