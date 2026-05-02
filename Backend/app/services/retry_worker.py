@@ -20,8 +20,11 @@ import asyncio
 import logging
 import uuid
 from datetime import datetime, timezone, timedelta
+from typing import Optional
 
-from sqlalchemy import select
+from arq import ArqRedis, create_pool
+from arq.connections import RedisSettings
+from sqlalchemy import select, delete
 
 from app.config import settings
 from app.db import AsyncSessionLocal
@@ -39,6 +42,22 @@ logger = logging.getLogger(__name__)
 _MAX_CONSECUTIVE_FAILURES = 5
 _BASE_BACKOFF_SECONDS = 60
 _MAX_BACKOFF_SECONDS = 600
+
+_arq_pool: Optional[ArqRedis] = None
+
+
+async def init_arq_pool() -> None:
+    global _arq_pool
+    _arq_pool = await create_pool(RedisSettings.from_dsn(settings.REDIS_URL))
+    logger.info("ARQ pool connected to %s", settings.REDIS_URL)
+
+
+async def close_arq_pool() -> None:
+    global _arq_pool
+    if _arq_pool:
+        await _arq_pool.aclose()
+        _arq_pool = None
+        logger.info("ARQ pool closed")
 
 
 # ---------------------------------------------------------------------------
@@ -92,6 +111,17 @@ async def _tick() -> None:
             )
         )
         entries = result.scalars().all()
+
+    # Prune failed entries older than 30 days so the queue doesn't grow unboundedly.
+    async with AsyncSessionLocal() as db:
+        cutoff = now - timedelta(days=30)
+        await db.execute(
+            delete(UploadRetryQueue).where(
+                UploadRetryQueue.status == "failed",
+                UploadRetryQueue.created_at < cutoff,
+            )
+        )
+        await db.commit()
 
     if not entries:
         return
@@ -215,8 +245,19 @@ async def _do_retry(entry: UploadRetryQueue) -> None:
                 )
                 db.add(new_item)
 
-            # 4d. Fire-and-forget metadata extraction (color, pattern, style…)
-            asyncio.create_task(_run_metadata(item_id, garment_bytes))
+            # 4d. Enqueue metadata extraction as a persistent ARQ job.
+            # The job survives process restarts because it's stored in Redis.
+            if _arq_pool is not None:
+                await _arq_pool.enqueue_job(
+                    "extract_metadata_job",
+                    str(item_id),
+                    settings.CLOTHING_BUCKET,
+                    processed_path,
+                )
+            else:
+                logger.warning(
+                    "ARQ pool unavailable — metadata extraction skipped for item %s", item_id
+                )
             processed_any = True
 
         if not processed_any:
@@ -283,10 +324,3 @@ async def _handle_failure(entry: UploadRetryQueue, reason: str) -> None:
         await db.commit()
 
 
-async def _run_metadata(item_id: uuid.UUID, image_bytes: bytes) -> None:
-    """Fire-and-forget wrapper so metadata extraction doesn't block the retry loop."""
-    from app.services.ai_vision import extract_clothing_metadata
-    try:
-        await extract_clothing_metadata(item_id, image_bytes)
-    except Exception:
-        logger.exception("Metadata extraction failed for retry item %s", item_id)

@@ -115,6 +115,7 @@ class _TopBar extends ConsumerWidget {
           clipBehavior: Clip.none,
           children: <Widget>[
             IconButton(
+              tooltip: 'Notifications',
               icon: Icon(
                 Icons.notifications_none_rounded,
                 color: c.textPrimary,

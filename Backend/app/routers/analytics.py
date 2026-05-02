@@ -2,7 +2,7 @@ import logging
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, cast, String
 
@@ -26,6 +26,7 @@ router = APIRouter(prefix="/analytics", tags=["Analytics"])
 @limiter.limit("10/minute")
 async def get_wardrobe_analytics(
     request: Request,
+    days: int = Query(default=90, ge=7, le=365, description="How many days of wear history to include"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -38,11 +39,15 @@ async def get_wardrobe_analytics(
         select(func.count()).select_from(Outfit).where(Outfit.user_id == current_user.id)
     )).scalar_one()
 
-    # ── Scalar-only wear log fetch (avoids loading full ORM rows) ─────────────
-    # Select only the columns we actually need — clothing_item_ids and logged_at
+    # ── Scalar-only wear log fetch (bounded to `days` window) ─────────────────
+    log_since = datetime.now(timezone.utc) - timedelta(days=days)
     log_rows = (await db.execute(
         select(WearLog.clothing_item_ids, WearLog.logged_at)
-        .where(WearLog.user_id == current_user.id)
+        .where(
+            WearLog.user_id == current_user.id,
+            WearLog.logged_at >= log_since,
+        )
+        .order_by(WearLog.logged_at.desc())
     )).all()
 
     # ── Wear counter ──────────────────────────────────────────────────────────
@@ -84,7 +89,10 @@ async def get_wardrobe_analytics(
             ClothingItem.style,
             ClothingItem.processed_image_path,
             ClothingItem.processing_status,
-        ).where(ClothingItem.user_id == current_user.id)
+        ).where(
+            ClothingItem.user_id == current_user.id,
+            ClothingItem.deleted_at.is_(None),
+        )
     )).all()
 
     # ── Most worn (top 5) ────────────────────────────────────────────────────

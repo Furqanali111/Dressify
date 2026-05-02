@@ -34,6 +34,7 @@ class AiFeedbackScreen extends ConsumerWidget {
         backgroundColor: c.background,
         elevation: 0,
         leading: IconButton(
+          tooltip: 'Back',
           icon: Icon(Icons.arrow_back, color: c.textPrimary),
           onPressed: () => context.pop(),
         ),

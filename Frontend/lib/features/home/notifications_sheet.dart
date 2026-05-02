@@ -89,6 +89,7 @@ class _NotificationsSheetState extends ConsumerState<NotificationsSheet> {
                       child: const Text('Mark all as read'),
                     ),
                   IconButton(
+                    tooltip: 'Close',
                     icon: const Icon(Icons.close),
                     onPressed: () => Navigator.of(context).pop(),
                   ),

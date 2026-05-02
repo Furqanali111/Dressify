@@ -24,12 +24,12 @@ import 'app_routes.dart';
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
 
 /// Routes accessible without a valid JWT.
-const Set<String> _publicPaths = <String>{
-  '/splash',
-  '/onboarding',
-  '/sign-in',
-  '/profile-setup',
-  '/avatar-selection',
+final Set<String> _publicPaths = <String>{
+  AppRoute.splash.path,
+  AppRoute.onboarding.path,
+  AppRoute.signIn.path,
+  AppRoute.profileSetup.path,
+  AppRoute.avatarSelection.path,
 };
 
 final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {

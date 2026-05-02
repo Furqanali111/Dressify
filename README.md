@@ -19,7 +19,7 @@ Dressify is an AI-powered personal stylist and virtual wardrobe application. It 
 *   **Authentication**: Supabase Auth (Google OAuth)
 *   **Storage**: Supabase Storage
 *   **AI/ML**: OpenAI GPT-4o / Ollama (Llama 3.2 Vision)
-*   **Background Jobs**: Built-in retry worker for failed image uploads
+*   **Background Jobs**: ARQ with Redis (for reliable image metadata extraction and retries)
 
 ### Frontend
 *   **Framework**: Flutter
@@ -37,7 +37,8 @@ Dressify is an AI-powered personal stylist and virtual wardrobe application. It 
 │   │   ├── models/         # SQLAlchemy ORM Models
 │   │   ├── routers/        # API Endpoints
 │   │   ├── schemas/        # Pydantic Models
-│   │   └── services/       # AI, Weather, Storage logic
+│   │   ├── services/       # AI, Weather, Storage logic
+│   │   └── worker.py       # ARQ Worker settings and jobs
 │   └── alembic/            # Database migrations
 ├── Frontend/               # Flutter mobile application
 │   ├── lib/
@@ -50,11 +51,37 @@ Dressify is an AI-powered personal stylist and virtual wardrobe application. It 
 ## 🛠️ Setup & Installation
 
 ### Backend
-1. `cd Backend`
-2. `pip install -r requirements.txt`
-3. Create a `.env` file based on the config requirements (Supabase, OpenAI, etc.)
-4. `alembic upgrade head`
-5. `uvicorn app.main:app --reload`
+
+1. **Install Dependencies**:
+   ```bash
+   cd Backend
+   pip install -r requirements.txt
+   ```
+
+2. **Start Redis** (Required for background jobs):
+   ```bash
+   docker run -d --name dressify-redis -p 6379:6379 redis:alpine
+   ```
+
+3. **Configure Environment**:
+   Create a `.env` file in the `Backend/` directory based on the configuration requirements (Supabase, OpenAI, Redis URL, etc.).
+
+4. **Run Migrations**:
+   ```bash
+   alembic upgrade head
+   ```
+
+5. **Run the Application** (Requires two separate terminal processes):
+
+   **Terminal 1 — The API**
+   ```bash
+   uvicorn app.main:app --reload
+   ```
+
+   **Terminal 2 — The ARQ Worker**
+   ```bash
+   arq app.worker.WorkerSettings
+   ```
 
 ### Frontend
 1. `cd Frontend`

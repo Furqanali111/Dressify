@@ -111,7 +111,7 @@ class _StyleMeSheetState extends ConsumerState<StyleMeSheet> {
     } on DioException catch (e) {
       if (!mounted) return;
       setState(() => _isGenerating = false);
-      
+      debugPrint('[StyleMe] outfit_generation_failed: status=${e.response?.statusCode} occasion=$_selectedOccasion error=${e.message}');
       if (e.response?.statusCode == 400 && e.response?.data['detail'] == 'Wardrobe is empty') {
         AppToast.error(context, 'Your wardrobe is empty! Add clothes first.');
       } else {
@@ -120,6 +120,7 @@ class _StyleMeSheetState extends ConsumerState<StyleMeSheet> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _isGenerating = false);
+      debugPrint('[StyleMe] outfit_generation_failed: occasion=$_selectedOccasion error=$e');
       AppToast.error(context, 'Something went wrong.');
     }
   }

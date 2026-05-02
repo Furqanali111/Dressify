@@ -57,6 +57,7 @@ class _AvatarSelectionScreenState extends ConsumerState<AvatarSelectionScreen> {
               child: Row(
                 children: <Widget>[
                   IconButton(
+                    tooltip: 'Back',
                     icon: const Icon(Icons.arrow_back),
                     onPressed: () => context.pop(),
                   ),

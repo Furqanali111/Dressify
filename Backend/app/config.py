@@ -39,6 +39,9 @@ class Settings(BaseSettings):
     OLLAMA_VISION_MODEL: str = "llama3.2-vision:90b"
     OLLAMA_TEXT_MODEL: str = "llama3.2:latest"
 
+    # Redis (rate-limit backend)
+    REDIS_URL: str = "redis://localhost:6379"
+
     # App Settings
     ALLOWED_ORIGINS: str = "http://localhost:3000"
     LOG_LEVEL: str = "info"

@@ -567,6 +567,7 @@ class _TopBar extends StatelessWidget {
       child: Row(
         children: <Widget>[
           IconButton(
+            tooltip: 'Back',
             icon: const Icon(Icons.arrow_back, color: Colors.white),
             onPressed: onBack,
           ),

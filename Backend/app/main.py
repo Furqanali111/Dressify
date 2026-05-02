@@ -11,7 +11,7 @@ from slowapi.errors import RateLimitExceeded
 from app.config import settings
 from app.core.correlation import CorrelationIdMiddleware, RequestIdFilter
 from app.core.limiter import limiter
-from app.services.retry_worker import run_retry_worker
+from app.services.retry_worker import run_retry_worker, init_arq_pool, close_arq_pool
 
 logging.basicConfig(
     level=settings.LOG_LEVEL.upper(),
@@ -28,8 +28,9 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    await init_arq_pool()
     retry_task = asyncio.create_task(run_retry_worker())
-    logger.info("Upload retry worker task started")
+    logger.info("Upload retry worker started")
     try:
         yield
     finally:
@@ -37,7 +38,9 @@ async def lifespan(app: FastAPI):
         try:
             await retry_task
         except asyncio.CancelledError:
-            logger.info("Upload retry worker stopped")
+            pass
+        await close_arq_pool()
+        logger.info("Upload retry worker stopped")
 
 
 # ---------------------------------------------------------------------------

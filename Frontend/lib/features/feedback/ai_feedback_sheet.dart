@@ -170,6 +170,7 @@ class _AiFeedbackSheetState extends ConsumerState<AiFeedbackSheet>
                     ),
                   ),
                   IconButton(
+                    tooltip: 'Close',
                     icon: const Icon(Icons.close),
                     onPressed: () => Navigator.of(context).pop(),
                   ),

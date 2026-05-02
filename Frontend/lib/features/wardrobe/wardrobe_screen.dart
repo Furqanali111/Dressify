@@ -375,7 +375,7 @@ class _ClothingTabState extends ConsumerState<_ClothingTab> {
       data: (List<ClothingItem> all) {
         final List<ClothingItem> items = widget.filter == null
             ? all
-            : all.where((ClothingItem it) => it.type == widget.filter!.name).toList();
+            : all.where((ClothingItem it) => it.type == widget.filter!.apiValue).toList();
 
         if (items.isEmpty) {
           return const _ScrollableState(

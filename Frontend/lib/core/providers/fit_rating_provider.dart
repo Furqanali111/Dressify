@@ -20,8 +20,11 @@ class FitResult {
 }
 
 /// Family provider — one per clothing item ID.
-/// Lazily fetches GET /clothing/{id}/fit when first watched.
+/// Lazily fetches GET /clothing/{id}/fit on first watch; result is cached for
+/// the session so toggling the badge never fires a second request.
+/// Invalidated globally on profile change / sign-out (see auth_provider.dart).
 final fitRatingProvider = FutureProvider.family<FitResult, String>((ref, itemId) async {
+  ref.keepAlive();
   final dio = ref.read(apiClientProvider);
   final response = await dio.get<Map<String, dynamic>>('clothing/$itemId/fit');
   return FitResult.fromJson(response.data ?? <String, dynamic>{});

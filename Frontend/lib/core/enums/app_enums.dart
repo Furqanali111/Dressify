@@ -96,6 +96,9 @@ extension AvatarKindX on AvatarKind {
 enum ClothingType { top, bottom, dress, jacket, shoes, accessory, other }
 
 extension ClothingTypeX on ClothingType {
+  /// The string value stored in the backend — stable even if the enum is renamed.
+  String get apiValue => name;
+
   String get label {
     switch (this) {
       case ClothingType.top:

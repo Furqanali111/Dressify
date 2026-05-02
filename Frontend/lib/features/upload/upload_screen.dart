@@ -180,6 +180,7 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
       backgroundColor: c.background,
       appBar: AppBar(
         leading: IconButton(
+          tooltip: 'Back',
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.pop(),
         ),

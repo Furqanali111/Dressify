@@ -418,6 +418,7 @@ class _UnderutilisedList extends ConsumerWidget {
       spacing: AppSpacing.sm,
       runSpacing: AppSpacing.sm,
       children: items.map((item) => GestureDetector(
+        key: ValueKey(item.id),
         onTap: () {
           Navigator.of(context).maybePop();
           if (context.mounted) context.goNamed(AppRoute.wardrobe.name);
@@ -454,6 +455,7 @@ class _StyleBarChart extends StatelessWidget {
       children: entries.map((e) {
         final frac = maxVal > 0 ? e.value / maxVal : 0.0;
         return Padding(
+          key: ValueKey(e.key),
           padding: const EdgeInsets.only(bottom: AppSpacing.sm),
           child: Row(
             children: <Widget>[

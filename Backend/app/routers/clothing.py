@@ -1,12 +1,12 @@
 import logging
 import uuid
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, delete
+from sqlalchemy import select
 from pydantic import BaseModel
 
 from app.config import settings
@@ -50,7 +50,10 @@ async def get_clothing(
         ClothingItem.processed_image_path,
         ClothingItem.processing_status,
         ClothingItem.created_at,
-    ).where(ClothingItem.user_id == current_user.id)
+    ).where(
+        ClothingItem.user_id == current_user.id,
+        ClothingItem.deleted_at.is_(None),
+    )
     
     if type:
         query = query.where(ClothingItem.type == type)
@@ -96,6 +99,7 @@ async def get_clothing_item(
         select(ClothingItem).where(
             ClothingItem.id == item_id,
             ClothingItem.user_id == current_user.id,
+            ClothingItem.deleted_at.is_(None),
         )
     )
     item = result.scalar_one_or_none()
@@ -119,6 +123,7 @@ async def update_clothing_item(
         select(ClothingItem).where(
             ClothingItem.id == item_id,
             ClothingItem.user_id == current_user.id,
+            ClothingItem.deleted_at.is_(None),
         )
     )
     item = result.scalar_one_or_none()
@@ -152,6 +157,7 @@ async def get_clothing_fit(
         select(ClothingItem).where(
             ClothingItem.id == item_id,
             ClothingItem.user_id == current_user.id,
+            ClothingItem.deleted_at.is_(None),
         )
     )
     item = item_result.scalar_one_or_none()
@@ -180,6 +186,7 @@ async def delete_clothing_item(
         select(ClothingItem).where(
             ClothingItem.id == item_id,
             ClothingItem.user_id == current_user.id,
+            ClothingItem.deleted_at.is_(None),
         )
     )
     item = result.scalar_one_or_none()
@@ -187,23 +194,14 @@ async def delete_clothing_item(
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
 
-    # Delete physical files from Supabase Storage before removing the DB record
-    if item.processed_image_path:
-        storage.delete_file(settings.CLOTHING_BUCKET, item.processed_image_path)
-
+    # Soft-delete: keep the DB record (and storage file) so outfit history remains intact.
+    # Storage cleanup happens when the referencing outfits are removed.
     try:
-        db.delete(item)
+        item.deleted_at = datetime.now(timezone.utc)
         await db.commit()
-    except IntegrityError as e:
-        await db.rollback()
-        logger.error(f"DB integrity error deleting clothing item {item_id}: {e}")
-        raise HTTPException(
-            status_code=409,
-            detail="Cannot delete this item — it is referenced by one or more outfits",
-        )
     except SQLAlchemyError as e:
         await db.rollback()
-        logger.error(f"DB error deleting clothing item {item_id}: {e}", exc_info=True)
+        logger.error(f"DB error soft-deleting clothing item {item_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to delete item")
 
     return None
@@ -221,31 +219,22 @@ async def batch_delete_clothing(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    # Fetch the items first so we can wipe their files from Supabase Storage
-    rows_result = await db.execute(
-        select(ClothingItem.processed_image_path).where(
-            ClothingItem.id.in_(body.clothing_item_ids),
-            ClothingItem.user_id == current_user.id,
-        )
-    )
-    paths = [row.processed_image_path for row in rows_result.all() if row.processed_image_path]
-    for path in paths:
-        storage.delete_file(settings.CLOTHING_BUCKET, path)
-
+    # Soft-delete: stamp deleted_at on each item so outfit history remains intact.
     try:
+        now = datetime.now(timezone.utc)
         await db.execute(
-            delete(ClothingItem).where(
+            ClothingItem.__table__.update()
+            .where(
                 ClothingItem.id.in_(body.clothing_item_ids),
-                ClothingItem.user_id == current_user.id
+                ClothingItem.user_id == current_user.id,
+                ClothingItem.deleted_at.is_(None),
             )
+            .values(deleted_at=now)
         )
         await db.commit()
     except SQLAlchemyError as e:
         await db.rollback()
-        logger.error("Failed to batch delete clothing items: %s", e)
-        raise HTTPException(
-            status_code=400,
-            detail="Could not delete items. They may be part of an outfit."
-        )
+        logger.error("Failed to batch soft-delete clothing items: %s", e)
+        raise HTTPException(status_code=500, detail="Could not delete items.")
 
     return None
