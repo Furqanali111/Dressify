@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:equatable/equatable.dart';
 
 class WearLog extends Equatable {
@@ -17,22 +16,24 @@ class WearLog extends Equatable {
   final DateTime loggedAt;
 
   factory WearLog.fromJson(Map<String, dynamic> json) => WearLog(
-        id: json['id'] as String,
-        userId: json['user_id'] as String,
-        outfitId: json['outfit_id'] as String?,
-        clothingItemIds: (json['clothing_item_ids'] as List<dynamic>?)
-            ?.map((e) => e.toString())
-            .toList(),
-        loggedAt: DateTime.tryParse(json['logged_at'] as String? ?? '')?.toLocal() ?? DateTime.now(),
-      );
+    id: json['id'] as String,
+    userId: json['user_id'] as String,
+    outfitId: json['outfit_id'] as String?,
+    clothingItemIds: (json['clothing_item_ids'] as List<dynamic>?)
+        ?.map((e) => e.toString())
+        .toList(),
+    loggedAt:
+        DateTime.tryParse(json['logged_at'] as String? ?? '')?.toLocal() ??
+        DateTime.now(),
+  );
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'user_id': userId,
-        'outfit_id': outfitId,
-        'clothing_item_ids': clothingItemIds,
-        'logged_at': loggedAt.toUtc().toIso8601String(),
-      };
+    'id': id,
+    'user_id': userId,
+    'outfit_id': outfitId,
+    'clothing_item_ids': clothingItemIds,
+    'logged_at': loggedAt.toUtc().toIso8601String(),
+  };
 
   @override
   List<Object?> get props => [id, userId, outfitId, clothingItemIds, loggedAt];

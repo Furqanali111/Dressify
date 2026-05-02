@@ -7,7 +7,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/models/outfit.dart';
 import '../../core/models/wardrobe_analytics.dart';
-import '../../core/models/wear_log.dart';
 import '../../core/providers/ai_provider.dart';
 import '../../core/providers/profile_provider.dart';
 import '../../core/providers/wardrobe_analytics_provider.dart';
@@ -46,7 +45,9 @@ class WardrobeAnalyticsScreen extends ConsumerWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
                   Icon(
-                    isRateLimit ? Icons.hourglass_bottom_rounded : Icons.error_outline,
+                    isRateLimit
+                        ? Icons.hourglass_bottom_rounded
+                        : Icons.error_outline,
                     size: 48,
                     color: isRateLimit ? c.primary : c.error,
                   ),
@@ -60,7 +61,8 @@ class WardrobeAnalyticsScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: AppSpacing.md),
                   TextButton(
-                    onPressed: () => ref.read(wardrobeAnalyticsProvider.notifier).refresh(),
+                    onPressed: () =>
+                        ref.read(wardrobeAnalyticsProvider.notifier).refresh(),
                     child: const Text('Retry'),
                   ),
                 ],
@@ -79,7 +81,10 @@ class WardrobeAnalyticsScreen extends ConsumerWidget {
             ]),
             child: ListView(
               padding: const EdgeInsets.fromLTRB(
-                AppSpacing.xl, AppSpacing.md, AppSpacing.xl, AppSpacing.xxxxl,
+                AppSpacing.xl,
+                AppSpacing.md,
+                AppSpacing.xl,
+                AppSpacing.xxxxl,
               ),
               children: <Widget>[
                 _StatsHeader(analytics: analytics),
@@ -157,37 +162,56 @@ class _RecentWearHistory extends ConsumerWidget {
         border: Border.all(color: c.border),
       ),
       child: asyncLogs.loading && asyncLogs.items.isEmpty
-          ? const Center(child: Padding(padding: EdgeInsets.all(AppSpacing.md), child: CircularProgressIndicator()))
+          ? const Center(
+              child: Padding(
+                padding: EdgeInsets.all(AppSpacing.md),
+                child: CircularProgressIndicator(),
+              ),
+            )
           : asyncLogs.items.isEmpty
-              ? Padding(
-                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-                  child: Text('No wear logs yet. Wear an outfit to start tracking!',
-                      style: text.bodySmall?.copyWith(color: c.textSecondary), textAlign: TextAlign.center),
-                )
-              : Column(
-                  children: asyncLogs.items.take(3).map((log) {
-                    final isOutfit = log.outfitId != null;
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                      child: Row(
-                        children: [
-                          Icon(isOutfit ? Icons.style : Icons.checkroom, size: 16, color: c.primary),
-                          const SizedBox(width: AppSpacing.sm),
-                          Expanded(
-                            child: Text(
-                              isOutfit ? 'Outfit Worn' : '${log.clothingItemIds?.length ?? 0} Item(s) Worn',
-                              style: text.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
-                            ),
-                          ),
-                          Text(
-                            _timeAgo(log.loggedAt),
-                            style: text.bodySmall?.copyWith(color: c.textSecondary, fontSize: 11),
-                          ),
-                        ],
+          ? Padding(
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+              child: Text(
+                'No wear logs yet. Wear an outfit to start tracking!',
+                style: text.bodySmall?.copyWith(color: c.textSecondary),
+                textAlign: TextAlign.center,
+              ),
+            )
+          : Column(
+              children: asyncLogs.items.take(3).map((log) {
+                final isOutfit = log.outfitId != null;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                  child: Row(
+                    children: [
+                      Icon(
+                        isOutfit ? Icons.style : Icons.checkroom,
+                        size: 16,
+                        color: c.primary,
                       ),
-                    );
-                  }).toList(),
-                ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: Text(
+                          isOutfit
+                              ? 'Outfit Worn'
+                              : '${log.clothingItemIds?.length ?? 0} Item(s) Worn',
+                          style: text.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        _timeAgo(log.loggedAt),
+                        style: text.bodySmall?.copyWith(
+                          color: c.textSecondary,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
     );
   }
 
@@ -213,16 +237,35 @@ class _StatsHeader extends StatelessWidget {
     final AppColors c = context.colors;
     return Row(
       children: <Widget>[
-        Expanded(child: _StatCard(icon: Icons.checkroom, label: 'Items', value: '${analytics.totalItems}', c: c)),
+        Expanded(
+          child: _StatCard(
+            icon: Icons.checkroom,
+            label: 'Items',
+            value: '${analytics.totalItems}',
+            c: c,
+          ),
+        ),
         const SizedBox(width: AppSpacing.md),
-        Expanded(child: _StatCard(icon: Icons.style, label: 'Outfits', value: '${analytics.totalOutfits}', c: c)),
+        Expanded(
+          child: _StatCard(
+            icon: Icons.style,
+            label: 'Outfits',
+            value: '${analytics.totalOutfits}',
+            c: c,
+          ),
+        ),
       ],
     );
   }
 }
 
 class _StatCard extends StatelessWidget {
-  const _StatCard({required this.icon, required this.label, required this.value, required this.c});
+  const _StatCard({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.c,
+  });
   final IconData icon;
   final String label;
   final String value;
@@ -235,7 +278,13 @@ class _StatCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: c.surface,
         borderRadius: BorderRadius.circular(AppRadius.card),
-        boxShadow: <BoxShadow>[BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 8, offset: const Offset(0, 2))],
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         children: <Widget>[
@@ -244,8 +293,18 @@ class _StatCard extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              Text(value, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: c.textPrimary)),
-              Text(label, style: TextStyle(fontSize: 12, color: c.textSecondary)),
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                  color: c.textPrimary,
+                ),
+              ),
+              Text(
+                label,
+                style: TextStyle(fontSize: 12, color: c.textSecondary),
+              ),
             ],
           ),
         ],
@@ -267,7 +326,10 @@ class _SectionTitle extends StatelessWidget {
     final AppColors c = context.colors;
     return Text(
       title,
-      style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700, color: c.textPrimary),
+      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+        fontWeight: FontWeight.w700,
+        color: c.textPrimary,
+      ),
     );
   }
 }
@@ -276,28 +338,40 @@ class _SectionTitle extends StatelessWidget {
 // Colour pie chart
 // ---------------------------------------------------------------------------
 
-
 class _ColorPieChart extends StatelessWidget {
   const _ColorPieChart({required this.data});
   final Map<String, int> data;
 
   static const List<Color> _palette = <Color>[
-    Color(0xFF6366F1), Color(0xFF22D3EE), Color(0xFFF59E0B),
-    Color(0xFF10B981), Color(0xFFEF4444), Color(0xFFA78BFA),
-    Color(0xFFFB923C), Color(0xFF34D399), Color(0xFF60A5FA), Color(0xFFF472B6),
+    Color(0xFF6366F1),
+    Color(0xFF22D3EE),
+    Color(0xFFF59E0B),
+    Color(0xFF10B981),
+    Color(0xFFEF4444),
+    Color(0xFFA78BFA),
+    Color(0xFFFB923C),
+    Color(0xFF34D399),
+    Color(0xFF60A5FA),
+    Color(0xFFF472B6),
   ];
 
   @override
   Widget build(BuildContext context) {
     final entries = data.entries.toList();
-    final total   = entries.fold<int>(0, (s, e) => s + e.value);
+    final total = entries.fold<int>(0, (s, e) => s + e.value);
 
     return Row(
       children: <Widget>[
         SizedBox(
           width: 140,
           height: 140,
-          child: CustomPaint(painter: _PiePainter(entries: entries, total: total, palette: _palette)),
+          child: CustomPaint(
+            painter: _PiePainter(
+              entries: entries,
+              total: total,
+              palette: _palette,
+            ),
+          ),
         ),
         const SizedBox(width: AppSpacing.lg),
         Expanded(
@@ -311,9 +385,21 @@ class _ColorPieChart extends StatelessWidget {
                 padding: const EdgeInsets.only(bottom: 4),
                 child: Row(
                   children: <Widget>[
-                    Container(width: 10, height: 10, decoration: BoxDecoration(color: _palette[i % _palette.length], shape: BoxShape.circle)),
+                    Container(
+                      width: 10,
+                      height: 10,
+                      decoration: BoxDecoration(
+                        color: _palette[i % _palette.length],
+                        shape: BoxShape.circle,
+                      ),
+                    ),
                     const SizedBox(width: 6),
-                    Expanded(child: Text('${_capitalize(e.key)} ($pct%)', style: const TextStyle(fontSize: 12))),
+                    Expanded(
+                      child: Text(
+                        '${_capitalize(e.key)} ($pct%)',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ),
                   ],
                 ),
               );
@@ -324,11 +410,16 @@ class _ColorPieChart extends StatelessWidget {
     );
   }
 
-  static String _capitalize(String s) => s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
+  static String _capitalize(String s) =>
+      s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
 }
 
 class _PiePainter extends CustomPainter {
-  const _PiePainter({required this.entries, required this.total, required this.palette});
+  const _PiePainter({
+    required this.entries,
+    required this.total,
+    required this.palette,
+  });
   final List<MapEntry<String, int>> entries;
   final int total;
   final List<Color> palette;
@@ -372,7 +463,8 @@ class _MostWornRow extends StatelessWidget {
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: items.length,
-        separatorBuilder: (context, index) => const SizedBox(width: AppSpacing.md),
+        separatorBuilder: (context, index) =>
+            const SizedBox(width: AppSpacing.md),
         itemBuilder: (_, i) {
           final item = items[i];
           return SizedBox(
@@ -383,16 +475,46 @@ class _MostWornRow extends StatelessWidget {
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(AppRadius.card),
                     child: item.processedUrl.isNotEmpty
-                        ? CachedNetworkImage(imageUrl: item.processedUrl, fit: BoxFit.cover)
-                        : Container(color: c.surface, child: Icon(Icons.checkroom, color: c.textSecondary)),
+                        ? CachedNetworkImage(
+                            imageUrl: item.processedUrl,
+                            fit: BoxFit.cover,
+                          )
+                        : Container(
+                            color: c.surface,
+                            child: Icon(
+                              Icons.checkroom,
+                              color: c.textSecondary,
+                            ),
+                          ),
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text(item.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                Text(
+                  item.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                  decoration: BoxDecoration(color: c.primary.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(10)),
-                  child: Text('${item.wearCount}×', style: TextStyle(fontSize: 10, color: c.primary, fontWeight: FontWeight.w700)),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 1,
+                  ),
+                  decoration: BoxDecoration(
+                    color: c.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    '${item.wearCount}×',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: c.primary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -417,22 +539,32 @@ class _UnderutilisedList extends ConsumerWidget {
     return Wrap(
       spacing: AppSpacing.sm,
       runSpacing: AppSpacing.sm,
-      children: items.map((item) => GestureDetector(
-        key: ValueKey(item.id),
-        onTap: () {
-          Navigator.of(context).maybePop();
-          if (context.mounted) context.goNamed(AppRoute.wardrobe.name);
-        },
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 6),
-          decoration: BoxDecoration(
-            color: c.surface,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: c.border),
-          ),
-          child: Text(item.name, style: TextStyle(fontSize: 13, color: c.textPrimary)),
-        ),
-      )).toList(),
+      children: items
+          .map(
+            (item) => GestureDetector(
+              key: ValueKey(item.id),
+              onTap: () {
+                Navigator.of(context).maybePop();
+                if (context.mounted) context.goNamed(AppRoute.wardrobe.name);
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: c.surface,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: c.border),
+                ),
+                child: Text(
+                  item.name,
+                  style: TextStyle(fontSize: 13, color: c.textPrimary),
+                ),
+              ),
+            ),
+          )
+          .toList(),
     );
   }
 }
@@ -448,8 +580,9 @@ class _StyleBarChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final AppColors c = context.colors;
-    final entries = data.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
-    final maxVal  = entries.isEmpty ? 1 : entries.first.value;
+    final entries = data.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final maxVal = entries.isEmpty ? 1 : entries.first.value;
 
     return Column(
       children: entries.map((e) {
@@ -480,7 +613,14 @@ class _StyleBarChart extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: AppSpacing.sm),
-              Text('${e.value}', style: TextStyle(fontSize: 12, color: c.textSecondary, fontWeight: FontWeight.w600)),
+              Text(
+                '${e.value}',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: c.textSecondary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ],
           ),
         );
@@ -488,7 +628,8 @@ class _StyleBarChart extends StatelessWidget {
     );
   }
 
-  static String _capitalize(String s) => s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
+  static String _capitalize(String s) =>
+      s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
 }
 
 // ---------------------------------------------------------------------------
@@ -504,7 +645,10 @@ class _FrequencyEmptyState extends StatelessWidget {
     final TextTheme text = Theme.of(context).textTheme;
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xl, horizontal: AppSpacing.lg),
+      padding: const EdgeInsets.symmetric(
+        vertical: AppSpacing.xl,
+        horizontal: AppSpacing.lg,
+      ),
       decoration: BoxDecoration(
         color: c.surface,
         borderRadius: BorderRadius.circular(AppRadius.card),
@@ -512,7 +656,11 @@ class _FrequencyEmptyState extends StatelessWidget {
       ),
       child: Column(
         children: <Widget>[
-          Icon(Icons.bar_chart_rounded, size: 40, color: c.textSecondary.withValues(alpha: 0.5)),
+          Icon(
+            Icons.bar_chart_rounded,
+            size: 40,
+            color: c.textSecondary.withValues(alpha: 0.5),
+          ),
           const SizedBox(height: AppSpacing.sm),
           Text(
             'No frequency data yet',
@@ -537,7 +685,9 @@ class _FrequencyBars extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final AppColors c = context.colors;
-    final maxVal = weeks.isEmpty ? 1 : weeks.map((w) => w.count).reduce(math.max);
+    final maxVal = weeks.isEmpty
+        ? 1
+        : weeks.map((w) => w.count).reduce(math.max);
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
@@ -549,10 +699,15 @@ class _FrequencyBars extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 4),
             child: Column(
               children: <Widget>[
-                Text('${w.count}', style: TextStyle(fontSize: 11, color: c.textSecondary)),
+                Text(
+                  '${w.count}',
+                  style: TextStyle(fontSize: 11, color: c.textSecondary),
+                ),
                 const SizedBox(height: 4),
                 ClipRRect(
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(4),
+                  ),
                   child: SizedBox(
                     height: 60,
                     child: Align(
@@ -565,7 +720,10 @@ class _FrequencyBars extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text(label, style: TextStyle(fontSize: 10, color: c.textSecondary)),
+                Text(
+                  label,
+                  style: TextStyle(fontSize: 10, color: c.textSecondary),
+                ),
               ],
             ),
           ),
@@ -583,12 +741,18 @@ class _AiStyleTipsSection extends ConsumerStatefulWidget {
   const _AiStyleTipsSection();
 
   @override
-  ConsumerState<_AiStyleTipsSection> createState() => _AiStyleTipsSectionState();
+  ConsumerState<_AiStyleTipsSection> createState() =>
+      _AiStyleTipsSectionState();
 }
 
 class _AiStyleTipsSectionState extends ConsumerState<_AiStyleTipsSection> {
   static const List<String> _occasions = <String>[
-    'Casual', 'Work', 'Party', 'Date Night', 'Workout', 'Loungewear',
+    'Casual',
+    'Work',
+    'Party',
+    'Date Night',
+    'Workout',
+    'Loungewear',
   ];
 
   String? _selected;
@@ -597,17 +761,23 @@ class _AiStyleTipsSectionState extends ConsumerState<_AiStyleTipsSection> {
 
   Future<void> _generate() async {
     if (_selected == null || _loading) return;
-    setState(() { _loading = true; _result = null; });
+    setState(() {
+      _loading = true;
+      _result = null;
+    });
 
     try {
       final profile = ref.read(profileProvider).valueOrNull;
-      final outfit = await ref.read(aiProvider).generateOutfit(
-        occasion: _selected!,
-        avatarKind: profile?.avatarKind,
-      );
+      final outfit = await ref
+          .read(aiProvider)
+          .generateOutfit(
+            occasion: _selected!,
+            avatarKind: profile?.avatarKind,
+          );
       if (mounted) setState(() => _result = outfit);
     } catch (_) {
-      if (mounted) AppToast.show(context, 'Could not generate look. Try again.');
+      if (mounted)
+        AppToast.show(context, 'Could not generate look. Try again.');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -632,10 +802,16 @@ class _AiStyleTipsSectionState extends ConsumerState<_AiStyleTipsSection> {
           children: _occasions.map((occ) {
             final bool active = _selected == occ;
             return GestureDetector(
-              onTap: () => setState(() { _selected = occ; _result = null; }),
+              onTap: () => setState(() {
+                _selected = occ;
+                _result = null;
+              }),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 150),
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 7),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: 7,
+                ),
                 decoration: BoxDecoration(
                   color: active ? c.primary : c.surface,
                   borderRadius: BorderRadius.circular(20),
@@ -659,12 +835,21 @@ class _AiStyleTipsSectionState extends ConsumerState<_AiStyleTipsSection> {
           child: FilledButton.icon(
             onPressed: _selected == null || _loading ? null : _generate,
             icon: _loading
-                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
                 : const Icon(Icons.auto_awesome, size: 16),
             label: Text(_loading ? 'Generating…' : 'Generate Look'),
             style: FilledButton.styleFrom(
               backgroundColor: c.primary,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.card)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppRadius.card),
+              ),
               padding: const EdgeInsets.symmetric(vertical: 14),
             ),
           ),
@@ -692,7 +877,11 @@ class _AiStyleTipsSectionState extends ConsumerState<_AiStyleTipsSection> {
               borderRadius: BorderRadius.circular(AppRadius.card),
               border: Border.all(color: c.primary.withValues(alpha: 0.3)),
               boxShadow: <BoxShadow>[
-                BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8, offset: const Offset(0, 2)),
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
               ],
             ),
             child: Row(
@@ -701,7 +890,12 @@ class _AiStyleTipsSectionState extends ConsumerState<_AiStyleTipsSection> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
-                      Text(_result!.name, style: text.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+                      Text(
+                        _result!.name,
+                        style: text.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                       const SizedBox(height: 2),
                       Text(
                         '${_result!.items.length} item${_result!.items.length == 1 ? '' : 's'} · $_selected',
@@ -711,9 +905,20 @@ class _AiStyleTipsSectionState extends ConsumerState<_AiStyleTipsSection> {
                         const SizedBox(height: 4),
                         Row(
                           children: <Widget>[
-                            Icon(Icons.auto_awesome, size: 12, color: c.primary),
+                            Icon(
+                              Icons.auto_awesome,
+                              size: 12,
+                              color: c.primary,
+                            ),
                             const SizedBox(width: 4),
-                            Text('Personalised for you', style: TextStyle(fontSize: 11, color: c.primary, fontWeight: FontWeight.w600)),
+                            Text(
+                              'Personalised for you',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: c.primary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                           ],
                         ),
                       ],
@@ -722,11 +927,17 @@ class _AiStyleTipsSectionState extends ConsumerState<_AiStyleTipsSection> {
                 ),
                 const SizedBox(width: AppSpacing.md),
                 FilledButton(
-                  onPressed: () => context.pushNamed(AppRoute.tryOn.name, extra: _result),
+                  onPressed: () =>
+                      context.pushNamed(AppRoute.tryOn.name, extra: _result),
                   style: FilledButton.styleFrom(
                     backgroundColor: c.primary,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 10),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md,
+                      vertical: 10,
+                    ),
                   ),
                   child: const Text('Try It', style: TextStyle(fontSize: 13)),
                 ),
