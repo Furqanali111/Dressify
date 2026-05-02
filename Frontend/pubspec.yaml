@@ -1,5 +1,5 @@
-name: dressify_frontend
-description: Dressify — 2D virtual try-on mobile app (UI layer only).
+name: dressify
+description: Dressify — AI-powered wardrobe & virtual try-on app.
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -78,6 +78,7 @@ dev_dependencies:
   freezed: ^2.5.7
   json_serializable: ^6.8.0
   riverpod_generator: ^2.4.3
+  flutter_launcher_icons: ^0.14.3
 
 flutter:
   uses-material-design: true
@@ -88,3 +89,11 @@ flutter:
     - assets/avatars/
     - assets/images/
     - .env
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/logo/01_app_icon.png"
+  adaptive_icon_background: "#6C63FF"
+  adaptive_icon_foreground: "assets/logo/01_app_icon.png"
+  min_sdk_android: 21

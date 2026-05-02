@@ -233,6 +233,9 @@ class _QuickActionTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final AppColors c = context.colors;
     final BorderRadius radius = BorderRadius.circular(AppRadius.card);
+    final double screenW = MediaQuery.of(context).size.width;
+    // Icon scales between 26 (small phones) and 34 (large phones)
+    final double iconSize = (screenW / 14).clamp(26.0, 34.0);
 
     return Material(
       color: c.surface,
@@ -240,43 +243,51 @@ class _QuickActionTile extends StatelessWidget {
       child: InkWell(
         onTap: action.onTap,
         borderRadius: radius,
-        child: AspectRatio(
-          aspectRatio: 2.1,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              borderRadius: radius,
-              boxShadow: <BoxShadow>[
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.06),
-                  blurRadius: 10,
-                  offset: const Offset(0, 3),
-                ),
-              ],
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.sm),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: <Widget>[
-                  Icon(action.icon, color: c.primary, size: 28),
-                  const SizedBox(height: AppSpacing.sm),
-                  Text(
-                    action.label,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.lg,
+          ),
+          decoration: BoxDecoration(
+            borderRadius: radius,
+            boxShadow: <BoxShadow>[
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.06),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
               ),
-            ),
+            ],
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              Container(
+                width: iconSize + 20,
+                height: iconSize + 20,
+                decoration: BoxDecoration(
+                  color: c.primary.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(action.icon, color: c.primary, size: iconSize),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                action.label,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: (screenW / 33).clamp(11.0, 14.0),
+                  fontWeight: FontWeight.w600,
+                  color: c.textPrimary,
+                ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 }
+
 
 // ---------------------------------------------------------------------------
 // Recent Outfits

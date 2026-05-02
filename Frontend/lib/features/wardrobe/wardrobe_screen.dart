@@ -73,22 +73,10 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen>
                   children: <Widget>[
                     Expanded(child: Text('My Wardrobe', style: text.displayMedium)),
                     if (_tabController.index == 0)
-                      PopupMenuButton<String>(
-                        icon: Icon(Icons.sort, color: c.textPrimary),
-                        initialValue: ref.read(wardrobeProvider.notifier).sortBy,
-                        onSelected: (String value) {
-                          ref.read(wardrobeProvider.notifier).setSortBy(value);
-                        },
-                        itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-                          const PopupMenuItem<String>(
-                            value: 'newest',
-                            child: Text('Newest First'),
-                          ),
-                          const PopupMenuItem<String>(
-                            value: 'oldest',
-                            child: Text('Oldest First'),
-                          ),
-                        ],
+                      _SortButton(
+                        current: ref.read(wardrobeProvider.notifier).sortBy,
+                        onSelected: (String value) =>
+                            ref.read(wardrobeProvider.notifier).setSortBy(value),
                       ),
                   ],
                 ),
@@ -198,7 +186,148 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen>
   }
 }
 
-// ─── Tabs ───────────────────────────────────────────────────────────────────
+// ─── Sort button ─────────────────────────────────────────────────────────────
+
+class _SortButton extends StatelessWidget {
+  const _SortButton({required this.current, required this.onSelected});
+
+  final String current;
+  final ValueChanged<String> onSelected;
+
+  static const List<_SortOption> _options = <_SortOption>[
+    _SortOption(value: 'newest', label: 'Newest First', icon: Icons.arrow_downward_rounded),
+    _SortOption(value: 'oldest', label: 'Oldest First', icon: Icons.arrow_upward_rounded),
+  ];
+
+  Future<void> _show(BuildContext context) async {
+    final AppColors c = context.colors;
+    final TextTheme text = Theme.of(context).textTheme;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        decoration: BoxDecoration(
+          color: c.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.sheetTop)),
+        ),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.xl, AppSpacing.md, AppSpacing.xl, AppSpacing.xl,
+        ),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: c.border,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              Text('Sort by', style: text.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+              const SizedBox(height: AppSpacing.md),
+              for (final _SortOption opt in _options) ...<Widget>[
+                InkWell(
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    onSelected(opt.value);
+                  },
+                  borderRadius: BorderRadius.circular(AppRadius.card),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.lg, vertical: AppSpacing.md,
+                    ),
+                    decoration: BoxDecoration(
+                      color: current == opt.value
+                          ? c.primary.withValues(alpha: 0.1)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(AppRadius.card),
+                      border: Border.all(
+                        color: current == opt.value ? c.primary : c.border,
+                        width: current == opt.value ? 1.5 : 1,
+                      ),
+                    ),
+                    child: Row(
+                      children: <Widget>[
+                        Icon(opt.icon,
+                            size: 20,
+                            color: current == opt.value ? c.primary : c.textSecondary),
+                        const SizedBox(width: AppSpacing.md),
+                        Expanded(
+                          child: Text(
+                            opt.label,
+                            style: text.bodyMedium?.copyWith(
+                              fontWeight: current == opt.value
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
+                              color: current == opt.value ? c.primary : c.textPrimary,
+                            ),
+                          ),
+                        ),
+                        if (current == opt.value)
+                          Icon(Icons.check_circle_rounded, size: 18, color: c.primary),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final AppColors c = context.colors;
+    return GestureDetector(
+      onTap: () => _show(context),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 7),
+        decoration: BoxDecoration(
+          color: c.surface,
+          borderRadius: BorderRadius.circular(AppRadius.chip),
+          border: Border.all(color: c.border),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Icon(Icons.sort_rounded, size: 16, color: c.primary),
+            const SizedBox(width: 4),
+            Text(
+              current == 'newest' ? 'Newest' : 'Oldest',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: c.primary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SortOption {
+  const _SortOption({required this.value, required this.label, required this.icon});
+  final String value;
+  final String label;
+  final IconData icon;
+}
+
+// ─── Tabs ─────────────────────────────────────────────────────────────────────
+
 
 class _ClothingTab extends ConsumerStatefulWidget {
   const _ClothingTab({required this.filter});

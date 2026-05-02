@@ -159,7 +159,8 @@ class _StyleMeSheetState extends ConsumerState<StyleMeSheet> {
                 const SizedBox(height: AppSpacing.xl),
                 Row(
                   children: <Widget>[
-                    Image.asset('assets/icons/05_icon_magic_wand.png', width: 28, height: 28, color: c.primary),
+                    Image.asset('assets/icons/05_icon_magic_wand.png',
+                        width: 30, height: 30, color: c.primary),
                     const SizedBox(width: AppSpacing.sm),
                     Text('Style Me', style: text.headlineSmall),
                   ],
