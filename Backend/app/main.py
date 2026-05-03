@@ -18,7 +18,10 @@ logging.basicConfig(
     format="%(asctime)s [%(request_id)s] %(levelname)s %(name)s: %(message)s",
 )
 _root = logging.getLogger()
-_root.addFilter(RequestIdFilter())
+_filter = RequestIdFilter()
+_root.addFilter(_filter)
+for _handler in _root.handlers:
+    _handler.addFilter(_filter)
 logger = logging.getLogger(__name__)
 
 
