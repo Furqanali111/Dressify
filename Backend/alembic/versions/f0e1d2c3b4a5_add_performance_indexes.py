@@ -13,14 +13,14 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.create_index('ix_clothing_items_user_id',   'clothing_items',       ['user_id'])
-    op.create_index('ix_clothing_items_created_at', 'clothing_items',      ['created_at'])
-    op.create_index('ix_outfits_user_id',           'outfits',             ['user_id'])
-    op.create_index('ix_wear_logs_user_id',         'wear_logs',           ['user_id'])
-    op.create_index('ix_wear_logs_logged_at',       'wear_logs',           ['logged_at'])
-    op.create_index('ix_notifications_user_id',     'notifications',       ['user_id'])
-    op.create_index('ix_notifications_created_at',  'notifications',       ['created_at'])
-    op.create_index('ix_upload_retry_queue_next_retry_at', 'upload_retry_queue', ['next_retry_at'])
+    op.create_index('ix_clothing_items_user_id',   'clothing_items',       ['user_id'],   if_not_exists=True)
+    op.create_index('ix_clothing_items_created_at', 'clothing_items',      ['created_at'], if_not_exists=True)
+    op.create_index('ix_outfits_user_id',           'outfits',             ['user_id'],   if_not_exists=True)
+    op.create_index('ix_wear_logs_user_id',         'wear_logs',           ['user_id'],   if_not_exists=True)
+    op.create_index('ix_wear_logs_logged_at',       'wear_logs',           ['logged_at'], if_not_exists=True)
+    op.create_index('ix_notifications_user_id',     'notifications',       ['user_id'],   if_not_exists=True)
+    op.create_index('ix_notifications_created_at',  'notifications',       ['created_at'], if_not_exists=True)
+    op.create_index('ix_upload_retry_queue_next_retry_at', 'upload_retry_queue', ['next_retry_at'], if_not_exists=True)
 
 
 def downgrade() -> None:

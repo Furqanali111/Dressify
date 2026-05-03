@@ -80,7 +80,7 @@ Dressify is an AI-powered personal stylist and virtual wardrobe application. It 
 
    **Terminal 2 — The ARQ Worker**
    ```bash
-   arq app.worker.WorkerSettings
+   python -m arq app.worker.WorkerSettings
    ```
 
 ### Frontend
