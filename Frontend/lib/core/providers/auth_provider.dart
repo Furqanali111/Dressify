@@ -18,7 +18,9 @@ import 'wardrobe_provider.dart';
 class AuthStateNotifier extends StateNotifier<User?> {
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
   final Ref _ref;
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    serverClientId: AppFlags.googleWebClientId,
+  );
 
   AuthStateNotifier(this._ref) : super(null);
 

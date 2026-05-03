@@ -26,6 +26,11 @@ class AppFlags {
   /// Sentry DSN. Empty string means crash reporting is disabled.
   static String get sentryDsn => _string('SENTRY_DSN', defaultValue: '');
 
+  /// Google OAuth Web Client ID — required for Google Sign-In ID token
+  /// to be verifiable by Supabase on the backend.
+  static String get googleWebClientId =>
+      _string('GOOGLE_WEB_CLIENT_ID', defaultValue: '');
+
   // ---- helpers ------------------------------------------------------------
 
   static String _string(String key, {required String defaultValue}) {
@@ -60,6 +65,9 @@ class AppFlags {
         return v.isEmpty ? null : v;
       case 'SENTRY_DSN':
         const String v = String.fromEnvironment('SENTRY_DSN');
+        return v.isEmpty ? null : v;
+      case 'GOOGLE_WEB_CLIENT_ID':
+        const String v = String.fromEnvironment('GOOGLE_WEB_CLIENT_ID');
         return v.isEmpty ? null : v;
     }
     return null;
