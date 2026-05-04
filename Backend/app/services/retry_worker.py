@@ -200,15 +200,21 @@ async def _do_retry(entry: UploadRetryQueue) -> None:
             item_id = entry.clothing_item_id if is_placeholder_slot else uuid.uuid4()
             processed_path = f"{entry.user_id}/{item_id}.png"
 
-            # 4a. Extract garment pixels
+            # 4a. Extract + background-remove (PNG with transparency, JPEG fallback)
             try:
-                garment_bytes = extract_garment(raw_bytes, garment["bbox"])
+                garment_bytes = extract_garment(raw_bytes, garment["bbox"], num_garments=garment_count)
             except Exception as e:
                 logger.warning("Retry %s garment %d extraction failed: %s", entry.id, idx, e)
                 continue
 
             # 4b. Upload to processed bucket
-            if not upload_file(settings.CLOTHING_BUCKET, processed_path, garment_bytes, "image/png"):
+            is_jpeg = garment_bytes[:2] == b'\xff\xd8'
+            if is_jpeg:
+                processed_path = processed_path.replace(".png", ".jpg")
+                content_type = "image/jpeg"
+            else:
+                content_type = "image/png"
+            if not upload_file(settings.CLOTHING_BUCKET, processed_path, garment_bytes, content_type):
                 logger.warning("Retry %s garment %d storage failed", entry.id, idx)
                 continue
 

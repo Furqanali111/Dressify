@@ -41,7 +41,6 @@ class ClothingCard extends ConsumerWidget {
             ? const <WardrobeAction>[WardrobeAction.delete]
             : const <WardrobeAction>[
                 WardrobeAction.seeOnMe,
-                WardrobeAction.tryOn,
                 WardrobeAction.edit,
                 WardrobeAction.delete,
               ],

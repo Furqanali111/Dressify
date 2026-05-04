@@ -3,8 +3,9 @@ import io
 import json
 import logging
 
-from PIL import Image
-from rembg import remove, new_session
+import numpy as np
+from PIL import Image, ImageFilter
+from rembg import new_session, remove
 
 from app.config import settings
 
@@ -26,29 +27,91 @@ _TYPE_ANCHORS: dict[str, dict] = {
 _VALID_TYPES = frozenset({"top", "bottom", "dress", "jacket", "shoes", "accessory", "other"})
 
 _MAX_GARMENTS = 6
-_SEG_MAX_PX = 1024  # resize before u2net to avoid OOM
+_CROP_MAX_PX = 1024  # max dimension for the saved crop
 
-# Lazy-initialised background removal session (reused across requests).
-# isnet-general-use handles real-world photos (coloured backgrounds, flat-lays,
-# hangers, etc.) far better than u2net_cloth_seg, which only works reliably on
-# e-commerce white-background product shots.
-_seg_session = None
+# BiRefNet-general: transformer-based model, state-of-the-art accuracy, correctly
+# handles clothing of any colour including dark garments (unlike isnet-general-use
+# which treats dark clothing as background, and unlike u2net_cloth_seg which
+# produces 3 stacked segmentation masks instead of a standard RGBA output).
+_REMBG_MODEL = "birefnet-general"
+_rembg_session = None
 
 
-def _get_seg_session():
-    global _seg_session
-    if _seg_session is None:
-        _seg_session = new_session("isnet-general-use")
-    return _seg_session
-
+def _get_rembg_session():
+    global _rembg_session
+    if _rembg_session is None:
+        _rembg_session = new_session(_REMBG_MODEL)
+        logger.info("Loaded rembg model: %s", _REMBG_MODEL)
+    return _rembg_session
 
 def _resize_for_seg(img: Image.Image) -> Image.Image:
-    """Downscale to _SEG_MAX_PX on the longest side, preserving aspect ratio."""
+    """Downscale to _CROP_MAX_PX on the longest side, preserving aspect ratio."""
     w, h = img.size
-    if max(w, h) <= _SEG_MAX_PX:
+    if max(w, h) <= _CROP_MAX_PX:
         return img
-    scale = _SEG_MAX_PX / max(w, h)
+    scale = _CROP_MAX_PX / max(w, h)
     return img.resize((int(w * scale), int(h * scale)), Image.Resampling.LANCZOS)
+
+
+def _clean_alpha(result: Image.Image, kernel: int = 41) -> Image.Image:
+    """Morphological opening on the alpha channel: removes isolated noise blobs.
+
+    Erosion (MinFilter) kills pixels whose neighbors are all transparent — this
+    eliminates small artifact blobs left by rembg.  Dilation (MaxFilter) restores
+    the main garment shape which, being a large connected region, survives erosion.
+    """
+    r, g, b, a = result.split()
+    a = a.filter(ImageFilter.MinFilter(size=kernel))  # shrink small blobs to zero
+    a = a.filter(ImageFilter.MaxFilter(size=kernel))  # grow the surviving garment back
+    return Image.merge('RGBA', (r, g, b, a))
+
+
+def _trim_bottom_outliers(result: Image.Image, margin: float = 0.20, threshold: float = 100.0) -> Image.Image:
+    """Remove rows at the BOTTOM of the result whose color strongly differs from
+    the garment body color (e.g. the mat/surface showing at the hem).
+
+    Works by comparing each bottom row's mean opaque-pixel color against a
+    reference sampled from the vertical centre of the image.  Rows with colour
+    distance > threshold (Euclidean in RGB) are stripped, scanning inward until
+    a row that matches the garment colour is found.
+    """
+    arr = np.array(result).astype(np.float32)
+    alpha = arr[:, :, 3]
+    rgb   = arr[:, :, :3]
+    h, w  = alpha.shape
+
+    opaque = alpha > 127
+    if not opaque.any():
+        return result
+
+    # Reference colour from the vertical centre band (avoids edge-noise bias).
+    cy   = h // 2
+    band = max(1, h // 6)
+    centre_mask = opaque[max(0, cy - band): cy + band]
+    centre_rgb  = rgb[max(0, cy - band): cy + band]
+    if not centre_mask.any():
+        return result
+    ref = centre_rgb[centre_mask].mean(axis=0)   # [R, G, B]
+
+    scan   = max(4, int(h * margin))
+    bottom = h   # exclusive end — start assuming no trim needed
+
+    for i in range(h - 1, max(h - scan - 1, 0), -1):
+        row_mask = opaque[i]
+        if not row_mask.any():
+            continue   # transparent row — skip, keep scanning
+        mean_col = rgb[i][row_mask].mean(axis=0)
+        dist     = float(np.sqrt(np.sum((mean_col - ref) ** 2)))
+        if dist > threshold:
+            bottom = i   # outlier row — mark for removal
+        else:
+            break        # first matching row from the bottom — stop
+
+    if bottom < h:
+        logger.debug("_trim_bottom_outliers: removed %d outlier row(s) from bottom", h - bottom)
+        result = result.crop((0, 0, w, bottom))
+
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -148,59 +211,86 @@ async def detect_and_analyze_garments(image_bytes: bytes) -> list[dict]:
 # Step 2 — extract a single garment from the image using its bbox
 # ---------------------------------------------------------------------------
 
-def extract_garment(image_bytes: bytes, bbox: dict, padding: float = 0.05) -> bytes:
-    """
-    Crop the image to the given normalized bbox (with padding), then apply
-    u2net_cloth_seg to remove the non-garment background.
+def extract_garment(image_bytes: bytes, bbox: dict, num_garments: int = 1) -> bytes:
+    """Extract a single garment, remove its background, and return a tight PNG.
 
-    Returns PNG bytes of the clean garment on a transparent background.
+    Strategy differs by photo type:
+    - Single garment (num_garments == 1): run rembg on the FULL image so Ollama's
+      (often inaccurate) bbox doesn't crop off part of the garment. Then auto-crop
+      to the bounding box of opaque pixels, giving a tight, clean PNG.
+    - Multiple garments: use Ollama's bbox + 15% padding to separate items, then
+      apply rembg + auto-crop on that region.
+
+    Falls back to a JPEG crop of the relevant region if rembg fails or produces
+    less than 8% opaque pixels (segmentation failure).
     """
-    img = Image.open(io.BytesIO(image_bytes)).convert("RGBA")
+    img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
     iw, ih = img.size
 
-    x = bbox["x"]
-    y = bbox["y"]
-    w = bbox["w"]
-    h = bbox["h"]
+    if num_garments == 1:
+        # Full image — let rembg find and isolate the garment without bbox bias.
+        region = _resize_for_seg(img)
+    else:
+        # Tight per-item crop to avoid bleeding into adjacent garments.
+        x, y, w, h = bbox["x"], bbox["y"], bbox["w"], bbox["h"]
+        expand = 0.15
+        left   = max(0, int((x - expand) * iw))
+        top    = max(0, int((y - expand) * ih))
+        right  = min(iw, int((x + w + expand) * iw))
+        bottom = min(ih, int((y + h + expand) * ih))
+        region = _resize_for_seg(img.crop((left, top, right, bottom)))
 
-    # Add padding, clamp to image bounds
-    pad_x = padding * iw
-    pad_y = padding * ih
-    left  = max(0, int(x * iw - pad_x))
-    top   = max(0, int(y * ih - pad_y))
-    right = min(iw, int((x + w) * iw + pad_x))
-    bottom = min(ih, int((y + h) * ih + pad_y))
-
-    crop = img.crop((left, top, right, bottom))
-    crop_resized = _resize_for_seg(crop)
-
-    # Keep RGBA crop as fallback (used if rembg returns an empty/transparent result)
-    fallback = io.BytesIO()
-    crop_resized.save(fallback, format="PNG")
-
-    # Convert to RGB for rembg input (RGBA causes issues with some rembg versions)
-    crop_rgb = crop_resized.convert("RGB")
-    crop_input = io.BytesIO()
-    crop_rgb.save(crop_input, format="PNG")
-
-    # Background removal — strips everything behind the garment
     try:
-        session = _get_seg_session()
-        result_bytes = remove(crop_input.getvalue(), session=session)
+        result = remove(region, session=_get_rembg_session())  # RGBA PIL Image
 
-        # Validate: if rembg returned near-empty (fully transparent), fall back to plain crop.
-        # u2net_cloth_seg struggles with real-world photos that have coloured backgrounds.
-        if result_bytes:
-            check = Image.open(io.BytesIO(result_bytes))
-            if check.mode == "RGBA":
-                visible = sum(1 for p in check.getchannel("A").getdata() if p > 10)
-                if visible >= 200:
-                    return result_bytes
-        logger.warning("rembg returned near-empty result; using plain crop as fallback")
+        # Sanity-check: some models (e.g. u2net_cloth_seg) produce stacked
+        # multi-class masks with 3× the input height. Reject those.
+        if result.size != region.size:
+            raise ValueError(
+                f"rembg returned unexpected size {result.size} vs input {region.size}"
+            )
+
+        # 1. Remove isolated artifact blobs via morphological opening.
+        result = _clean_alpha(result, kernel=41)
+
+        # 2. Strip bottom rows whose colour strongly differs from the garment body
+        #    (e.g. the mat or surface visible at the hem after rembg).
+        result = _trim_bottom_outliers(result)
+
+        # 3. Auto-crop to the tight bounding box of remaining opaque pixels.
+        alpha = np.array(result)[:, :, 3]
+        rows = np.any(alpha > 127, axis=1)
+        cols = np.any(alpha > 127, axis=0)
+
+        if rows.any() and cols.any():
+            rmin, rmax = int(np.where(rows)[0][0]),  int(np.where(rows)[0][-1])
+            cmin, cmax = int(np.where(cols)[0][0]),  int(np.where(cols)[0][-1])
+            px = max(4, int(result.width  * 0.02))
+            py = max(4, int(result.height * 0.02))
+            result = result.crop((
+                max(0, cmin - px),
+                max(0, rmin - py),
+                min(result.width,  cmax + px + 1),
+                min(result.height, rmax + py + 1),
+            ))
+
+        opaque_ratio = float((np.array(result)[:, :, 3] > 127).mean())
+        if opaque_ratio >= 0.08:
+            out = io.BytesIO()
+            result.save(out, format="PNG")
+            return out.getvalue()
+
+        logger.warning(
+            "extract_garment: u2net_cloth_seg kept only %.1f%% opaque pixels "
+            "(below 8%% threshold) — falling back to JPEG crop",
+            opaque_ratio * 100,
+        )
     except Exception as exc:
-        logger.warning("rembg failed (%s); using plain crop as fallback", exc)
+        logger.warning("extract_garment: rembg failed (%s) — falling back to JPEG crop", exc)
 
-    return fallback.getvalue()
+    out = io.BytesIO()
+    region.save(out, format="JPEG", quality=88)
+    return out.getvalue()
 
 
 # ---------------------------------------------------------------------------

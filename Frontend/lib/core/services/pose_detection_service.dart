@@ -181,6 +181,9 @@ class PoseDetectionService {
     // ── Shoulder ──────────────────────────────────────────────────────────
     final NormAnchor? shoulder = _mid(ls, rs) ?? ls ?? rs;
     if (shoulder != null) anchors['shoulder'] = shoulder;
+    // Export individual shoulders so the painter can compute actual horizontal width.
+    if (ls != null) anchors['leftShoulder'] = ls;
+    if (rs != null) anchors['rightShoulder'] = rs;
 
     // ── Hip ───────────────────────────────────────────────────────────────
     final NormAnchor? hip = _mid(lh, rh) ?? lh ?? rh;

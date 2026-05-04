@@ -184,28 +184,15 @@ class _TryOnScreenState extends ConsumerState<TryOnScreen> {
   }
 
   static Future<ui.Image> _decodeNetworkImage(String url) async {
+    final Response<List<int>> resp = await Dio().get<List<int>>(
+      url,
+      options: Options(responseType: ResponseType.bytes),
+    ).timeout(const Duration(seconds: 15));
+    final Uint8List bytes = Uint8List.fromList(resp.data ?? <int>[]);
+    if (bytes.isEmpty) throw Exception('Empty image response for $url');
     final Completer<ui.Image> completer = Completer<ui.Image>();
-    final ImageStream stream =
-        NetworkImage(url).resolve(ImageConfiguration.empty);
-    late final ImageStreamListener listener;
-    listener = ImageStreamListener(
-      (ImageInfo info, bool _) {
-        if (!completer.isCompleted) completer.complete(info.image.clone());
-        stream.removeListener(listener);
-      },
-      onError: (Object error, StackTrace? _) {
-        if (!completer.isCompleted) completer.completeError(error);
-        stream.removeListener(listener);
-      },
-    );
-    stream.addListener(listener);
-    return completer.future.timeout(
-      const Duration(seconds: 15),
-      onTimeout: () {
-        stream.removeListener(listener);
-        throw TimeoutException('Image load timed out: $url');
-      },
-    );
+    ui.decodeImageFromList(bytes, completer.complete);
+    return completer.future;
   }
 
   // ---- Actions ---------------------------------------------------------------

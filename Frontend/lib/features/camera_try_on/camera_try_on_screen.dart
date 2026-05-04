@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:camera/camera.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -285,25 +287,15 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
   }
 
   static Future<ui.Image> _decodeNetworkImage(String url) async {
+    final Response<List<int>> resp = await Dio().get<List<int>>(
+      url,
+      options: Options(responseType: ResponseType.bytes),
+    ).timeout(AppConstants.imageLoadTimeout);
+    final Uint8List bytes = Uint8List.fromList(resp.data ?? <int>[]);
+    if (bytes.isEmpty) throw Exception('Empty image response for $url');
     final Completer<ui.Image> completer = Completer<ui.Image>();
-    final ImageStream stream =
-        NetworkImage(url).resolve(ImageConfiguration.empty);
-    late final ImageStreamListener listener;
-    listener = ImageStreamListener(
-      (ImageInfo info, bool _) {
-        completer.complete(info.image.clone());
-        stream.removeListener(listener);
-      },
-      onError: (Object e, StackTrace? _) {
-        completer.completeError(e);
-        stream.removeListener(listener);
-      },
-    );
-    stream.addListener(listener);
-    return completer.future.timeout(
-      AppConstants.imageLoadTimeout,
-      onTimeout: () => throw TimeoutException('Image load timed out: $url'),
-    );
+    ui.decodeImageFromList(bytes, completer.complete);
+    return completer.future;
   }
 
   // ---------------------------------------------------------------------------
@@ -537,6 +529,14 @@ class _CameraOverlayPainter extends CustomPainter {
   }
 
   double _computeShoulderSpan(Map<String, NormAnchor> a, Size size) {
+    // Prefer actual horizontal distance between left and right shoulder tips —
+    // this gives correctly scaled garment width regardless of camera distance.
+    final NormAnchor? ls = a['leftShoulder'];
+    final NormAnchor? rs = a['rightShoulder'];
+    if (ls != null && rs != null) {
+      return (ls.x - rs.x).abs() * size.width;
+    }
+    // Fallback: torso-height proxy when only midpoint is available.
     final NormAnchor? sh = a['shoulder'];
     final NormAnchor? hip = a['hip'];
     if (sh != null && hip != null) {
