@@ -16,6 +16,7 @@ from app.security import supabase, create_access_token
 from app.deps import get_current_user
 from app.config import settings
 from app.core.limiter import limiter
+from app.routers.users import user_to_response
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +40,7 @@ async def google_auth(request: Request, body: GoogleAuthRequest, db: AsyncSessio
         try:
             auth_response = supabase.auth.sign_in_with_id_token({
                 "provider": "google",
-                "id_token": body.id_token,
+                "token": body.id_token,
             })
         except AuthApiError as e:
             logger.warning(f"Supabase auth rejected token: {e}")
@@ -88,7 +89,7 @@ async def google_auth(request: Request, body: GoogleAuthRequest, db: AsyncSessio
     jwt_token = create_access_token(str(user.id))
     return AuthResponse(
         jwt=jwt_token,
-        user=UserResponse.model_validate(user),
+        user=user_to_response(user),
         has_profile=has_profile,
     )
 
@@ -99,7 +100,7 @@ async def get_me(current_user: User = Depends(get_current_user), db: AsyncSessio
     profile = profile_result.scalar_one_or_none()
 
     return {
-        "user": UserResponse.model_validate(current_user),
+        "user": user_to_response(current_user),
         "profile": ProfileResponse.model_validate(profile) if profile else None,
         "avatar_kind": profile.avatar_kind if profile else None,
     }

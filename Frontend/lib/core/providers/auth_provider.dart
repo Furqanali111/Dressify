@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -33,6 +35,10 @@ class AuthStateNotifier extends StateNotifier<User?> {
       final Response<dynamic> response = await dio.get<dynamic>('me');
       final Map<String, dynamic> data = response.data as Map<String, dynamic>;
       state = User.fromJson(data['user'] as Map<String, dynamic>);
+      final profileJson = data['profile'] as Map<String, dynamic>?;
+      if (profileJson != null) {
+        _ref.read(profileProvider.notifier).setProfileData(profileJson);
+      }
       return true;
     } on DioException catch (e) {
       // 401 = JWT invalid/expired — clear it
@@ -83,6 +89,20 @@ class AuthStateNotifier extends StateNotifier<User?> {
       debugPrint('Google sign in error: $e');
       rethrow;
     }
+  }
+
+  Future<void> uploadAvatar(File imageFile) async {
+    final dio = _ref.read(apiClientProvider);
+    final form = FormData.fromMap(<String, dynamic>{
+      'image': await MultipartFile.fromFile(imageFile.path),
+    });
+    final response = await dio.post<Map<String, dynamic>>(
+      'users/me/avatar',
+      data: form,
+      options: Options(contentType: 'multipart/form-data'),
+    );
+    final data = response.data;
+    if (data != null) state = User.fromJson(data);
   }
 
   void clearSession() => state = null;

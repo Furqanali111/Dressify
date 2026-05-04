@@ -22,4 +22,3 @@ class ClothingItem(Base):
     fit_notes = Column(Text, nullable=True)
     processing_status = Column(String, default="pending")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    deleted_at = Column(DateTime(timezone=True), nullable=True, default=None)

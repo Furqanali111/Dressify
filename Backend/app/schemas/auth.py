@@ -11,6 +11,7 @@ class UserResponse(BaseModel):
     email: str
     display_name: Optional[str] = None
     avatar_url: Optional[str] = None
+    profile_url: Optional[str] = None
     created_at: datetime
     
     model_config = ConfigDict(from_attributes=True)

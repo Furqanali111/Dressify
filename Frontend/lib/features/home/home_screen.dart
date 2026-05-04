@@ -10,6 +10,7 @@ import '../../core/router/app_routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/widgets/primary_button.dart';
+import '../../core/widgets/user_avatar.dart';
 import '../wardrobe/style_me_sheet.dart';
 import 'notifications_sheet.dart';
 
@@ -149,15 +150,7 @@ class _TopBar extends ConsumerWidget {
         const SizedBox(width: AppSpacing.xs),
         GestureDetector(
           onTap: () => context.goNamed(AppRoute.profile.name),
-          child: Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: c.primary.withValues(alpha: 0.18),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(Icons.person, color: c.primary, size: 22),
-          ),
+          child: const UserAvatar(size: 40),
         ),
       ],
     );

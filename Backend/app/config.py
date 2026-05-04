@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     # Supabase Settings
     SUPABASE_URL: str
     SUPABASE_KEY: str
+    SUPABASE_SERVICE_KEY: str
     DATABASE_URL: str
 
     # Auth Settings
@@ -36,7 +37,7 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str | None = None
     OPENAI_API_MODEL: str = "gpt-4o-mini"
     OLLAMA_BASE_URL: str = "http://localhost:11434/v1"
-    OLLAMA_VISION_MODEL: str = "llama3.2-vision:90b"
+    OLLAMA_VISION_MODEL: str = "llama3.2-vision:11b"
     OLLAMA_TEXT_MODEL: str = "llama3.2:latest"
 
     # Redis (rate-limit backend)

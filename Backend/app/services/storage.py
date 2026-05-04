@@ -1,15 +1,15 @@
-from app.security import supabase
+from app.security import supabase_admin as supabase
 import logging
 
 logger = logging.getLogger(__name__)
 
 
-def upload_file(bucket_name: str, file_path: str, file_bytes: bytes, content_type: str = "image/jpeg") -> bool:
+def upload_file(bucket_name: str, file_path: str, file_bytes: bytes, content_type: str = "image/jpeg", upsert: bool = False) -> bool:
     try:
         supabase.storage.from_(bucket_name).upload(
             file_path,
             file_bytes,
-            file_options={"content-type": content_type},
+            file_options={"content-type": content_type, "upsert": str(upsert).lower()},
         )
         return True
     except Exception as e:

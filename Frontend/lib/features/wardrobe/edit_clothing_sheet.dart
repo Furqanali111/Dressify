@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/enums/app_enums.dart';
 import '../../core/models/clothing_item.dart';
 import '../../core/providers/wardrobe_provider.dart';
 import '../../core/theme/app_colors.dart';
@@ -24,6 +25,7 @@ class _EditClothingSheetState extends ConsumerState<EditClothingSheet> {
   late final TextEditingController _nameCtrl;
   late final TextEditingController _colorCtrl;
   String? _selectedSize;
+  ClothingType? _selectedType;
   bool _saving = false;
 
   @override
@@ -33,6 +35,9 @@ class _EditClothingSheetState extends ConsumerState<EditClothingSheet> {
     _colorCtrl = TextEditingController(text: widget.item.color ?? '');
     final String? sl = widget.item.sizeLabel;
     _selectedSize = (sl != null && _sizeOptions.contains(sl)) ? sl : null;
+    _selectedType = ClothingType.values.where(
+      (t) => t.apiValue == widget.item.type,
+    ).firstOrNull;
   }
 
   @override
@@ -53,6 +58,7 @@ class _EditClothingSheetState extends ConsumerState<EditClothingSheet> {
           'name': name,
           if (_colorCtrl.text.trim().isNotEmpty) 'color': _colorCtrl.text.trim(),
           if (_selectedSize != null) 'size_label': _selectedSize,
+          if (_selectedType != null) 'type': _selectedType!.apiValue,
         },
       );
       if (!mounted) return;
@@ -119,6 +125,16 @@ class _EditClothingSheetState extends ConsumerState<EditClothingSheet> {
                 ),
                 textCapitalization: TextCapitalization.words,
                 maxLength: 50,
+              ),
+              const SizedBox(height: AppSpacing.md),
+              DropdownButtonFormField<ClothingType>(
+                initialValue: _selectedType,
+                decoration: const InputDecoration(labelText: 'Type'),
+                hint: const Text('Select type'),
+                items: ClothingType.values
+                    .map((t) => DropdownMenuItem(value: t, child: Text(t.label)))
+                    .toList(),
+                onChanged: (v) => setState(() => _selectedType = v),
               ),
               const SizedBox(height: AppSpacing.md),
               DropdownButtonFormField<String>(

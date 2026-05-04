@@ -38,6 +38,10 @@ class ProfileStateNotifier extends StateNotifier<AsyncValue<Profile?>> {
     }
   }
 
+  void setProfileData(Map<String, dynamic> json) {
+    state = AsyncValue.data(Profile.fromJson(json));
+  }
+
   void clearProfile() {
     state = const AsyncValue.data(null);
   }

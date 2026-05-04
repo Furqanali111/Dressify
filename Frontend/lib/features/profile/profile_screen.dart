@@ -1,7 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../core/models/profile.dart';
 import '../../core/models/style_profile.dart';
@@ -15,6 +18,7 @@ import '../../core/router/app_routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/widgets/app_toast.dart';
+import '../../core/widgets/user_avatar.dart';
 import 'measurements_sheet.dart';
 import 'style_dna_sheet.dart';
 
@@ -329,13 +333,90 @@ class ProfileScreen extends ConsumerWidget {
 // Profile header — shows real user name from authStateProvider
 // ---------------------------------------------------------------------------
 
-class _ProfileHeader extends ConsumerWidget {
+class _ProfileHeader extends ConsumerStatefulWidget {
   const _ProfileHeader({required this.onSignOut});
 
   final VoidCallback onSignOut;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_ProfileHeader> createState() => _ProfileHeaderState();
+}
+
+class _ProfileHeaderState extends ConsumerState<_ProfileHeader> {
+  bool _uploading = false;
+
+  Future<void> _pickAndUpload() async {
+    final XFile? picked = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+    );
+    if (picked == null || !mounted) return;
+    setState(() => _uploading = true);
+    try {
+      await ref.read(authStateProvider.notifier).uploadAvatar(File(picked.path));
+      if (mounted) AppToast.success(context, 'Profile photo updated');
+    } catch (_) {
+      if (mounted) AppToast.error(context, 'Failed to update photo');
+    } finally {
+      if (mounted) setState(() => _uploading = false);
+    }
+  }
+
+  void _showEditSheet(BuildContext context) {
+    final AppColors c = context.colors;
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: BoxDecoration(
+          color: c.surface,
+          borderRadius: const BorderRadius.vertical(
+            top: Radius.circular(AppRadius.sheetTop),
+          ),
+        ),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.xl, AppSpacing.md, AppSpacing.xl, AppSpacing.xxxxl,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: c.border,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            ListTile(
+              leading: Icon(Icons.photo_library_outlined, color: c.primary),
+              title: const Text('Set profile photo'),
+              subtitle: const Text('Choose a photo from your gallery'),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                _pickAndUpload();
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.person_outline, color: c.primary),
+              title: const Text('Change avatar'),
+              subtitle: const Text('Pick a body-shape avatar'),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                context.pushNamed(AppRoute.avatarSelection.name);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final AppColors c = context.colors;
     final TextTheme text = Theme.of(context).textTheme;
     final user = ref.watch(authStateProvider);
@@ -347,18 +428,23 @@ class _ProfileHeader extends ConsumerWidget {
     return Row(
       children: <Widget>[
         GestureDetector(
-          onTap: () => context.pushNamed(AppRoute.avatarSelection.name),
+          onTap: _uploading ? null : () => _showEditSheet(context),
           child: Stack(
             children: <Widget>[
-              Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  color: c.primary.withValues(alpha: 0.18),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(Icons.person, color: c.primary, size: 40),
-              ),
+              if (_uploading)
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: c.primary.withValues(alpha: 0.18),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: CircularProgressIndicator(strokeWidth: 2, color: c.primary),
+                  ),
+                )
+              else
+                const UserAvatar(size: 80),
               Positioned(
                 bottom: 0,
                 right: 0,
@@ -508,6 +594,8 @@ class _StatPill extends StatelessWidget {
         children: <Widget>[
           Text(
             label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(
               fontSize: 11,
               color: c.textSecondary,
@@ -601,16 +689,19 @@ class _MeasurementsCard extends ConsumerWidget {
             style: text.bodySmall?.copyWith(color: c.textSecondary),
           ),
           const SizedBox(height: AppSpacing.md),
-          Row(
-            children: <Widget>[
-              Expanded(child: _StatPill(label: 'Chest',    value: fmtCm(profile?.chestCm))),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(child: _StatPill(label: 'Waist',    value: fmtCm(profile?.waistCm))),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(child: _StatPill(label: 'Hip',      value: fmtCm(profile?.hipCm))),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(child: _StatPill(label: 'Shoulder', value: fmtCm(profile?.shoulderCm))),
-            ],
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                Expanded(child: _StatPill(label: 'Chest',    value: fmtCm(profile?.chestCm))),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(child: _StatPill(label: 'Waist',    value: fmtCm(profile?.waistCm))),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(child: _StatPill(label: 'Hip',      value: fmtCm(profile?.hipCm))),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(child: _StatPill(label: 'Shoulder', value: fmtCm(profile?.shoulderCm))),
+              ],
+            ),
           ),
           if (profile?.isFitPersonalized == true) ...<Widget>[
             const SizedBox(height: AppSpacing.sm),

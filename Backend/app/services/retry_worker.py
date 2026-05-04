@@ -31,9 +31,9 @@ from app.db import AsyncSessionLocal
 from app.models.clothing_item import ClothingItem
 from app.models.upload_retry_queue import UploadRetryQueue
 from app.services.image_processing import (
-    detect_garments_in_image,
+    detect_and_analyze_garments,
     extract_garment,
-    detect_type_and_anchors,
+    _TYPE_ANCHORS,
 )
 from app.services.storage import download_file, upload_file, delete_file
 
@@ -170,10 +170,9 @@ async def _do_retry(entry: UploadRetryQueue) -> None:
     if not raw_bytes:
         raise RuntimeError("Could not download raw image from temp storage")
 
-    # 2. Re-run garment detection (raises on model/network error).
-    garments = await detect_garments_in_image(raw_bytes)
+    # 2. Single Ollama call: detect garments + full metadata in one shot.
+    garments = await detect_and_analyze_garments(raw_bytes)
     if not garments:
-        # Model ran cleanly but found nothing — permanent failure, no point retrying.
         raise RuntimeError("Detection found no garments in the image")
 
     # 3. Check whether the placeholder still exists (user may have deleted it).
@@ -213,24 +212,25 @@ async def _do_retry(entry: UploadRetryQueue) -> None:
                 logger.warning("Retry %s garment %d storage failed", entry.id, idx)
                 continue
 
-            # 4c. Classify type + anchor points
-            try:
-                detected_type, anchors, confidence = await detect_type_and_anchors(garment_bytes)
-            except Exception:
-                detected_type, anchors, confidence = "other", {}, 0.5
-
-            label = garment.get("label", "clothing").strip().title()
+            # 4c. All metadata already in the garment dict from the single Ollama call.
+            detected_type = garment.get("type", "other")
+            anchors = _TYPE_ANCHORS.get(detected_type, _TYPE_ANCHORS["other"])
+            confidence = 0.85 if detected_type != "other" else 0.50
+            label = garment.get("label", "clothing")
 
             if is_placeholder_slot:
-                # Update the existing placeholder with real data
                 placeholder.name = entry.original_name or label
                 placeholder.type = detected_type
                 placeholder.processed_image_path = processed_path
                 placeholder.detection_confidence = confidence
                 placeholder.anchor_points = anchors
-                placeholder.processing_status = "processing"  # metadata still pending
+                placeholder.color = garment.get("color")
+                placeholder.pattern = garment.get("pattern")
+                placeholder.style = garment.get("style")
+                placeholder.sub_type = garment.get("sub_type")
+                placeholder.size_label = garment.get("size_label", "Unknown")
+                placeholder.processing_status = "completed"
             else:
-                # Additional garments get brand-new ClothingItem rows
                 base = entry.original_name or label
                 item_name = f"{base} ({idx + 1}/{garment_count})" if garment_count > 1 else base
                 new_item = ClothingItem(
@@ -241,23 +241,15 @@ async def _do_retry(entry: UploadRetryQueue) -> None:
                     processed_image_path=processed_path,
                     detection_confidence=confidence,
                     anchor_points=anchors,
-                    processing_status="processing",
+                    color=garment.get("color"),
+                    pattern=garment.get("pattern"),
+                    style=garment.get("style"),
+                    sub_type=garment.get("sub_type"),
+                    size_label=garment.get("size_label", "Unknown"),
+                    processing_status="completed",
                 )
                 db.add(new_item)
 
-            # 4d. Enqueue metadata extraction as a persistent ARQ job.
-            # The job survives process restarts because it's stored in Redis.
-            if _arq_pool is not None:
-                await _arq_pool.enqueue_job(
-                    "extract_metadata_job",
-                    str(item_id),
-                    settings.CLOTHING_BUCKET,
-                    processed_path,
-                )
-            else:
-                logger.warning(
-                    "ARQ pool unavailable — metadata extraction skipped for item %s", item_id
-                )
             processed_any = True
 
         if not processed_any:
@@ -275,6 +267,19 @@ async def _do_retry(entry: UploadRetryQueue) -> None:
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+async def _process_entry_by_id(entry_id: uuid.UUID) -> None:
+    """Called directly by the ARQ process_upload_job to handle a fresh upload."""
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(
+            select(UploadRetryQueue).where(UploadRetryQueue.id == entry_id)
+        )
+        entry = result.scalar_one_or_none()
+    if entry is None:
+        logger.warning("process_entry_by_id: entry %s not found", entry_id)
+        return
+    await _process_entry(entry)
+
 
 async def _mark_succeeded(entry: UploadRetryQueue) -> None:
     async with AsyncSessionLocal() as db:

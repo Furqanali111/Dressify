@@ -2,7 +2,8 @@ import asyncio
 import logging
 import uuid
 
-from fastapi import APIRouter, Depends, Request, status, HTTPException
+from fastapi import APIRouter, Depends, File, Request, status, HTTPException, UploadFile
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -20,10 +21,24 @@ from app.schemas.style_preference import (
     InteractionResponse,
 )
 from app.core.limiter import limiter
+from app.schemas.auth import UserResponse
+
+_PROFILE_URL_TTL = 7 * 24 * 3600  # 7 days — long enough to survive a normal session
+
+
+def user_to_response(user: "User") -> UserResponse:
+    """Build UserResponse, replacing the stored storage path with a fresh signed URL."""
+    resp = UserResponse.model_validate(user)
+    if user.profile_url:
+        signed = storage.get_signed_url(_AVATAR_BUCKET, user.profile_url, expires_in=_PROFILE_URL_TTL)
+        resp.profile_url = signed
+    return resp
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Users"])
+
+_AVATAR_BUCKET = "profile-avatars"
 
 
 def _pref_to_response(pref: UserStylePreference) -> StyleProfileResponse:
@@ -99,6 +114,37 @@ async def log_interaction(
     await db.commit()
     await db.refresh(interaction)
     return interaction
+
+
+@router.post("/users/me/avatar", response_model=UserResponse)
+@limiter.limit("10/minute")
+async def upload_avatar(
+    request: Request,
+    image: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    if not image.content_type or not image.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="File must be an image")
+
+    image_bytes = await image.read()
+    if len(image_bytes) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Image must be < 5 MB")
+
+    path = f"{current_user.id}/avatar.jpg"
+    if not storage.upload_file(_AVATAR_BUCKET, path, image_bytes, image.content_type, upsert=True):
+        raise HTTPException(status_code=500, detail="Failed to upload avatar")
+
+    try:
+        current_user.profile_url = path  # store the path, not the URL
+        await db.commit()
+        await db.refresh(current_user)
+    except SQLAlchemyError as e:
+        await db.rollback()
+        logger.error("Failed to save profile_url: %s", e)
+        raise HTTPException(status_code=500, detail="Failed to update profile")
+
+    return user_to_response(current_user)
 
 
 @router.delete("/users/me", status_code=status.HTTP_204_NO_CONTENT)

@@ -7,6 +7,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 supabase: Client = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
+supabase_admin: Client = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY)
 
 def create_access_token(user_id: str) -> str:
     expire = datetime.now(timezone.utc) + timedelta(hours=settings.JWT_TTL_HOURS)

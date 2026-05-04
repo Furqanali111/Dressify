@@ -49,8 +49,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     if (!mounted) return;
 
     if (loggedIn) {
-      // Eagerly fetch profile so it's ready in global state
-      await ref.read(profileProvider.notifier).fetchProfile();
+      // /me already populates profileProvider via setProfileData; only fetch
+      // if that didn't happen (e.g. profile was null in the /me response).
+      if (ref.read(profileProvider).valueOrNull == null) {
+        await ref.read(profileProvider.notifier).fetchProfile();
+      }
       if (!mounted) return;
       // Request permissions before navigating so context is still valid
       await AppPermissions.requestStartupPermissions(context);

@@ -86,13 +86,10 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
     try {
       final Dio dio = ref.read(apiClientProvider);
       final String fileName = _picked!.name;
-      final String itemName = fileName.contains('.')
-          ? fileName.substring(0, fileName.lastIndexOf('.'))
-          : fileName;
 
       final FormData form = FormData.fromMap(<String, dynamic>{
         'image': await MultipartFile.fromFile(_picked!.path, filename: fileName),
-        'name': itemName,
+        'name': '',  // let the backend use the AI-detected garment label
       });
 
       final Response<dynamic> response = await dio.post<dynamic>(
@@ -209,8 +206,6 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
                 stage: _stage,
                 detectedType: _detectedType,
                 uploadedItems: _uploadedItems,
-                onTypeChanged: (ClothingType t) =>
-                    setState(() => _detectedType = t),
                 onProcess: _startProcessing,
                 onChangeImage: _reset,
                 onTryOn: () =>
@@ -530,7 +525,6 @@ class _Bottom extends StatelessWidget {
     required this.stage,
     required this.detectedType,
     required this.uploadedItems,
-    required this.onTypeChanged,
     required this.onProcess,
     required this.onChangeImage,
     required this.onTryOn,
@@ -541,7 +535,6 @@ class _Bottom extends StatelessWidget {
   final _UploadStage stage;
   final ClothingType detectedType;
   final List<ClothingItem> uploadedItems;
-  final ValueChanged<ClothingType> onTypeChanged;
   final VoidCallback onProcess;
   final VoidCallback onChangeImage;
   final VoidCallback onTryOn;
@@ -551,7 +544,6 @@ class _Bottom extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final AppColors c = context.colors;
-    final TextTheme text = Theme.of(context).textTheme;
 
     if (stage == _UploadStage.idle || stage == _UploadStage.error) {
       return const SizedBox.shrink();
@@ -600,34 +592,14 @@ class _Bottom extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        Row(
-          children: <Widget>[
-            _TypeChip(type: detectedType, color: c.success),
-            const SizedBox(width: AppSpacing.md),
-            DropdownButton<ClothingType>(
-              value: detectedType,
-              underline: const SizedBox.shrink(),
-              style: text.bodyMedium,
-              onChanged: stage == _UploadStage.processing
-                  ? null
-                  : (ClothingType? t) {
-                      if (t != null) onTypeChanged(t);
-                    },
-              items: ClothingType.values
-                  .map((ClothingType t) => DropdownMenuItem<ClothingType>(
-                        value: t,
-                        child: Text(t.label),
-                      ))
-                  .toList(),
+        if (stage != _UploadStage.processing)
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: onChangeImage,
+              child: const Text('Change image'),
             ),
-            const Spacer(),
-            if (stage != _UploadStage.processing)
-              TextButton(
-                onPressed: onChangeImage,
-                child: const Text('Change image'),
-              ),
-          ],
-        ),
+          ),
         const SizedBox(height: AppSpacing.md),
         PrimaryButton(
           label: stage == _UploadStage.processing

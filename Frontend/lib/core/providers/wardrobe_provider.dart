@@ -127,18 +127,8 @@ class WardrobeNotifier extends StateNotifier<AsyncValue<List<ClothingItem>>> {
       }
     }
 
-    // Any items still pending after max attempts are marked failed in state
-    if (pending.isNotEmpty) {
-      final List<ClothingItem> current = state.value ?? <ClothingItem>[];
-      state = AsyncValue<List<ClothingItem>>.data(
-        current.map((ClothingItem it) {
-          if (pending.contains(it.id)) {
-            return it.copyWith(processingStatus: 'failed');
-          }
-          return it;
-        }).toList(),
-      );
-    }
+    // Items still polling after max attempts remain as "processing" — the
+    // backend retry worker will finish them; user can pull-to-refresh.
   }
 
   /// Backend may return `{ items: [...] }` (with cursor) or `[...]` directly.

@@ -91,7 +91,6 @@ async def get_wardrobe_analytics(
             ClothingItem.processing_status,
         ).where(
             ClothingItem.user_id == current_user.id,
-            ClothingItem.deleted_at.is_(None),
         )
     )).all()
 

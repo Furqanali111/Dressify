@@ -132,7 +132,7 @@ class ClothingCard extends ConsumerWidget {
       color: c.surface,
       borderRadius: radius,
       child: InkWell(
-        onTap: (isProcessing || isFailed) ? null : () => context.pushNamed(AppRoute.tryOn.name),
+        onTap: (isProcessing || isFailed) ? null : () => _showContextMenu(context, ref),
         onLongPress: isProcessing ? null : () => _showContextMenu(context, ref),
         borderRadius: radius,
         child: DecoratedBox(

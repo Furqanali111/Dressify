@@ -3,6 +3,7 @@ class User {
   final String email;
   final String? displayName;
   final String? avatarUrl;
+  final String? profileUrl;
   final DateTime createdAt;
 
   const User({
@@ -10,6 +11,7 @@ class User {
     required this.email,
     this.displayName,
     this.avatarUrl,
+    this.profileUrl,
     required this.createdAt,
   });
 
@@ -19,6 +21,7 @@ class User {
       email: json['email'] as String,
       displayName: json['display_name'] as String?,
       avatarUrl: json['avatar_url'] as String?,
+      profileUrl: json['profile_url'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
     );
   }
@@ -28,6 +31,7 @@ class User {
         'email': email,
         'display_name': displayName,
         'avatar_url': avatarUrl,
+        'profile_url': profileUrl,
         'created_at': createdAt.toIso8601String(),
       };
 }

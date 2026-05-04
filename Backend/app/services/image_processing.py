@@ -28,15 +28,18 @@ _VALID_TYPES = frozenset({"top", "bottom", "dress", "jacket", "shoes", "accessor
 _MAX_GARMENTS = 6
 _SEG_MAX_PX = 1024  # resize before u2net to avoid OOM
 
-# Lazy-initialised cloth segmentation session (reused across requests).
-_cloth_seg_session = None
+# Lazy-initialised background removal session (reused across requests).
+# isnet-general-use handles real-world photos (coloured backgrounds, flat-lays,
+# hangers, etc.) far better than u2net_cloth_seg, which only works reliably on
+# e-commerce white-background product shots.
+_seg_session = None
 
 
-def _get_cloth_seg_session():
-    global _cloth_seg_session
-    if _cloth_seg_session is None:
-        _cloth_seg_session = new_session("u2net_cloth_seg")
-    return _cloth_seg_session
+def _get_seg_session():
+    global _seg_session
+    if _seg_session is None:
+        _seg_session = new_session("isnet-general-use")
+    return _seg_session
 
 
 def _resize_for_seg(img: Image.Image) -> Image.Image:
@@ -52,59 +55,62 @@ def _resize_for_seg(img: Image.Image) -> Image.Image:
 # Step 1 — detect all garments in an image using Llama 3.2-vision
 # ---------------------------------------------------------------------------
 
-async def detect_garments_in_image(image_bytes: bytes) -> list[dict]:
-    """
-    Ask Llama 3.2-vision to locate every clothing item in the image.
+async def detect_and_analyze_garments(image_bytes: bytes) -> list[dict]:
+    """Single Ollama call: detect every garment in the photo AND return full metadata.
 
-    Returns a list of dicts:
-        [{"label": "shirt", "bbox": {"x": 0.10, "y": 0.05, "w": 0.35, "h": 0.40}}, ...]
+    One call replaces the old detect_garments_in_image + analyze_garment_complete pair,
+    cutting total Ollama calls per upload from 2 down to 1.
 
-    Coordinates are normalized (0.0–1.0), origin top-left.
-
-    Returns an EMPTY LIST when the model runs successfully but finds no clothing —
-    the caller should treat this as an immediate 422 (user uploaded a non-clothing image).
-
-    RAISES on any model / network / parse error — the caller must handle these by
-    queueing the upload for retry rather than silently falling back to full-image mode.
+    Returns a list of dicts (one per garment):
+        label, bbox, type, color, pattern, style, sub_type, size_label
     """
     from openai import AsyncOpenAI
 
     b64 = base64.b64encode(image_bytes).decode("utf-8")
 
-    client = AsyncOpenAI(base_url=settings.OLLAMA_BASE_URL, api_key="ollama")
+    if settings.OPENAI_API_KEY:
+        client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+        model = settings.OPENAI_API_MODEL
+    else:
+        client = AsyncOpenAI(base_url=settings.OLLAMA_BASE_URL, api_key="ollama")
+        model = settings.OLLAMA_VISION_MODEL
 
     prompt = (
-        "You are a computer vision assistant specialized in fashion. "
-        "Look at this photo and identify every distinct clothing item visible on the person. "
-        "For each item, return its common name and its bounding box as normalized coordinates "
-        "(x, y = top-left corner; w, h = width and height; all values between 0.0 and 1.0). "
-        "Reply ONLY with a JSON object in exactly this format:\n"
-        '{"garments": [{"label": "shirt", "bbox": {"x": 0.10, "y": 0.05, "w": 0.35, "h": 0.40}}, ...]}\n'
-        f"List at most {_MAX_GARMENTS} items. If no clothing is visible return an empty garments array."
+        "You are a fashion AI expert. Identify every distinct clothing item in this photo.\n"
+        "For EACH item return its bounding box AND full fashion metadata.\n"
+        "Reply ONLY with a JSON object:\n"
+        '{"garments": [{"label": "shirt", '
+        '"bbox": {"x": 0.10, "y": 0.05, "w": 0.35, "h": 0.40}, '
+        '"type": "<top|bottom|dress|jacket|shoes|accessory|other>", '
+        '"color": "<primary color e.g. navy blue>", '
+        '"pattern": "<solid|striped|plaid|floral|graphic|other>", '
+        '"style": "<casual|formal|sporty|vintage|streetwear|other>", '
+        '"sub_type": "<e.g. polo shirt, cargo pants>", '
+        '"size_label": "<XS|S|M|L|XL|XXL|One Size|Unknown>"}]}\n'
+        f"List at most {_MAX_GARMENTS} items. "
+        "bbox coordinates are normalized 0.0–1.0 (origin top-left). "
+        'If no clothing is visible return {"garments": []}.'
     )
 
     response = await client.chat.completions.create(
-        model=settings.OLLAMA_VISION_MODEL,
-        messages=[
-            {
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": prompt},
-                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}},
-                ],
-            }
-        ],
+        model=model,
+        messages=[{
+            "role": "user",
+            "content": [
+                {"type": "text", "text": prompt},
+                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}},
+            ],
+        }],
         response_format={"type": "json_object"},
         temperature=0.1,
-        max_tokens=300,
+        max_tokens=500,
     )
 
-    data = json.loads(response.choices[0].message.content)
+    data = json.loads(response.choices[0].message.content or '{"garments": []}')
     raw_garments = data.get("garments", [])
 
-    # Model found no clothing — caller handles this as immediate 422
     if not raw_garments:
-        logger.info("Garment detection: model found no clothing items in the image")
+        logger.info("detect_and_analyze_garments: no clothing found in image")
         return []
 
     validated: list[dict] = []
@@ -114,10 +120,26 @@ async def detect_garments_in_image(image_bytes: bytes) -> list[dict]:
         y = float(bbox.get("y", 0))
         w = float(bbox.get("w", 1))
         h = float(bbox.get("h", 1))
-        # Clamp to valid range; skip degenerate boxes
         x, y = max(0.0, min(x, 1.0)), max(0.0, min(y, 1.0))
         w, h = max(0.05, min(w, 1.0 - x)), max(0.05, min(h, 1.0 - y))
-        validated.append({"label": str(g.get("label", "clothing")), "bbox": {"x": x, "y": y, "w": w, "h": h}})
+
+        detected_type = str(g.get("type", "other")).lower().strip()
+        if detected_type not in _VALID_TYPES:
+            detected_type = "other"
+
+        raw_size = g.get("size_label", "Unknown")
+        size_label = raw_size if raw_size in _VALID_SIZES else "Unknown"
+
+        validated.append({
+            "label": str(g.get("label", "clothing")).strip().title(),
+            "bbox": {"x": x, "y": y, "w": w, "h": h},
+            "type": detected_type,
+            "color": g.get("color"),
+            "pattern": g.get("pattern"),
+            "style": g.get("style"),
+            "sub_type": g.get("sub_type"),
+            "size_label": size_label,
+        })
 
     return validated[:_MAX_GARMENTS]
 
@@ -152,16 +174,33 @@ def extract_garment(image_bytes: bytes, bbox: dict, padding: float = 0.05) -> by
     crop = img.crop((left, top, right, bottom))
     crop_resized = _resize_for_seg(crop)
 
+    # Keep RGBA crop as fallback (used if rembg returns an empty/transparent result)
+    fallback = io.BytesIO()
+    crop_resized.save(fallback, format="PNG")
+
     # Convert to RGB for rembg input (RGBA causes issues with some rembg versions)
     crop_rgb = crop_resized.convert("RGB")
-    crop_bytes = io.BytesIO()
-    crop_rgb.save(crop_bytes, format="PNG")
+    crop_input = io.BytesIO()
+    crop_rgb.save(crop_input, format="PNG")
 
-    # Cloth segmentation — removes everything that isn't a garment
-    session = _get_cloth_seg_session()
-    result_bytes = remove(crop_bytes.getvalue(), session=session)
+    # Background removal — strips everything behind the garment
+    try:
+        session = _get_seg_session()
+        result_bytes = remove(crop_input.getvalue(), session=session)
 
-    return result_bytes
+        # Validate: if rembg returned near-empty (fully transparent), fall back to plain crop.
+        # u2net_cloth_seg struggles with real-world photos that have coloured backgrounds.
+        if result_bytes:
+            check = Image.open(io.BytesIO(result_bytes))
+            if check.mode == "RGBA":
+                visible = sum(1 for p in check.getchannel("A").getdata() if p > 10)
+                if visible >= 200:
+                    return result_bytes
+        logger.warning("rembg returned near-empty result; using plain crop as fallback")
+    except Exception as exc:
+        logger.warning("rembg failed (%s); using plain crop as fallback", exc)
+
+    return fallback.getvalue()
 
 
 # ---------------------------------------------------------------------------
@@ -234,3 +273,64 @@ async def _analyze_garment_with_vision(image_bytes: bytes) -> dict:
         detected_type = "other"
 
     return {"type": detected_type, "anchors": data.get("anchors")}
+
+
+_VALID_SIZES = frozenset({"XS", "S", "M", "L", "XL", "XXL", "One Size", "Unknown"})
+
+
+async def analyze_garment_complete(image_bytes: bytes) -> dict:
+    """Single Ollama call replacing detect_type_and_anchors + extract_metadata_job.
+
+    Returns type, anchors, color, pattern, style, sub_type, size_label in one shot.
+    """
+    from openai import AsyncOpenAI
+
+    b64 = base64.b64encode(image_bytes).decode("utf-8")
+
+    if settings.OPENAI_API_KEY:
+        client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+        model = settings.OPENAI_API_MODEL
+    else:
+        client = AsyncOpenAI(base_url=settings.OLLAMA_BASE_URL, api_key="ollama")
+        model = settings.OLLAMA_VISION_MODEL
+
+    prompt = (
+        "You are a fashion AI. Analyze this background-removed clothing item image.\n"
+        "Return ONLY a JSON object with exactly these keys:\n"
+        '{"type":"<top|bottom|dress|jacket|shoes|accessory|other>",'
+        '"anchors":{"<key>":{"x":0.5,"y":0.15}},'
+        '"color":"<primary color e.g. navy blue>",'
+        '"pattern":"<solid|striped|plaid|floral|graphic|other>",'
+        '"style":"<casual|formal|sporty|vintage|streetwear|other>",'
+        '"sub_type":"<specific item e.g. polo shirt, cargo pants>",'
+        '"size_label":"<XS|S|M|L|XL|XXL|One Size|Unknown>"}\n'
+        "Anchor keys by type — top/jacket: shoulder+chest; dress: shoulder+chest+waist; "
+        "bottom: waist+hip; shoes: feet; accessory/other: chest. "
+        "Coordinates normalized 0.0–1.0 from top-left."
+    )
+
+    try:
+        response = await client.chat.completions.create(
+            model=model,
+            messages=[{
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": prompt},
+                    {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{b64}"}},
+                ],
+            }],
+            response_format={"type": "json_object"},
+            temperature=0.1,
+            max_tokens=200,
+        )
+        raw = json.loads(response.choices[0].message.content or "{}")
+        detected_type = str(raw.get("type", "other")).lower().strip()
+        if detected_type not in _VALID_TYPES:
+            detected_type = "other"
+        raw["type"] = detected_type
+        raw_size = raw.get("size_label", "Unknown")
+        raw["size_label"] = raw_size if raw_size in _VALID_SIZES else "Unknown"
+        return raw
+    except Exception as exc:
+        logger.warning("analyze_garment_complete failed: %s", exc)
+        return {}

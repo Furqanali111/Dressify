@@ -29,12 +29,16 @@ class SecondaryButton extends StatelessWidget {
           Icon(icon, size: 20, color: c.primary),
           const SizedBox(width: AppSpacing.sm),
         ],
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-            color: c.primary,
+        Flexible(
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: c.primary,
+            ),
+            overflow: TextOverflow.ellipsis,
+            maxLines: 1,
           ),
         ),
       ],
