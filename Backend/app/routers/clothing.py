@@ -227,13 +227,13 @@ async def delete_clothing_item(
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
 
-    # Clean up retry-queue entry and raw image before deleting the item.
+    # Clean up retry-queue entry before deleting the item.
     await _purge_retry_entries([item_id], db)
 
-    # Delete processed image from storage.
-    if item.processed_image_path:
-        await asyncio.to_thread(storage.delete_file, settings.CLOTHING_BUCKET, item.processed_image_path)
-
+    # Commit DB deletion first. If storage cleanup fails afterwards the file is
+    # merely orphaned (wasted bytes), which is far less damaging than the reverse
+    # order: storage deleted + DB commit failure → broken record pointing to a
+    # missing file, which is a visible UX bug for the user.
     try:
         await db.delete(item)
         await db.commit()
@@ -241,6 +241,9 @@ async def delete_clothing_item(
         await db.rollback()
         logger.error(f"DB error deleting clothing item {item_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to delete item")
+
+    if item.processed_image_path:
+        await asyncio.to_thread(storage.delete_file, settings.CLOTHING_BUCKET, item.processed_image_path)
 
     return None
 
@@ -274,11 +277,8 @@ async def batch_delete_clothing(
     # Clean up retry-queue entries and raw images.
     await _purge_retry_entries(ids, db)
 
-    # Delete processed images from storage.
-    for row in rows:
-        if row.processed_image_path:
-            await asyncio.to_thread(storage.delete_file, settings.CLOTHING_BUCKET, row.processed_image_path)
-
+    # Commit DB deletion before storage cleanup for the same reason as single
+    # delete: a missing file is recoverable; a broken DB record is not.
     try:
         await db.execute(sql_delete(ClothingItem).where(ClothingItem.id.in_(ids)))
         await db.commit()
@@ -286,5 +286,9 @@ async def batch_delete_clothing(
         await db.rollback()
         logger.error("Failed to batch delete clothing items: %s", e)
         raise HTTPException(status_code=500, detail="Could not delete items.")
+
+    for row in rows:
+        if row.processed_image_path:
+            await asyncio.to_thread(storage.delete_file, settings.CLOTHING_BUCKET, row.processed_image_path)
 
     return None

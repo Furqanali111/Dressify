@@ -244,8 +244,3 @@ Focus: Speed · Simplicity · "Good enough" realism (not perfect)
 ---
 
 # Open Action Items
-
-- [ ] **Native Google Sign-In** — configure Google Cloud Console / Firebase for Android: generate SHA-1 fingerprint, create OAuth 2.0 Client ID, place `google-services.json` in `Frontend/android/app/`, add Google Services plugin to `build.gradle`.
-- [ ] **Rotate Supabase keys** — current keys may be committed; rotate in Supabase dashboard and add `.env` to `.gitignore`.
-- [ ] **Backend test suite** — `Backend/tests/` exists but assertions are stubs; implement pytest fixtures (in-memory DB, auth bypass fixture), cover upload, outfit generation, and feedback flows, wire into CI.
-- [ ] **Camera garment selector** — full in-camera wardrobe picker to add/remove clothing items without leaving the camera screen; currently users must use "See on Me" per item from the wardrobe tab.

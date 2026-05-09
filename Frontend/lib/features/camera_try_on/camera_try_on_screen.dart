@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:cached_network_image/cached_network_image.dart';
@@ -18,9 +17,11 @@ import '../../core/models/outfit.dart';
 import '../../core/providers/camera_garments_provider.dart';
 import '../../core/providers/fit_rating_provider.dart';
 import '../../core/providers/fit_scale_provider.dart';
+import '../../core/providers/tryon_provider.dart';
 import '../../core/providers/wardrobe_provider.dart';
 import '../../core/router/app_routes.dart';
 import '../../core/services/pose_detection_service.dart';
+import '../../core/services/segmentation_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_constants.dart';
 import '../../core/theme/app_spacing.dart';
@@ -74,6 +75,10 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
   Map<String, NormAnchor>? _anchors;
   DateTime _lastFrameTime = DateTime.fromMillisecondsSinceEpoch(0);
   static const Duration _frameThrottle = AppConstants.frameThrottle;
+
+  // ── Segmentation ──────────────────────────────────────────────────────────
+  final SegmentationService _segService = SegmentationService();
+  ui.Image? _segMaskImage;
 
   // ── Garments ──────────────────────────────────────────────────────────────
   // Maps ClothingItem.id → loaded garment data.
@@ -130,6 +135,8 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
     WidgetsBinding.instance.removeObserver(this);
     _controller?.dispose();
     _poseService.dispose();
+    _segService.dispose();
+    _segMaskImage?.dispose();
     _clearGarments();
     super.dispose();
   }
@@ -211,6 +218,12 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
     final CameraController? ctrl = _controller;
     if (ctrl == null) return;
     final CameraDescription cam = _cameras[_cameraIndex];
+
+    // Pose and segmentation are dispatched concurrently on the same throttle.
+    // Neither is awaited here — results arrive via .then() on the next frame.
+    // Both services have an internal _busy guard: if the previous call hasn't
+    // finished (device struggling), processFrame returns null and the tick is
+    // skipped automatically — no explicit skip flag needed.
     _poseService
         .processFrame(
           image: image,
@@ -220,9 +233,25 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
         )
         .then((Map<String, NormAnchor>? anchors) {
       if (mounted) setState(() => _anchors = anchors);
-    }).catchError((_) {
-      // Ignore transient errors; optionally log them.
-    });
+    }).catchError((_) {});
+
+    _segService
+        .processFrame(
+          image: image,
+          sensorOrientation: cam.sensorOrientation,
+          deviceOrientation: ctrl.value.deviceOrientation,
+          lensDirection: cam.lensDirection,
+        )
+        .then((SegmentationMaskResult? result) {
+      if (!mounted || result == null) return;
+      _buildMaskImage(result).then((ui.Image img) {
+        if (!mounted) { img.dispose(); return; }
+        setState(() {
+          _segMaskImage?.dispose();
+          _segMaskImage = img;
+        });
+      });
+    }).catchError((_) {});
   }
 
   // ---------------------------------------------------------------------------
@@ -286,8 +315,36 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
     if (mounted) setState(() => _loadingGarments = false);
   }
 
+  // Converts a segmentation mask (List<double> confidences) into a ui.Image
+  // where each pixel's alpha = confidence. Used by the painter to clip erases
+  // to only pixels where a person is detected.
+  static Future<ui.Image> _buildMaskImage(SegmentationMaskResult result) {
+    final int w = result.width;
+    final int h = result.height;
+    final Uint8List pixels = Uint8List(w * h * 4);
+    final int count = result.confidences.length.clamp(0, w * h);
+    for (int i = 0; i < count; i++) {
+      final int a = (result.confidences[i] * 255).round().clamp(0, 255);
+      pixels[i * 4]     = 255;
+      pixels[i * 4 + 1] = 255;
+      pixels[i * 4 + 2] = 255;
+      pixels[i * 4 + 3] = a;
+    }
+    final Completer<ui.Image> c = Completer<ui.Image>();
+    ui.decodeImageFromPixels(pixels, w, h, ui.PixelFormat.rgba8888, c.complete);
+    return c.future;
+  }
+
+  // Shared Dio for garment image downloads — avoids a new TCP handshake per item.
+  static final Dio _imageDio = Dio(
+    BaseOptions(
+      connectTimeout: const Duration(seconds: 10),
+      receiveTimeout: const Duration(seconds: 30),
+    ),
+  );
+
   static Future<ui.Image> _decodeNetworkImage(String url) async {
-    final Response<List<int>> resp = await Dio().get<List<int>>(
+    final Response<List<int>> resp = await _imageDio.get<List<int>>(
       url,
       options: Options(responseType: ResponseType.bytes),
     ).timeout(AppConstants.imageLoadTimeout);
@@ -339,7 +396,12 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
       if (!mounted) return;
       await showDialog<void>(
         context: context,
-        builder: (_) => _CapturePreviewDialog(pngBytes: byteData.buffer.asUint8List()),
+        builder: (_) => _CapturePreviewDialog(
+          pngBytes: byteData.buffer.asUint8List(),
+          garments: _garments.values.toList(),
+          onTryOnResult: (String url) =>
+              context.pushNamed(AppRoute.tryOnResult.name, extra: url),
+        ),
       );
     } catch (_) {
       if (mounted) AppToast.error(context, 'Capture failed — try again');
@@ -387,10 +449,15 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
                         builder: (_, BoxConstraints bc) => CustomPaint(
                           size: bc.biggest,
                           painter: _CameraOverlayPainter(
-                            garments: _garments.values.toList(),
+                            // Pre-sorted by depth so paint() skips re-sorting every frame.
+                            garments: (_garments.values.toList()
+                                  ..sort((a, b) => garmentDepth(a.item.type)
+                                      .compareTo(garmentDepth(b.item.type))))
+                                .toList(),
                             anchors: _anchors,
                             displaySize: bc.biggest,
                             fitScales: ref.watch(fitScalesProvider),
+                            segMaskImage: _segMaskImage,
                           ),
                         ),
                       ),
@@ -507,25 +574,65 @@ class _CameraOverlayPainter extends CustomPainter {
     required this.anchors,
     required this.displaySize,
     required this.fitScales,
+    this.segMaskImage,
   });
 
   final List<_GarmentData> garments;
   final Map<String, NormAnchor>? anchors;
   final Size displaySize;
   final FitScales fitScales;
+  final ui.Image? segMaskImage;
 
   @override
   void paint(Canvas canvas, Size size) {
     final Map<String, NormAnchor>? a = anchors;
     if (a == null || a.isEmpty) return;
 
-    final List<_GarmentData> sorted = List<_GarmentData>.from(garments)
-      ..sort((a, b) => garmentDepth(a.item.type).compareTo(garmentDepth(b.item.type)));
+    // Garments arrive pre-sorted by depth from build() — no sort needed here.
+    final List<_GarmentData> sorted = garments;
 
     final double shoulderSpan = _computeShoulderSpan(a, size);
+
+    // Isolate all garment draws (and future dstOut erases) into one layer so
+    // BlendMode.dstOut only clears pixels within this layer, not the
+    // CameraPreview rendered beneath this CustomPaint.
+    canvas.saveLayer(Rect.fromLTWH(0, 0, size.width, size.height), Paint());
+
     for (final _GarmentData g in sorted) {
       _paintOne(canvas, size, g, a, shoulderSpan);
     }
+
+    // ── Erase arm and neck regions so the live camera shows through ──────────
+    // The inner saveLayer composites with dstOut into the garment layer above,
+    // erasing garment pixels proportionally to the alpha drawn in this layer.
+    final Path leftArm  = _buildArmPath(a, 'left',  size, shoulderSpan);
+    final Path rightArm = _buildArmPath(a, 'right', size, shoulderSpan);
+    final Path neck     = _buildNeckPath(a, size, shoulderSpan);
+
+    final Rect canvasRect = Rect.fromLTWH(0, 0, size.width, size.height);
+    canvas.saveLayer(canvasRect, Paint()..blendMode = BlendMode.dstOut);
+
+    // Draw erase shapes with soft gradient (no explicit blendMode — the layer
+    // itself applies dstOut when it composites back into the garment layer).
+    canvas.drawPath(leftArm,  _softGradientPaint(leftArm.getBounds()));
+    canvas.drawPath(rightArm, _softGradientPaint(rightArm.getBounds()));
+    canvas.drawPath(neck,     _softGradientPaint(neck.getBounds()));
+
+    // Phase 2: if a segmentation mask image is available, intersect the erase
+    // region with person pixels only (dstIn keeps alpha where mask is opaque).
+    // This prevents erasing garment pixels that extend beyond the body edge.
+    final ui.Image? maskImg = segMaskImage;
+    if (maskImg != null) {
+      canvas.drawImageRect(
+        maskImg,
+        Rect.fromLTWH(0, 0, maskImg.width.toDouble(), maskImg.height.toDouble()),
+        canvasRect,
+        Paint()..blendMode = BlendMode.dstIn,
+      );
+    }
+
+    canvas.restore(); // composites erase layer (dstOut) → punches holes in garments
+    canvas.restore(); // composites garment layer into camera preview
   }
 
   double _computeShoulderSpan(Map<String, NormAnchor> a, Size size) {
@@ -563,29 +670,174 @@ class _CameraOverlayPainter extends CustomPainter {
     final double ay = anchor.y * size.height;
     final Offset norm = garmentAnchorNorm(g.item);
 
-    paintImage(
-      canvas: canvas,
-      rect: Rect.fromLTWH(ax - norm.dx * gW, ay - norm.dy * gH, gW, gH),
-      image: img,
-      fit: BoxFit.fill,
+    final Rect rect = Rect.fromLTWH(ax - norm.dx * gW, ay - norm.dy * gH, gW, gH);
+
+    // Shoulder-angle skew: tilt the garment to match body lean.
+    // Compute skew from individual shoulder Y positions (0 when both level).
+    final double lsy = anchors['leftShoulder']?.y  ?? anchors['shoulder']?.y ?? 0.5;
+    final double rsy = anchors['rightShoulder']?.y ?? anchors['shoulder']?.y ?? 0.5;
+    final double skewFactor = (rsy - lsy) * 0.6;
+
+    canvas.save();
+    // Column-major Matrix4 for X-shear: x' = x + skewFactor*(y - ay), y' = y.
+    // Columns: [1,0,0,0], [k,1,0,0], [0,0,1,0], [-k*ay,0,0,1]
+    canvas.transform(
+      Matrix4(
+        1, 0, 0, 0,
+        skewFactor, 1, 0, 0,
+        0, 0, 1, 0,
+        -skewFactor * ay, 0, 0, 1,
+      ).storage,
     );
+
+    paintImage(canvas: canvas, rect: rect, image: img, fit: BoxFit.fill);
+
+    canvas.restore();
+  }
+
+  // Returns a paint with a soft radial gradient (opaque centre → transparent edge).
+  // Used inside the dstOut erase layer — no blendMode needed here since the
+  // layer itself composites with dstOut when restored.
+  static Paint _softGradientPaint(Rect bounds) {
+    if (bounds.isEmpty) return Paint()..color = Colors.white;
+    return Paint()
+      ..shader = const RadialGradient(
+        colors: <Color>[Colors.white, Color(0x00FFFFFF)],
+        stops: <double>[0.55, 1.0],
+      ).createShader(bounds);
+  }
+
+  // Builds a capsule path covering one arm: shoulder → elbow → wrist.
+  // Falls back gracefully when elbow or wrist landmark is unavailable.
+  static Path _buildArmPath(
+    Map<String, NormAnchor> a,
+    String side,
+    Size size,
+    double shoulderSpan,
+  ) {
+    final String sKey = side == 'left' ? 'leftShoulder' : 'rightShoulder';
+    final String eKey = side == 'left' ? 'leftElbow'    : 'rightElbow';
+    final String wKey = side == 'left' ? 'leftWrist'    : 'rightWrist';
+
+    final NormAnchor? shoulder = a[sKey];
+    if (shoulder == null) return Path();
+
+    final double r = shoulderSpan * 0.18;
+    final Offset p0 = Offset(shoulder.x * size.width, shoulder.y * size.height);
+
+    final NormAnchor? elbowA = a[eKey];
+    final Offset p1 = elbowA != null
+        ? Offset(elbowA.x * size.width, elbowA.y * size.height)
+        : Offset(p0.dx + (side == 'left' ? -r * 0.5 : r * 0.5), p0.dy + shoulderSpan * 0.6);
+
+    final NormAnchor? wristA = a[wKey];
+    final List<Offset> joints = <Offset>[
+      p0,
+      p1,
+      if (wristA != null) Offset(wristA.x * size.width, wristA.y * size.height),
+    ];
+    return _capsulePath(joints, r);
+  }
+
+  // Builds a soft ellipse covering the neck region between nose and shoulders.
+  static Path _buildNeckPath(
+    Map<String, NormAnchor> a,
+    Size size,
+    double shoulderSpan,
+  ) {
+    final NormAnchor? shoulder = a['shoulder'];
+    if (shoulder == null) return Path();
+
+    final double cx = shoulder.x * size.width;
+    final NormAnchor? nose = a['nose'];
+    final double top = nose != null
+        ? (nose.y * size.height + shoulder.y * size.height) / 2
+        : shoulder.y * size.height - shoulderSpan * 0.35;
+    final double bottom = shoulder.y * size.height;
+    final double neckW = shoulderSpan * 0.38;
+    final double neckH = (bottom - top).abs();
+
+    return Path()
+      ..addOval(Rect.fromCenter(
+        center: Offset(cx, top + neckH / 2),
+        width: neckW,
+        height: neckH,
+      ));
+  }
+
+  // Builds a rounded-capsule path connecting a sequence of joint offsets.
+  // Each segment becomes an RRect inflated by [radius], giving a pill shape.
+  static Path _capsulePath(List<Offset> joints, double radius) {
+    if (joints.isEmpty) return Path();
+    if (joints.length == 1) {
+      return Path()..addOval(Rect.fromCircle(center: joints[0], radius: radius));
+    }
+    final Path path = Path();
+    for (int i = 0; i < joints.length - 1; i++) {
+      path.addRRect(RRect.fromRectAndRadius(
+        Rect.fromPoints(joints[i], joints[i + 1]).inflate(radius),
+        Radius.circular(radius),
+      ));
+    }
+    return path;
   }
 
   @override
   bool shouldRepaint(covariant _CameraOverlayPainter old) =>
-      old.anchors != anchors || old.garments != garments || old.fitScales != fitScales;
+      old.anchors != anchors ||
+      old.garments != garments ||
+      old.fitScales != fitScales ||
+      old.segMaskImage != segMaskImage;
 }
 
 // ---------------------------------------------------------------------------
 // Capture preview dialog
 // ---------------------------------------------------------------------------
 
-class _CapturePreviewDialog extends StatelessWidget {
-  const _CapturePreviewDialog({required this.pngBytes});
+class _CapturePreviewDialog extends ConsumerStatefulWidget {
+  const _CapturePreviewDialog({
+    required this.pngBytes,
+    required this.garments,
+    required this.onTryOnResult,
+  });
+
   final Uint8List pngBytes;
+  final List<_GarmentData> garments;
+  final void Function(String resultUrl) onTryOnResult;
+
+  @override
+  ConsumerState<_CapturePreviewDialog> createState() =>
+      _CapturePreviewDialogState();
+}
+
+class _CapturePreviewDialogState extends ConsumerState<_CapturePreviewDialog> {
+  int _selectedIndex = 0;
 
   @override
   Widget build(BuildContext context) {
+    final TryOnState tryOnState = ref.watch(tryOnProvider);
+
+    ref.listen<TryOnState>(tryOnProvider, (_, TryOnState next) {
+      if (next.status == TryOnStatus.done && next.resultUrl != null) {
+        final String url = next.resultUrl!;
+        ref.read(tryOnProvider.notifier).reset();
+        if (context.mounted) {
+          Navigator.of(context).pop();
+          widget.onTryOnResult(url);
+        }
+      } else if (next.status == TryOnStatus.error && context.mounted) {
+        AppToast.error(
+          context,
+          next.errorMessage ?? 'AI try-on failed. Please try again.',
+        );
+      }
+    });
+
+    final bool hasGarments = widget.garments.isNotEmpty;
+    final _GarmentData? selected =
+        hasGarments ? widget.garments[_selectedIndex] : null;
+    final AppColors c = context.colors;
+
     return Dialog(
       backgroundColor: Colors.transparent,
       insetPadding: const EdgeInsets.all(AppSpacing.lg),
@@ -594,45 +846,130 @@ class _CapturePreviewDialog extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            Image.memory(pngBytes, fit: BoxFit.contain),
+            Image.memory(widget.pngBytes, fit: BoxFit.contain),
             Container(
               color: Colors.black87,
               padding: const EdgeInsets.symmetric(
                 horizontal: AppSpacing.lg,
                 vertical: AppSpacing.md,
               ),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
-                  Expanded(
-                    child: OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.white,
-                        side: const BorderSide(color: Colors.white38),
-                      ),
-                      onPressed: () => Navigator.of(context).pop(),
-                      child: const Text('Retake'),
+                  // Garment selector (only when > 1 garment loaded)
+                  if (widget.garments.length > 1) ...<Widget>[
+                    const Text(
+                      'Select garment for AI try-on:',
+                      style: TextStyle(color: Colors.white70, fontSize: 12),
                     ),
-                  ),
-                  const SizedBox(width: AppSpacing.md),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      icon: const Icon(Icons.share),
-                      label: const Text('Share'),
-                      onPressed: () async {
-                        Navigator.of(context).pop();
-                        await Share.shareXFiles(
-                          <XFile>[
-                            XFile.fromData(
-                              pngBytes,
-                              mimeType: 'image/png',
-                              name: 'dressify_outfit.png',
+                    const SizedBox(height: AppSpacing.xs),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: widget.garments
+                            .asMap()
+                            .entries
+                            .map((MapEntry<int, _GarmentData> e) {
+                          final bool isSel = e.key == _selectedIndex;
+                          return GestureDetector(
+                            onTap: () =>
+                                setState(() => _selectedIndex = e.key),
+                            child: Container(
+                              margin:
+                                  const EdgeInsets.only(right: AppSpacing.xs),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: isSel ? Colors.white : Colors.white24,
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: Text(
+                                e.value.item.name,
+                                style: TextStyle(
+                                  color: isSel
+                                      ? Colors.black87
+                                      : Colors.white70,
+                                  fontSize: 12,
+                                  fontWeight: isSel
+                                      ? FontWeight.w600
+                                      : FontWeight.normal,
+                                ),
+                              ),
                             ),
-                          ],
-                          subject: 'My Dressify Outfit',
-                        );
-                      },
+                          );
+                        }).toList(),
+                      ),
                     ),
+                    const SizedBox(height: AppSpacing.md),
+                  ],
+                  // Retake / Share row
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            side: const BorderSide(color: Colors.white38),
+                          ),
+                          onPressed: tryOnState.isLoading
+                              ? null
+                              : () => Navigator.of(context).pop(),
+                          child: const Text('Retake'),
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.md),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          icon: const Icon(Icons.share),
+                          label: const Text('Share'),
+                          onPressed: tryOnState.isLoading
+                              ? null
+                              : () async {
+                                  Navigator.of(context).pop();
+                                  await Share.shareXFiles(
+                                    <XFile>[
+                                      XFile.fromData(
+                                        widget.pngBytes,
+                                        mimeType: 'image/png',
+                                        name: 'dressify_outfit.png',
+                                      ),
+                                    ],
+                                    subject: 'My Dressify Outfit',
+                                  );
+                                },
+                        ),
+                      ),
+                    ],
                   ),
+                  // AI Try-On button
+                  if (selected != null) ...<Widget>[
+                    const SizedBox(height: AppSpacing.sm),
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: c.primary,
+                        foregroundColor: Colors.white,
+                      ),
+                      icon: tryOnState.isLoading
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(Icons.auto_awesome, size: 18),
+                      label: Text(
+                          tryOnState.isLoading ? 'Generating…' : 'AI Try-On'),
+                      onPressed: tryOnState.isLoading
+                          ? null
+                          : () => ref.read(tryOnProvider.notifier).generate(
+                                personImageBytes: widget.pngBytes,
+                                clothingItemId: selected.item.id,
+                              ),
+                    ),
+                  ],
                 ],
               ),
             ),

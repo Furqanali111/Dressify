@@ -33,6 +33,10 @@ class Settings(BaseSettings):
     RETRY_INTERVAL_SECONDS: int = 300   # how often the worker polls (default 5 min)
     UPLOAD_MAX_RETRIES: int = 3         # permanent failure after this many attempts
 
+    # Virtual Try-On API keys (T3 AI Try-On feature)
+    FASHN_API_KEY: str = ""
+    REPLICATE_API_KEY: str = ""
+
     # AI Settings
     OPENAI_API_KEY: str | None = None
     OPENAI_API_MODEL: str = "gpt-4o-mini"

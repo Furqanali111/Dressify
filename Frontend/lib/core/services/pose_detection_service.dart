@@ -28,6 +28,9 @@ class PoseDetectionService {
   bool _busy = false;
   bool _isClosed = false;
 
+  // Reused across frames to avoid per-frame GC on Android NV21 plane concat.
+  Uint8List? _nv21Buffer;
+
   /// Process one [CameraImage] frame.
   ///
   /// Returns a map of named anchors (normalized 0–1) or `null` when:
@@ -97,12 +100,19 @@ class PoseDetectionService {
 
     final Uint8List bytes;
     if (Platform.isAndroid) {
-      // NV21: concatenate all planes
-      final WriteBuffer buf = WriteBuffer();
-      for (final Plane p in image.planes) {
-        buf.putUint8List(p.bytes);
+      // NV21: concatenate all planes into a reused buffer to avoid per-frame
+      // GC pressure from temporary WriteBuffer allocations.
+      final int totalBytes =
+          image.planes.fold(0, (int s, Plane p) => s + p.bytes.length);
+      if (_nv21Buffer == null || _nv21Buffer!.length != totalBytes) {
+        _nv21Buffer = Uint8List(totalBytes);
       }
-      bytes = buf.done().buffer.asUint8List();
+      int offset = 0;
+      for (final Plane p in image.planes) {
+        _nv21Buffer!.setRange(offset, offset + p.bytes.length, p.bytes);
+        offset += p.bytes.length;
+      }
+      bytes = _nv21Buffer!;
     } else {
       // iOS BGRA8888: single plane
       if (image.planes.isEmpty) return null;
@@ -184,6 +194,18 @@ class PoseDetectionService {
     // Export individual shoulders so the painter can compute actual horizontal width.
     if (ls != null) anchors['leftShoulder'] = ls;
     if (rs != null) anchors['rightShoulder'] = rs;
+
+    // ── Arms + Nose (for arm/neck occlusion in overlay painter) ──────────────
+    final NormAnchor? le   = lm(PoseLandmarkType.leftElbow);
+    final NormAnchor? re   = lm(PoseLandmarkType.rightElbow);
+    final NormAnchor? lw   = lm(PoseLandmarkType.leftWrist);
+    final NormAnchor? rw   = lm(PoseLandmarkType.rightWrist);
+    final NormAnchor? nose = lm(PoseLandmarkType.nose);
+    if (le != null)   anchors['leftElbow']  = le;
+    if (re != null)   anchors['rightElbow'] = re;
+    if (lw != null)   anchors['leftWrist']  = lw;
+    if (rw != null)   anchors['rightWrist'] = rw;
+    if (nose != null) anchors['nose']       = nose;
 
     // ── Hip ───────────────────────────────────────────────────────────────
     final NormAnchor? hip = _mid(lh, rh) ?? lh ?? rh;

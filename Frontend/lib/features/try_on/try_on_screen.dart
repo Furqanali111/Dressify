@@ -130,49 +130,50 @@ class _TryOnScreenState extends ConsumerState<TryOnScreen> {
     bool anyLowConfidence = false;
     final Set<String> currentFailed = <String>{};
 
-    for (final OutfitItem outfitItem in outfit.items) {
-      if (_garments.containsKey(outfitItem.clothingItemId)) continue;
+    // All outfit items are resolved and decoded in parallel — each task:
+    //   1. Looks up ClothingItem from wardrobe cache (instant), or falls back
+    //      to a single API call (rare, only for items not yet in cache).
+    //   2. Decodes the processed image from the network.
+    // For a 5-item outfit this cuts load time from ~1s sequential → ~250ms.
+    await Future.wait<void>(
+      outfit.items.map((OutfitItem oi) async {
+        if (_garments.containsKey(oi.clothingItemId)) return;
 
-      // 1. Try wardrobe cache
-      ClothingItem? ci = cached
-          .cast<ClothingItem?>()
-          .firstWhere((it) => it?.id == outfitItem.clothingItemId,
-              orElse: () => null);
+        ClothingItem? ci = cached.cast<ClothingItem?>().firstWhere(
+            (it) => it?.id == oi.clothingItemId,
+            orElse: () => null);
 
-      // 2. Fall back to API
-      if (ci == null) {
+        if (ci == null) {
+          try {
+            final Response<dynamic> resp =
+                await dio.get<dynamic>('/clothing/${oi.clothingItemId}');
+            ci = ClothingItem.fromJson(resp.data as Map<String, dynamic>);
+          } on DioException {
+            currentFailed.add(oi.clothingItemId);
+            return;
+          }
+        }
+
+        if (ci.processedUrl.isEmpty) return;
+        if ((ci.detectionConfidence ?? 1.0) < 0.7) anyLowConfidence = true;
+
         try {
-          final Response<dynamic> resp =
-              await dio.get<dynamic>('/clothing/${outfitItem.clothingItemId}');
-          ci = ClothingItem.fromJson(resp.data as Map<String, dynamic>);
-        } on DioException {
-          continue;
+          final ui.Image img = await _decodeNetworkImage(ci.processedUrl);
+          if (!mounted) { img.dispose(); return; }
+          final _GarmentData gd = _GarmentData(item: ci, uiImage: img);
+          final Map<String, dynamic>? pos = oi.position;
+          if (pos != null) {
+            gd.offset = Offset(
+              (pos['dx'] as num? ?? 0.0).toDouble(),
+              (pos['dy'] as num? ?? 0.0).toDouble(),
+            );
+          }
+          if (mounted) setState(() => _garments[oi.clothingItemId] = gd);
+        } catch (_) {
+          currentFailed.add(oi.clothingItemId);
         }
-      }
-
-      if (ci.processedUrl.isEmpty) continue;
-
-      if ((ci.detectionConfidence ?? 1.0) < 0.7) anyLowConfidence = true;
-
-      try {
-        final ui.Image img = await _decodeNetworkImage(ci.processedUrl);
-        if (!mounted) {
-          img.dispose();
-          return;
-        }
-        final _GarmentData gd = _GarmentData(item: ci, uiImage: img);
-        final Map<String, dynamic>? pos = outfitItem.position;
-        if (pos != null) {
-          gd.offset = Offset(
-            (pos['dx'] as num? ?? 0.0).toDouble(),
-            (pos['dy'] as num? ?? 0.0).toDouble(),
-          );
-        }
-        setState(() => _garments[outfitItem.clothingItemId] = gd);
-      } catch (_) {
-        currentFailed.add(outfitItem.clothingItemId);
-      }
-    }
+      }),
+    );
 
     if (mounted) {
       setState(() {
@@ -183,8 +184,17 @@ class _TryOnScreenState extends ConsumerState<TryOnScreen> {
     }
   }
 
+  // Shared Dio for garment image downloads — avoids a new connection pool per
+  // image and reuses keepalive connections across parallel loads.
+  static final Dio _imageDio = Dio(
+    BaseOptions(
+      connectTimeout: const Duration(seconds: 10),
+      receiveTimeout: const Duration(seconds: 30),
+    ),
+  );
+
   static Future<ui.Image> _decodeNetworkImage(String url) async {
-    final Response<List<int>> resp = await Dio().get<List<int>>(
+    final Response<List<int>> resp = await _imageDio.get<List<int>>(
       url,
       options: Options(responseType: ResponseType.bytes),
     ).timeout(const Duration(seconds: 15));

@@ -48,6 +48,7 @@ dependencies:
   # Camera & real-time try-on (Phase 3)
   camera: ^0.11.0
   google_mlkit_pose_detection: ^0.14.0  # 0.14+: 16 KB-aligned libxeno_native.so / libimage_processing_util_jni.so
+  google_mlkit_selfie_segmentation: ^0.10.1
   share_plus: ^10.0.1
 
   # Location (Weather Context)

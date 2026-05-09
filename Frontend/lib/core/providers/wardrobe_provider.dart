@@ -108,23 +108,25 @@ class WardrobeNotifier extends StateNotifier<AsyncValue<List<ClothingItem>>> {
     for (int attempt = 0; attempt < maxAttempts && pending.isNotEmpty; attempt++) {
       await Future<void>.delayed(interval);
       final Dio dio = _ref.read(apiClientProvider);
-      for (final String id in List<String>.from(pending)) {
-        try {
-          final Response<dynamic> resp =
-              await dio.get<dynamic>('clothing/$id');
-          final ClothingItem updated =
-              ClothingItem.fromJson(resp.data as Map<String, dynamic>);
-          if (updated.processingStatus != 'processing') pending.remove(id);
-          final List<ClothingItem> current = state.value ?? <ClothingItem>[];
-          state = AsyncValue<List<ClothingItem>>.data(
-            current
-                .map((ClothingItem it) => it.id == id ? updated : it)
-                .toList(),
-          );
-        } catch (_) {
-          // Skip individual failures; keep polling the others
-        }
-      }
+      // Poll all pending items in parallel so N items don't take N× longer.
+      await Future.wait<void>(
+        List<String>.from(pending).map((String id) async {
+          try {
+            final Response<dynamic> resp = await dio.get<dynamic>('clothing/$id');
+            final ClothingItem updated =
+                ClothingItem.fromJson(resp.data as Map<String, dynamic>);
+            if (updated.processingStatus != 'processing') pending.remove(id);
+            final List<ClothingItem> current = state.value ?? <ClothingItem>[];
+            state = AsyncValue<List<ClothingItem>>.data(
+              current
+                  .map((ClothingItem it) => it.id == id ? updated : it)
+                  .toList(),
+            );
+          } catch (_) {
+            // Skip individual failures; keep polling the others.
+          }
+        }),
+      );
     }
 
     // Items still polling after max attempts remain as "processing" — the
