@@ -13,6 +13,8 @@ class ClothingItem {
   final String? sizeLabel;
   final String? fitNotes;
   final String processingStatus;
+  final String? glbMeshUrl;
+  final String? meshStatus;
   final DateTime createdAt;
 
   const ClothingItem({
@@ -30,6 +32,8 @@ class ClothingItem {
     this.sizeLabel,
     this.fitNotes,
     required this.processingStatus,
+    this.glbMeshUrl,
+    this.meshStatus,
     required this.createdAt,
   });
 
@@ -49,6 +53,8 @@ class ClothingItem {
       sizeLabel: json['size_label'] as String?,
       fitNotes: json['fit_notes'] as String?,
       processingStatus: json['processing_status'] as String? ?? 'processing',
+      glbMeshUrl: json['glb_mesh_path'] as String?,
+      meshStatus: json['mesh_status'] as String?,
       createdAt: DateTime.tryParse(json['created_at'] as String? ?? '') ?? DateTime.now(),
     );
   }
@@ -68,6 +74,8 @@ class ClothingItem {
     String? sizeLabel,
     String? fitNotes,
     String? processingStatus,
+    String? glbMeshUrl,
+    String? meshStatus,
     DateTime? createdAt,
   }) {
     return ClothingItem(
@@ -85,6 +93,8 @@ class ClothingItem {
       sizeLabel: sizeLabel ?? this.sizeLabel,
       fitNotes: fitNotes ?? this.fitNotes,
       processingStatus: processingStatus ?? this.processingStatus,
+      glbMeshUrl: glbMeshUrl ?? this.glbMeshUrl,
+      meshStatus: meshStatus ?? this.meshStatus,
       createdAt: createdAt ?? this.createdAt,
     );
   }
@@ -104,6 +114,8 @@ class ClothingItem {
         'size_label': sizeLabel,
         'fit_notes': fitNotes,
         'processing_status': processingStatus,
+        'glb_mesh_path': glbMeshUrl,
+        'mesh_status': meshStatus,
         'created_at': createdAt.toIso8601String(),
       };
 }

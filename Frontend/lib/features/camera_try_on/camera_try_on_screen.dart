@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:cached_network_image/cached_network_image.dart';
@@ -20,6 +21,7 @@ import '../../core/providers/fit_scale_provider.dart';
 import '../../core/providers/tryon_provider.dart';
 import '../../core/providers/wardrobe_provider.dart';
 import '../../core/router/app_routes.dart';
+import '../../core/services/luminance_sampler.dart';
 import '../../core/services/pose_detection_service.dart';
 import '../../core/services/segmentation_service.dart';
 import '../../core/theme/app_colors.dart';
@@ -28,6 +30,7 @@ import '../../core/theme/app_spacing.dart';
 import '../../core/utils/app_permissions.dart';
 import '../../core/utils/garment_utils.dart';
 import '../../core/widgets/app_toast.dart';
+import '../../core/widgets/garment_mesh_renderer.dart';
 
 // ---------------------------------------------------------------------------
 // Garment data holder
@@ -94,6 +97,13 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
   // ── Manual fit scale (pinch-to-zoom on live overlay) ──────────────────────
   double _manualScale = 1.0;
   double _scaleOnGestureStart = 1.0;
+
+  // ── Ambient Lighting ──────────────────────────────────────────────────────
+  double _ambientLuma = 0.5;
+  int _frameCount = 0;
+
+  // ── 3D Mode ───────────────────────────────────────────────────────────────
+  bool _is3dMode = false;
 
   // ---------------------------------------------------------------------------
   // Lifecycle
@@ -224,6 +234,23 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
     final CameraController? ctrl = _controller;
     if (ctrl == null) return;
     final CameraDescription cam = _cameras[_cameraIndex];
+
+    _frameCount++;
+    if (_frameCount % 3 == 0) {
+      final Map<String, NormAnchor>? currentAnchors = _anchors;
+      if (currentAnchors != null && currentAnchors.containsKey('shoulder')) {
+        final NormAnchor shoulder = currentAnchors['shoulder']!;
+        final Rect region = Rect.fromCenter(
+          center: Offset(shoulder.x, shoulder.y),
+          width: 0.10,
+          height: 0.10,
+        );
+        final double luma = LuminanceSampler.sample(image, region);
+        if ((luma - _ambientLuma).abs() > 0.05) {
+          if (mounted) setState(() => _ambientLuma = luma);
+        }
+      }
+    }
 
     // Pose and segmentation are dispatched concurrently on the same throttle.
     // Neither is awaited here — results arrive via .then() on the next frame.
@@ -422,6 +449,66 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
   }
 
   // ---------------------------------------------------------------------------
+  // 3D Layout Calculation
+  // ---------------------------------------------------------------------------
+  double _computeShoulderSpan(Map<String, NormAnchor> a, Size size) {
+    final NormAnchor? ls = a['leftShoulder'];
+    final NormAnchor? rs = a['rightShoulder'];
+    if (ls != null && rs != null) {
+      return (ls.x - rs.x).abs() * size.width;
+    }
+    final NormAnchor? sh = a['shoulder'];
+    final NormAnchor? hip = a['hip'];
+    if (sh != null && hip != null) {
+      return (hip.y - sh.y).abs() * size.height * 0.85;
+    }
+    return size.width * 0.40;
+  }
+
+  List<Widget> _build3dGarments(Size size) {
+    if (_anchors == null) return const <Widget>[];
+    
+    final List<_GarmentData> sortedGarments = _garments.values.toList()
+      ..sort((a, b) => garmentDepth(a.item.type).compareTo(garmentDepth(b.item.type)));
+
+    return sortedGarments.map((_GarmentData g) {
+      if (g.item.glbMeshUrl == null || g.item.meshStatus != 'completed') {
+        return const SizedBox.shrink(); // Ignore items not ready for 3D
+      }
+      
+      final NormAnchor? anchor = _anchors![garmentAnchorKey(g.item.type)];
+      if (anchor == null) return const SizedBox.shrink();
+
+      final double shoulderSpan = _computeShoulderSpan(_anchors!, size);
+      final double fitScale = ref.read(fitScalesProvider).forType(g.item.type);
+      
+      // Calculate base dimensions WITHOUT _manualScale to avoid WebView reflows
+      final double baseGW = shoulderSpan * garmentShoulderMultiplier(g.item.type) * fitScale;
+      final double baseGH = baseGW / (g.uiImage.width / g.uiImage.height);
+
+      final double ax = anchor.x * size.width;
+      final double ay = anchor.y * size.height;
+      final Offset norm = garmentAnchorNorm(g.item);
+
+      final Rect baseRect = Rect.fromLTWH(ax - norm.dx * baseGW, ay - norm.dy * baseGH, baseGW, baseGH);
+
+      return Positioned(
+        left: baseRect.left,
+        top: baseRect.top,
+        width: baseRect.width,
+        height: baseRect.height,
+        child: Transform.scale(
+          scale: _manualScale,
+          // Transform.scale `alignment` maps Rect from (-1, -1) [top-left] to (1, 1) [bottom-right].
+          // The norm anchor maps (0,0) to (1,1). So we map norm to the Alignment coordinate space:
+          alignment: Alignment(norm.dx * 2 - 1, norm.dy * 2 - 1),
+          child: GarmentMeshRenderer(item: g.item),
+        ),
+      );
+    }).toList();
+  }
+
+  // ---------------------------------------------------------------------------
   // Build
   // ---------------------------------------------------------------------------
 
@@ -435,6 +522,14 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
     }
 
     final bool hasGarments = _garments.isNotEmpty;
+    final bool canEnable3d = hasGarments && _garments.values.any((_GarmentData g) => 
+        g.item.meshStatus == 'completed' && g.item.glbMeshUrl != null && g.item.glbMeshUrl!.isNotEmpty);
+
+    if (_is3dMode && !canEnable3d) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _is3dMode = false);
+      });
+    }
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -464,12 +559,11 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
                     fit: StackFit.expand,
                     children: <Widget>[
                       CameraPreview(_controller!),
-                      if (hasGarments)
+                      if (hasGarments && !_is3dMode)
                         LayoutBuilder(
                           builder: (_, BoxConstraints bc) => CustomPaint(
                             size: bc.biggest,
                             painter: _CameraOverlayPainter(
-                              // Pre-sorted by depth so paint() skips re-sorting every frame.
                               garments: (_garments.values.toList()
                                     ..sort((a, b) => garmentDepth(a.item.type)
                                         .compareTo(garmentDepth(b.item.type))))
@@ -479,7 +573,15 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
                               fitScales: ref.watch(fitScalesProvider),
                               segMaskImage: _segMaskImage,
                               manualScale: _manualScale,
+                              ambientLuma: _ambientLuma,
                             ),
+                          ),
+                        )
+                      else if (hasGarments && _is3dMode && _anchors != null)
+                        LayoutBuilder(
+                          builder: (_, BoxConstraints bc) => Stack(
+                            fit: StackFit.expand,
+                            children: _build3dGarments(bc.biggest),
                           ),
                         ),
                     ],
@@ -503,9 +605,6 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
               ),
 
             // ── Pose quality hint ─────────────────────────────────────────
-            // Shown when pose is detected but only via midpoint fallback (no
-            // individual shoulder landmarks) — usually means the user is too
-            // far away and ML Kit can't resolve individual shoulder positions.
             if (_cameraReady && hasGarments && _anchors != null &&
                 !(_anchors!.containsKey('leftShoulder') ||
                   _anchors!.containsKey('rightShoulder')))
@@ -517,6 +616,41 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
                   child: _PillBadge(
                     icon: Icons.warning_amber_rounded,
                     text: 'Step closer for better fit',
+                  ),
+                ),
+              ),
+
+            // ── 3D Mode Toggle ───────────────────────────────────────────
+            if (_cameraReady && canEnable3d)
+              Positioned(
+                top: 56,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: GestureDetector(
+                    onTap: () {
+                      HapticFeedback.lightImpact();
+                      setState(() => _is3dMode = !_is3dMode);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: _is3dMode ? AppColors.primary : Colors.black54,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.white24),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          Icon(_is3dMode ? Icons.view_in_ar : Icons.image, color: Colors.white, size: 16),
+                          const SizedBox(width: 8),
+                          Text(
+                            _is3dMode ? '3D Mode' : '2D Mode',
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -627,6 +761,7 @@ class _CameraOverlayPainter extends CustomPainter {
     required this.displaySize,
     required this.fitScales,
     required this.manualScale,
+    required this.ambientLuma,
     this.segMaskImage,
   });
 
@@ -635,6 +770,7 @@ class _CameraOverlayPainter extends CustomPainter {
   final Size displaySize;
   final FitScales fitScales;
   final double manualScale;
+  final double ambientLuma;
   final ui.Image? segMaskImage;
 
   @override
@@ -650,7 +786,14 @@ class _CameraOverlayPainter extends CustomPainter {
     // Isolate all garment draws (and future dstOut erases) into one layer so
     // BlendMode.dstOut only clears pixels within this layer, not the
     // CameraPreview rendered beneath this CustomPaint.
-    canvas.saveLayer(Rect.fromLTWH(0, 0, size.width, size.height), Paint());
+    final double scale = 0.75 + ambientLuma * 0.50;
+    final ColorFilter lightingFilter = ColorFilter.matrix(<double>[
+      scale, 0, 0, 0, 0,
+      0, scale, 0, 0, 0,
+      0, 0, scale, 0, 0,
+      0, 0, 0, 1, 0,
+    ]);
+    canvas.saveLayer(Rect.fromLTWH(0, 0, size.width, size.height), Paint()..colorFilter = lightingFilter);
 
     for (final _GarmentData g in sorted) {
       _paintOne(canvas, size, g, a, shoulderSpan);
@@ -776,12 +919,23 @@ class _CameraOverlayPainter extends CustomPainter {
     final double topSkew = (rsy - lsy) * 0.6;
     final double bottomSkew = (rhy - lhy) * 0.6;
 
-    final double shoulderWidth = (lS.x - rS.x).abs();
-    final double hipWidth = (lH.x - rH.x).abs();
-    final double taper = shoulderWidth > 0 ? (hipWidth / shoulderWidth).clamp(0.6, 1.2) : 1.0;
+    final double shoulderWidthNorm = (lS.x - rS.x).abs();
+    final double hipWidthNorm = (lH.x - rH.x).abs();
+    final double taper = shoulderWidthNorm > 0 ? (hipWidthNorm / shoulderWidthNorm).clamp(0.6, 1.2) : 1.0;
 
     final double topY = rect.top;
-    final double bottomY = rect.bottom;
+
+    // Explicitly calculate where the user's hips are in pixel space
+    final double bodyShoulderY = ((lsy + rsy) / 2) * size.height;
+    final double bodyHipY = ((lhy + rhy) / 2) * size.height;
+    final double torsoHeight = bodyHipY - bodyShoulderY;
+
+    // A standard top should reach just below the hips (15% of torso height below the hip line)
+    final double targetBottomY = bodyHipY + (torsoHeight * 0.15);
+
+    // If the garment's native aspect ratio is shorter than the user's torso, stretch it to the hips!
+    // (If it's longer, like a dress, we keep the longer length).
+    final double bottomY = rect.bottom < targetBottomY ? targetBottomY : rect.bottom;
 
     final Offset tl = Offset(rect.left + topSkew * (topY - ay), topY);
     final Offset tr = Offset(rect.right + topSkew * (topY - ay), topY);
@@ -921,6 +1075,7 @@ class _CameraOverlayPainter extends CustomPainter {
       old.garments != garments ||
       old.fitScales != fitScales ||
       old.manualScale != manualScale ||
+      old.ambientLuma != ambientLuma ||
       old.segMaskImage != segMaskImage;
 }
 
