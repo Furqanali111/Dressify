@@ -91,6 +91,10 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
   final GlobalKey _previewKey = GlobalKey();
   bool _capturing = false;
 
+  // ── Manual fit scale (pinch-to-zoom on live overlay) ──────────────────────
+  double _manualScale = 1.0;
+  double _scaleOnGestureStart = 1.0;
+
   // ---------------------------------------------------------------------------
   // Lifecycle
   // ---------------------------------------------------------------------------
@@ -202,6 +206,8 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
     await _controller?.stopImageStream();
     await _controller?.dispose();
     _controller = null;
+    // Reset manual scale on flip — the new camera angle is a fresh framing.
+    _manualScale = 1.0;
     if (mounted) setState(() => _cameraReady = false);
     _cameraIndex = (_cameraIndex + 1) % _cameras.length;
     await _initControllerFor(_cameras[_cameraIndex]);
@@ -438,30 +444,46 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
           children: <Widget>[
             // ── Camera preview + overlay ─────────────────────────────────
             if (_cameraReady && _controller != null)
-              RepaintBoundary(
-                key: _previewKey,
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: <Widget>[
-                    CameraPreview(_controller!),
-                    if (hasGarments)
-                      LayoutBuilder(
-                        builder: (_, BoxConstraints bc) => CustomPaint(
-                          size: bc.biggest,
-                          painter: _CameraOverlayPainter(
-                            // Pre-sorted by depth so paint() skips re-sorting every frame.
-                            garments: (_garments.values.toList()
-                                  ..sort((a, b) => garmentDepth(a.item.type)
-                                      .compareTo(garmentDepth(b.item.type))))
-                                .toList(),
-                            anchors: _anchors,
-                            displaySize: bc.biggest,
-                            fitScales: ref.watch(fitScalesProvider),
-                            segMaskImage: _segMaskImage,
+              GestureDetector(
+                // Pinch-to-scale: two-finger scale gesture adjusts garment size.
+                // Single-finger taps pass through to Positioned buttons above.
+                onScaleStart: (ScaleStartDetails _) {
+                  _scaleOnGestureStart = _manualScale;
+                },
+                onScaleUpdate: (ScaleUpdateDetails d) {
+                  if (d.pointerCount < 2) return;
+                  final double next =
+                      (_scaleOnGestureStart * d.scale).clamp(0.5, 2.0);
+                  if ((next - _manualScale).abs() > 0.005) {
+                    setState(() => _manualScale = next);
+                  }
+                },
+                child: RepaintBoundary(
+                  key: _previewKey,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: <Widget>[
+                      CameraPreview(_controller!),
+                      if (hasGarments)
+                        LayoutBuilder(
+                          builder: (_, BoxConstraints bc) => CustomPaint(
+                            size: bc.biggest,
+                            painter: _CameraOverlayPainter(
+                              // Pre-sorted by depth so paint() skips re-sorting every frame.
+                              garments: (_garments.values.toList()
+                                    ..sort((a, b) => garmentDepth(a.item.type)
+                                        .compareTo(garmentDepth(b.item.type))))
+                                  .toList(),
+                              anchors: _anchors,
+                              displaySize: bc.biggest,
+                              fitScales: ref.watch(fitScalesProvider),
+                              segMaskImage: _segMaskImage,
+                              manualScale: _manualScale,
+                            ),
                           ),
                         ),
-                      ),
-                  ],
+                    ],
+                  ),
                 ),
               )
             else if (_cameraError)
@@ -477,6 +499,36 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
                 child: _PillBadge(
                   icon: Icons.person_outline,
                   text: 'Stand in front of the camera',
+                ),
+              ),
+
+            // ── Pose quality hint ─────────────────────────────────────────
+            // Shown when pose is detected but only via midpoint fallback (no
+            // individual shoulder landmarks) — usually means the user is too
+            // far away and ML Kit can't resolve individual shoulder positions.
+            if (_cameraReady && hasGarments && _anchors != null &&
+                !(_anchors!.containsKey('leftShoulder') ||
+                  _anchors!.containsKey('rightShoulder')))
+              const Positioned(
+                top: 56,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: _PillBadge(
+                    icon: Icons.warning_amber_rounded,
+                    text: 'Step closer for better fit',
+                  ),
+                ),
+              ),
+
+            // ── Pinch-scale indicator + reset ─────────────────────────────
+            if (_cameraReady && hasGarments && (_manualScale - 1.0).abs() > 0.01)
+              Positioned(
+                top: 56,
+                right: AppSpacing.md,
+                child: _ScalePill(
+                  scale: _manualScale,
+                  onReset: () => setState(() => _manualScale = 1.0),
                 ),
               ),
 
@@ -574,6 +626,7 @@ class _CameraOverlayPainter extends CustomPainter {
     required this.anchors,
     required this.displaySize,
     required this.fitScales,
+    required this.manualScale,
     this.segMaskImage,
   });
 
@@ -581,6 +634,7 @@ class _CameraOverlayPainter extends CustomPainter {
   final Map<String, NormAnchor>? anchors;
   final Size displaySize;
   final FitScales fitScales;
+  final double manualScale;
   final ui.Image? segMaskImage;
 
   @override
@@ -663,7 +717,7 @@ class _CameraOverlayPainter extends CustomPainter {
     if (anchor == null) return;
 
     final ui.Image img = g.uiImage;
-    final double gW = shoulderSpan * garmentShoulderMultiplier(g.item.type) * fitScales.forType(g.item.type);
+    final double gW = shoulderSpan * garmentShoulderMultiplier(g.item.type) * fitScales.forType(g.item.type) * manualScale;
     final double gH = gW / (img.width / img.height);
 
     final double ax = anchor.x * size.width;
@@ -787,6 +841,7 @@ class _CameraOverlayPainter extends CustomPainter {
       old.anchors != anchors ||
       old.garments != garments ||
       old.fitScales != fitScales ||
+      old.manualScale != manualScale ||
       old.segMaskImage != segMaskImage;
 }
 
@@ -1346,6 +1401,47 @@ class _PillBadge extends StatelessWidget {
           const SizedBox(width: AppSpacing.sm),
           Text(text, style: const TextStyle(color: Colors.white, fontSize: 14)),
         ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Pinch-scale indicator pill
+// ---------------------------------------------------------------------------
+
+class _ScalePill extends StatelessWidget {
+  const _ScalePill({required this.scale, required this.onReset});
+  final double scale;
+  final VoidCallback onReset;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onReset,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.65),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            const Icon(Icons.zoom_out_map, color: Colors.white70, size: 14),
+            const SizedBox(width: 4),
+            Text(
+              '${(scale * 100).round()}%',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(width: 4),
+            const Icon(Icons.close, color: Colors.white54, size: 13),
+          ],
+        ),
       ),
     );
   }
