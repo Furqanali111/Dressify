@@ -732,21 +732,100 @@ class _CameraOverlayPainter extends CustomPainter {
     final double rsy = anchors['rightShoulder']?.y ?? anchors['shoulder']?.y ?? 0.5;
     final double skewFactor = (rsy - lsy) * 0.6;
 
-    canvas.save();
-    // Column-major Matrix4 for X-shear: x' = x + skewFactor*(y - ay), y' = y.
-    // Columns: [1,0,0,0], [k,1,0,0], [0,0,1,0], [-k*ay,0,0,1]
-    canvas.transform(
-      Matrix4(
-        1, 0, 0, 0,
-        skewFactor, 1, 0, 0,
-        0, 0, 1, 0,
-        -skewFactor * ay, 0, 0, 1,
-      ).storage,
+    final List<Offset>? quad = _computeBodyQuad(anchors, size, rect, ay);
+
+    if (quad != null) {
+      _paintImageOnQuad(canvas, img, quad);
+    } else {
+      canvas.save();
+      // Column-major Matrix4 for X-shear: x' = x + skewFactor*(y - ay), y' = y.
+      // Columns: [1,0,0,0], [k,1,0,0], [0,0,1,0], [-k*ay,0,0,1]
+      canvas.transform(
+        Matrix4(
+          1, 0, 0, 0,
+          skewFactor, 1, 0, 0,
+          0, 0, 1, 0,
+          -skewFactor * ay, 0, 0, 1,
+        ).storage,
+      );
+
+      paintImage(canvas: canvas, rect: rect, image: img, fit: BoxFit.fill);
+
+      canvas.restore();
+    }
+  }
+
+  List<Offset>? _computeBodyQuad(
+    Map<String, NormAnchor> anchors,
+    Size size,
+    Rect rect,
+    double ay,
+  ) {
+    final NormAnchor? lS = anchors['leftShoulder'];
+    final NormAnchor? rS = anchors['rightShoulder'];
+    final NormAnchor? lH = anchors['leftHip'];
+    final NormAnchor? rH = anchors['rightHip'];
+
+    if (lS == null || rS == null || lH == null || rH == null) return null;
+
+    final double lsy = lS.y;
+    final double rsy = rS.y;
+    final double lhy = lH.y;
+    final double rhy = rH.y;
+
+    final double topSkew = (rsy - lsy) * 0.6;
+    final double bottomSkew = (rhy - lhy) * 0.6;
+
+    final double shoulderWidth = (lS.x - rS.x).abs();
+    final double hipWidth = (lH.x - rH.x).abs();
+    final double taper = shoulderWidth > 0 ? (hipWidth / shoulderWidth).clamp(0.6, 1.2) : 1.0;
+
+    final double topY = rect.top;
+    final double bottomY = rect.bottom;
+
+    final Offset tl = Offset(rect.left + topSkew * (topY - ay), topY);
+    final Offset tr = Offset(rect.right + topSkew * (topY - ay), topY);
+
+    final double cx = rect.center.dx;
+    final double bottomHalfWidth = (rect.width / 2) * taper;
+
+    final Offset bl = Offset(cx - bottomHalfWidth + bottomSkew * (bottomY - ay), bottomY);
+    final Offset br = Offset(cx + bottomHalfWidth + bottomSkew * (bottomY - ay), bottomY);
+
+    return <Offset>[tl, tr, br, bl];
+  }
+
+  void _paintImageOnQuad(Canvas canvas, ui.Image img, List<Offset> quad) {
+    final Float32List positions = Float32List.fromList(<double>[
+      quad[0].dx, quad[0].dy, // TL
+      quad[1].dx, quad[1].dy, // TR
+      quad[3].dx, quad[3].dy, // BL
+      quad[2].dx, quad[2].dy, // BR
+    ]);
+
+    final Float32List textureCoordinates = Float32List.fromList(<double>[
+      0, 0,
+      img.width.toDouble(), 0,
+      0, img.height.toDouble(),
+      img.width.toDouble(), img.height.toDouble(),
+    ]);
+
+    final ui.Vertices vertices = ui.Vertices.raw(
+      ui.VertexMode.triangleStrip,
+      positions,
+      textureCoordinates: textureCoordinates,
     );
 
-    paintImage(canvas: canvas, rect: rect, image: img, fit: BoxFit.fill);
+    final Float64List matrix = Matrix4.identity().storage;
+    final ui.ImageShader shader = ui.ImageShader(
+      img,
+      TileMode.clamp,
+      TileMode.clamp,
+      matrix,
+    );
 
-    canvas.restore();
+    final Paint paint = Paint()..shader = shader;
+    canvas.drawVertices(vertices, BlendMode.srcOver, paint);
   }
 
   // Returns a paint with a soft radial gradient (opaque centre → transparent edge).
