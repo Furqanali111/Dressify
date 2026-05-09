@@ -39,7 +39,8 @@ Dressify is an AI-powered personal stylist and virtual wardrobe application. It 
 │   │   ├── schemas/        # Pydantic Models
 │   │   ├── services/       # AI, Weather, Storage logic
 │   │   └── worker.py       # ARQ Worker settings and jobs
-│   └── alembic/            # Database migrations
+│   ├── alembic/            # Database migrations
+│   └── local_gpu_worker.py # Standalone local 3D mesh generation script
 ├── Frontend/               # Flutter mobile application
 │   ├── lib/
 │   │   ├── core/           # Providers, Themes, Models, Router
@@ -71,7 +72,7 @@ Dressify is an AI-powered personal stylist and virtual wardrobe application. It 
    alembic upgrade head
    ```
 
-5. **Run the Application** (Requires two separate terminal processes):
+5. **Run the Application** (Requires three separate terminal processes):
 
    **Terminal 1 — The API**
    ```bash
@@ -81,6 +82,11 @@ Dressify is an AI-powered personal stylist and virtual wardrobe application. It 
    **Terminal 2 — The ARQ Worker**
    ```bash
    python -m arq app.worker.WorkerSettings
+   ```
+
+   **Terminal 3 — The Local GPU Worker (For 3D Mesh Generation)**
+   ```bash
+   python local_gpu_worker.py
    ```
 
 ### Frontend

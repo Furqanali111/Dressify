@@ -36,6 +36,12 @@ async def _inject_urls(item) -> ClothingItemResponse:
         resp.processed_url = url or ""
     else:
         resp.processed_url = ""
+    # Also sign the GLB mesh URL if one exists
+    if item.glb_mesh_path:
+        glb_url = await asyncio.to_thread(
+            storage.get_signed_url, "clothing-meshes", item.glb_mesh_path
+        )
+        resp.glb_mesh_path = glb_url or ""
     return resp
 
 
@@ -57,6 +63,8 @@ async def get_clothing(
         ClothingItem.type,
         ClothingItem.processed_image_path,
         ClothingItem.processing_status,
+        ClothingItem.glb_mesh_path,
+        ClothingItem.mesh_status,
         ClothingItem.size_label,
         ClothingItem.created_at,
     ).where(
@@ -245,6 +253,10 @@ async def delete_clothing_item(
     if item.processed_image_path:
         await asyncio.to_thread(storage.delete_file, settings.CLOTHING_BUCKET, item.processed_image_path)
 
+    # Also clean up the 3D mesh from the clothing-meshes bucket
+    if item.glb_mesh_path:
+        await asyncio.to_thread(storage.delete_file, "clothing-meshes", item.glb_mesh_path)
+
     return None
 
 
@@ -260,9 +272,9 @@ async def batch_delete_clothing(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    # Fetch items to get processed image paths before deleting.
+    # Fetch items to get processed image paths AND glb paths before deleting.
     rows = (await db.execute(
-        select(ClothingItem.id, ClothingItem.processed_image_path)
+        select(ClothingItem.id, ClothingItem.processed_image_path, ClothingItem.glb_mesh_path)
         .where(
             ClothingItem.id.in_(body.clothing_item_ids),
             ClothingItem.user_id == current_user.id,
@@ -290,5 +302,7 @@ async def batch_delete_clothing(
     for row in rows:
         if row.processed_image_path:
             await asyncio.to_thread(storage.delete_file, settings.CLOTHING_BUCKET, row.processed_image_path)
+        if row.glb_mesh_path:
+            await asyncio.to_thread(storage.delete_file, "clothing-meshes", row.glb_mesh_path)
 
     return None

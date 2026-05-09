@@ -36,6 +36,11 @@ class Settings(BaseSettings):
     # Virtual Try-On API keys (T3 AI Try-On feature)
     FASHN_API_KEY: str = ""
     REPLICATE_API_KEY: str = ""
+    
+    # 3D Mesh Reconstruction Settings
+    MESH_PROVIDER: str = "local" # options: "local", "replicate", "runpod"
+    LOCAL_GPU_WORKER_URL: str = "http://localhost:8080/generate"
+    RUNPOD_MESH_ENDPOINT: str = ""
 
     # AI Settings
     OPENAI_API_KEY: str | None = None

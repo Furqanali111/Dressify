@@ -21,4 +21,6 @@ class ClothingItem(Base):
     size_label = Column(String(10), nullable=True)
     fit_notes = Column(Text, nullable=True)
     processing_status = Column(String, default="pending")
+    glb_mesh_path = Column(String, nullable=True)
+    mesh_status = Column(String, default="pending", nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

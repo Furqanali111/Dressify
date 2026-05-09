@@ -256,6 +256,12 @@ async def _do_retry(entry: UploadRetryQueue) -> None:
                     processing_status="completed",
                 )
                 db.add(new_item)
+                
+            # Enqueue the 3D mesh reconstruction task
+            if _arq_pool is not None:
+                await _arq_pool.enqueue_job("trigger_mesh_reconstruction", str(item_id), processed_path)
+            else:
+                logger.warning("ARQ pool unavailable — skipping mesh reconstruction for %s", item_id)
 
             processed_any = True
 

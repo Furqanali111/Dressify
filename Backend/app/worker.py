@@ -63,7 +63,8 @@ async def _worker_shutdown(ctx: dict) -> None:
 
 
 class WorkerSettings:
-    functions = [extract_metadata_job, process_upload_job]
+    from app.services.mesh_reconstruction import trigger_mesh_reconstruction
+    functions = [extract_metadata_job, process_upload_job, trigger_mesh_reconstruction]
     redis_settings = RedisSettings.from_dsn(settings.REDIS_URL)
     on_startup = _worker_startup
     on_shutdown = _worker_shutdown

@@ -6,6 +6,8 @@ from app.models.outfit import Outfit, OutfitItem
 from app.models.ai_feedback import AiFeedback
 from app.models.upload_retry_queue import UploadRetryQueue
 from app.models.notification import Notification
+from app.models.wear_log import WearLog
+from app.models.style_preference import UserStylePreference, OutfitInteraction
 
 # Expose all models for Alembic
 __all__ = [
@@ -18,4 +20,7 @@ __all__ = [
     "AiFeedback",
     "UploadRetryQueue",
     "Notification",
+    "WearLog",
+    "UserStylePreference",
+    "OutfitInteraction",
 ]
