@@ -102,8 +102,10 @@ async def run_retry_worker() -> None:
 # ---------------------------------------------------------------------------
 
 async def _tick() -> None:
+    # Single session for both the due-entry fetch and the stale-entry prune —
+    # avoids opening two connections from the pool for back-to-back operations.
+    now = datetime.now(timezone.utc)
     async with AsyncSessionLocal() as db:
-        now = datetime.now(timezone.utc)
         result = await db.execute(
             select(UploadRetryQueue).where(
                 UploadRetryQueue.status == "pending",
@@ -112,8 +114,7 @@ async def _tick() -> None:
         )
         entries = result.scalars().all()
 
-    # Prune failed entries older than 30 days so the queue doesn't grow unboundedly.
-    async with AsyncSessionLocal() as db:
+        # Prune failed entries older than 30 days so the queue doesn't grow unboundedly.
         cutoff = now - timedelta(days=30)
         await db.execute(
             delete(UploadRetryQueue).where(

@@ -4,7 +4,7 @@ import uuid
 from typing import Optional
 from datetime import datetime  # used in cursor parsing
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete as sql_delete
@@ -46,7 +46,7 @@ async def get_clothing(
     type: Optional[str] = None,
     sort_by: Optional[str] = "newest",
     cursor: Optional[str] = None,
-    limit: int = 30,
+    limit: int = Query(default=30, ge=1, le=100),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):

@@ -3,7 +3,7 @@ import uuid
 from typing import Optional
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -114,7 +114,7 @@ async def create_outfit(
 async def get_outfits(
     request: Request,
     cursor: Optional[str] = None,
-    limit: int = 30,
+    limit: int = Query(default=30, ge=1, le=100),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -208,6 +208,9 @@ async def auto_generate_outfit(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    # Cap at 150 items: larger wardrobes hit AI token limits anyway, and the
+    # query cost grows linearly. Most recent items are used so the prompt stays
+    # relevant (users usually wear newer pieces more often).
     wardrobe_result = await db.execute(
         select(
             ClothingItem.id,
@@ -220,7 +223,7 @@ async def auto_generate_outfit(
         ).where(
             ClothingItem.user_id == current_user.id,
             ClothingItem.processing_status == "completed",
-        )
+        ).order_by(ClothingItem.created_at.desc()).limit(150)
     )
     wardrobe_rows = wardrobe_result.all()
     if not wardrobe_rows:

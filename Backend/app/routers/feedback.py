@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 import logging
+import random
 import uuid
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
@@ -99,10 +100,12 @@ async def generate_feedback(
     )
 
     # ── Rotation Sampling: 15 underused wardrobe items (not in current outfit) ─
-    # We pick items the user hasn't worn recently by sampling randomly, excluding
-    # the items already in the outfit. This keeps the prompt lean (≤15 items)
-    # and nudges the AI to suggest underused pieces — encouraging wardrobe rotation.
-    current_outfit_ids = [str(i) for i in (item_ids or [])]
+    # ORDER BY RANDOM() forces a full table scan + O(N log N) sort over every
+    # row before the LIMIT is applied. Instead: fetch the 50 most-recent
+    # completed items (cheap index scan on the composite user+created_at index),
+    # then randomly sample up to 15 in Python. Recent items are a representative
+    # cross-section of the wardrobe and the index fetch is orders of magnitude
+    # faster than a full-table sort.
     wardrobe_result = await db.execute(
         select(
             ClothingItem.name,
@@ -117,11 +120,13 @@ async def generate_feedback(
             ~ClothingItem.id.in_(item_ids or []),
             ClothingItem.processing_status == "completed",
         )
-        .order_by(func.random())
-        .limit(15)
+        .order_by(ClothingItem.created_at.desc())
+        .limit(50)
     )
+    pool = wardrobe_result.all()
+    sample = random.sample(pool, min(15, len(pool)))
     wardrobe_sample: list[str] = []
-    for w in wardrobe_result.all():
+    for w in sample:
         desc = f"{w.name} ({w.type})"
         extras = [e for e in [w.sub_type, w.color, w.pattern, w.style] if e]
         if extras:
@@ -191,22 +196,19 @@ async def get_outfit_feedback(
     db: AsyncSession = Depends(get_db),
 ):
     """Return the most recent AI feedback saved for a given outfit."""
-    # Verify outfit belongs to user
-    outfit_result = await db.execute(
-        select(Outfit).where(Outfit.id == outfit_id, Outfit.user_id == current_user.id)
-    )
-    if not outfit_result.scalar_one_or_none():
-        raise HTTPException(status_code=404, detail="Outfit not found")
-
+    # Single query: JOIN enforces ownership; avoids a separate round-trip just
+    # to verify the outfit belongs to the user.
     feedback_result = await db.execute(
         select(AiFeedback)
-        .where(AiFeedback.outfit_id == outfit_id)
+        .join(Outfit, AiFeedback.outfit_id == Outfit.id)
+        .where(
+            AiFeedback.outfit_id == outfit_id,
+            Outfit.user_id == current_user.id,
+        )
         .order_by(AiFeedback.created_at.desc())
         .limit(1)
     )
     feedback = feedback_result.scalar_one_or_none()
-
     if not feedback:
         raise HTTPException(status_code=404, detail="No feedback found for this outfit")
-
     return feedback

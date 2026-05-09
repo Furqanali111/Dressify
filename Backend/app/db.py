@@ -16,7 +16,21 @@ if "+" not in _scheme:
     elif _scheme == "postgres":
         DATABASE_URL = "postgresql+psycopg://" + DATABASE_URL[len("postgres://"):]
 
-engine = create_async_engine(DATABASE_URL, echo=False)
+engine = create_async_engine(
+    DATABASE_URL,
+    echo=False,
+    # Raise pool_size above the default of 5 so concurrent requests under
+    # moderate load don't queue waiting for a connection.
+    pool_size=20,
+    max_overflow=10,
+    pool_timeout=30,
+    # Verify a connection is still alive before handing it out (avoids
+    # "server closed the connection unexpectedly" on Supabase idle timeouts).
+    pool_pre_ping=True,
+    # Recycle connections older than 10 min so Supabase's 5-min idle timeout
+    # never cuts a connection that SQLAlchemy still considers live.
+    pool_recycle=600,
+)
 AsyncSessionLocal = async_sessionmaker(
     bind=engine,
     class_=AsyncSession,

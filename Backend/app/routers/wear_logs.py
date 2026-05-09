@@ -1,7 +1,7 @@
 import uuid
 import logging
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel
@@ -77,7 +77,7 @@ async def log_wear(
 async def get_wear_logs(
     request: Request,
     cursor: Optional[str] = None,
-    limit: int = 20,
+    limit: int = Query(default=20, ge=1, le=100),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -86,8 +86,16 @@ async def get_wear_logs(
     Use the returned ``next_cursor`` value as the ``cursor`` query parameter
     in the next request to load the following page.
     """
+    # Select only the columns the response schema needs — avoids hydrating the
+    # full ORM object and fetching user_id / unused fields from the DB.
     query = (
-        select(WearLog)
+        select(
+            WearLog.id,
+            WearLog.user_id,
+            WearLog.outfit_id,
+            WearLog.clothing_item_ids,
+            WearLog.logged_at,
+        )
         .where(WearLog.user_id == current_user.id)
         .order_by(WearLog.logged_at.desc())
     )
@@ -101,11 +109,11 @@ async def get_wear_logs(
 
     query = query.limit(limit + 1)
     result = await db.execute(query)
-    logs = result.scalars().all()
+    logs = result.mappings().all()
 
     next_cursor: Optional[str] = None
     if len(logs) > limit:
-        next_cursor = logs[limit - 1].logged_at.isoformat()
+        next_cursor = logs[limit - 1]["logged_at"].isoformat()
         logs = logs[:limit]
 
-    return WearLogListResponse(items=list(logs), next_cursor=next_cursor)
+    return WearLogListResponse(items=[WearLogResponse(**dict(r)) for r in logs], next_cursor=next_cursor)

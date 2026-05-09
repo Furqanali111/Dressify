@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from collections import Counter
 from datetime import datetime, timedelta, timezone
@@ -94,25 +95,38 @@ async def get_wardrobe_analytics(
         )
     )).all()
 
-    # ── Most worn (top 5) ────────────────────────────────────────────────────
+    # ── Most worn (top 5) + underutilised (up to 10) ────────────────────────
     item_map = {str(row.id): row for row in item_rows}
 
-    def _worn_item(row, count: int) -> WornItem:
-        url = get_signed_url(settings.CLOTHING_BUCKET, row.processed_image_path) if row.processed_image_path else ""
-        return WornItem(id=str(row.id), name=row.name, type=row.type, wear_count=count, processed_url=url)
-
-    most_worn = [
-        _worn_item(item_map[cid], cnt)
+    most_worn_candidates = [
+        (item_map[cid], cnt)
         for cid, cnt in wear_counter.most_common(5)
         if cid in item_map
     ]
-
-    # ── Underutilised (no wear in last 30 days, completed items only) ────────
-    underutilised = [
-        _worn_item(row, wear_counter.get(str(row.id), 0))
+    underutilised_candidates = [
+        (row, wear_counter.get(str(row.id), 0))
         for row in item_rows
         if str(row.id) not in recently_worn_ids and row.processing_status == "completed"
     ][:10]
+
+    # Fetch all signed URLs in parallel — get_signed_url is a blocking Supabase
+    # call; running them concurrently via asyncio.to_thread keeps the event loop
+    # free and reduces total latency from N×T to ~T.
+    all_candidates = most_worn_candidates + underutilised_candidates
+
+    async def _signed(path: str | None) -> str:
+        if not path:
+            return ""
+        return await asyncio.to_thread(get_signed_url, settings.CLOTHING_BUCKET, path) or ""
+
+    urls = await asyncio.gather(*[_signed(row.processed_image_path) for row, _ in all_candidates])
+
+    def _build(row, count: int, url: str) -> WornItem:
+        return WornItem(id=str(row.id), name=row.name, type=row.type, wear_count=count, processed_url=url)
+
+    split = len(most_worn_candidates)
+    most_worn      = [_build(r, c, urls[i])       for i, (r, c) in enumerate(most_worn_candidates)]
+    underutilised  = [_build(r, c, urls[split + i]) for i, (r, c) in enumerate(underutilised_candidates)]
 
     # ── Color & style distributions ──────────────────────────────────────────
     color_dist: Counter = Counter()
