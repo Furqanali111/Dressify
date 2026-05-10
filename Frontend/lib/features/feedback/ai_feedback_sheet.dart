@@ -196,7 +196,7 @@ class _AiFeedbackSheetState extends ConsumerState<AiFeedbackSheet>
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
                       itemCount: _occasions.length,
-                      separatorBuilder: (_, __) => const SizedBox(width: 8),
+                      separatorBuilder: (_, _) => const SizedBox(width: 8),
                       itemBuilder: (_, i) {
                         final occ = _occasions[i];
                         final active = _selectedOccasion == occ;

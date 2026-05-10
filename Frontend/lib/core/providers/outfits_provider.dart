@@ -114,7 +114,9 @@ class OutfitsNotifier extends StateNotifier<AsyncValue<List<Outfit>>> {
     await dio.post<dynamic>(
       '/wear-logs',
       data: <String, dynamic>{
+        // ignore: use_null_aware_elements — ? applies to the key, not the value; if-null check on value is correct here
         if (outfitId != null) 'outfit_id': outfitId,
+        // ignore: use_null_aware_elements
         if (clothingItemIds != null) 'clothing_item_ids': clothingItemIds,
       },
     );

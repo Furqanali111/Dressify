@@ -148,7 +148,7 @@ class _AvatarCard extends StatelessWidget {
     
     // Scale widths/heights based on screen size
     final double cardWidth = (screenW * 0.4).clamp(140.0, 180.0);
-    final double cardHeight = (cardWidth * 1.6);
+    final double cardHeight = cardWidth * 1.6;
 
     final Widget card = AnimatedContainer(
       duration: const Duration(milliseconds: 180),

@@ -127,7 +127,7 @@ class _TopBar extends ConsumerWidget {
                   context: context,
                   backgroundColor: Colors.transparent,
                   isScrollControlled: true,
-                  builder: (_) => NotificationsSheet(),
+                  builder: (_) => const NotificationsSheet(),
                 );
               },
             ),
@@ -183,7 +183,7 @@ class _QuickActions extends StatelessWidget {
           context: context,
           backgroundColor: Colors.transparent,
           isScrollControlled: true,
-          builder: (_) => StyleMeSheet(),
+          builder: (_) => const StyleMeSheet(),
         ),
       ),
     ];

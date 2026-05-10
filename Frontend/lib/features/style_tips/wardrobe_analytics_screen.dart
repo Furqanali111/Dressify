@@ -91,7 +91,7 @@ class WardrobeAnalyticsScreen extends ConsumerWidget {
                 const SizedBox(height: AppSpacing.xl),
                 const _SectionTitle(title: 'Recent Activity'),
                 const SizedBox(height: AppSpacing.md),
-                _RecentWearHistory(),
+                const _RecentWearHistory(),
                 const SizedBox(height: AppSpacing.xl),
                 if (analytics.colorDistribution.isNotEmpty) ...<Widget>[
                   const _SectionTitle(title: 'Colour Palette'),
@@ -125,13 +125,13 @@ class WardrobeAnalyticsScreen extends ConsumerWidget {
                 const _SectionTitle(title: 'Outfit Frequency'),
                 const SizedBox(height: AppSpacing.md),
                 if (analytics.outfitFrequency.isEmpty)
-                  _FrequencyEmptyState()
+                  const _FrequencyEmptyState()
                 else
                   _FrequencyBars(weeks: analytics.outfitFrequency),
                 const SizedBox(height: AppSpacing.xl),
                 const _SectionTitle(title: 'Personalised Look Suggestion'),
                 const SizedBox(height: AppSpacing.xs),
-                _AiStyleTipsSection(),
+                const _AiStyleTipsSection(),
               ],
             ),
           );
@@ -777,8 +777,9 @@ class _AiStyleTipsSectionState extends ConsumerState<_AiStyleTipsSection> {
           );
       if (mounted) setState(() => _result = outfit);
     } catch (_) {
-      if (mounted)
+      if (mounted) {
         AppToast.show(context, 'Could not generate look. Try again.');
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
