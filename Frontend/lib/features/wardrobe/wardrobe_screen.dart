@@ -33,7 +33,10 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _tabController.addListener(() => setState(() {}));
+    _tabController.addListener(() {
+      if (_tabController.indexIsChanging) return;
+      setState(() {});
+    });
   }
 
   @override

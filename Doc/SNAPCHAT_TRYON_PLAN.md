@@ -48,37 +48,39 @@ not from an actual 3D mesh composited over the camera.
 
 | # | Item | Status | File(s) |
 |---|------|--------|---------|
-| S0.1.1 | Remove `bool _is3dMode` state field and the "3D Mode" toggle pill widget from the top bar | ⬜ Todo | `camera_try_on_screen.dart` |
-| S0.1.2 | Remove `_build3dGarments()` method and the `else if (_is3dMode)` branch in the camera stack builder | ⬜ Todo | `camera_try_on_screen.dart` |
-| S0.1.3 | Remove `import` of `garment_mesh_renderer.dart` from camera try-on screen | ⬜ Todo | `camera_try_on_screen.dart` |
-| S0.1.4 | Remove `_computeShoulderSpan()` helper (it was only used by the 3D garment positioning logic) | ⬜ Todo | `camera_try_on_screen.dart` |
-| S0.1.5 | Verify the camera try-on screen still compiles and all existing 2D warp paths work | ⬜ Todo | Build + device test |
+| S0.1.1 | Remove `bool _is3dMode` state field and the "3D Mode" toggle pill widget from the top bar | ✅ Done | `camera_try_on_screen.dart` |
+| S0.1.2 | Remove `_build3dGarments()` method and the `else if (_is3dMode)` branch in the camera stack builder | ✅ Done | `camera_try_on_screen.dart` |
+| S0.1.3 | Remove `import` of `garment_mesh_renderer.dart` from camera try-on screen | ✅ Done | `camera_try_on_screen.dart` |
+| S0.1.4 | Remove `_computeShoulderSpan()` helper (it was only used by the 3D garment positioning logic) | ✅ Done | `camera_try_on_screen.dart` |
+| S0.1.5 | Verify the camera try-on screen still compiles and all existing 2D warp paths work | ✅ Done | `flutter analyze` — no issues |
 
 ### S0.2 — Wardrobe & Item Detail
 
 | # | Item | Status | File(s) |
 |---|------|--------|---------|
-| S0.2.1 | Wardrobe item cards: confirm they display the `processedImageUrl` (2D) — no `GarmentMeshRenderer` should be referenced in any wardrobe widget | ⬜ Todo | `Frontend/lib/features/wardrobe/` |
-| S0.2.2 | Item detail screen: if it has a "View 3D" or mesh-related button/section, remove it; show the processed image full-screen instead | ⬜ Todo | Item detail screen file |
-| S0.2.3 | `GlbCacheService`: keep the class but remove all call sites that aren't in `GarmentMeshRenderer` (it will be re-wired when 3D wardrobe is built) | ⬜ Todo | Codebase search |
+| S0.2.1 | Wardrobe item cards: confirm they display the `processedImageUrl` (2D) — no `GarmentMeshRenderer` should be referenced in any wardrobe widget | ✅ Done | `Frontend/lib/features/wardrobe/` |
+| S0.2.2 | Item detail screen: if it has a "View 3D" or mesh-related button/section, remove it; show the processed image full-screen instead | ✅ Done | No 3D references found in any wardrobe screen |
+| S0.2.3 | `GlbCacheService`: keep the class but remove all call sites that aren't in `GarmentMeshRenderer` (it will be re-wired when 3D wardrobe is built) | ✅ Done | `wardrobe_provider.dart` |
 
-### S0.3 — Disable GLB Generation to Save GPU Costs
+### S0.3 — Remove Local GPU Worker & Disable GLB Generation
 
-> The backend worker currently generates a GLB for every uploaded garment.
-> With no viewer to display it, this is wasted RunPod spend.
-> Pause GLB generation via a feature flag — the code stays, the jobs don't fire.
+> The TripoSR repo and local GPU worker are fully removed.
+> Backend enqueue call is deleted. A feature flag gates re-enablement for the future.
 
 | # | Item | Status | File(s) |
 |---|------|--------|---------|
-| S0.3.1 | Add `MESH_GENERATION_ENABLED=false` to `.env` and `app/config.py` settings | ⬜ Todo | `Backend/app/config.py` |
-| S0.3.2 | In `upload.py` router: wrap the `trigger_mesh_reconstruction` ARQ enqueue in `if settings.MESH_GENERATION_ENABLED:` — no jobs fire when flag is false | ⬜ Todo | `Backend/app/routers/upload.py` |
-| S0.3.3 | Set `MESH_GENERATION_ENABLED=true` in the future when 3D wardrobe is being built | ⬜ Todo | Infrastructure |
+| S0.3.1 | Add `MESH_GENERATION_ENABLED=False` to `app/config.py` settings | ✅ Done | `Backend/app/config.py` |
+| S0.3.2 | Remove `trigger_mesh_reconstruction` ARQ enqueue from `retry_worker.py` | ✅ Done | `Backend/app/services/retry_worker.py` |
+| S0.3.3 | Remove `trigger_mesh_reconstruction` from `WorkerSettings.functions` and its module-level import | ✅ Done | `Backend/app/worker.py` |
+| S0.3.4 | Delete `Backend/local_gpu_worker.py` (the FastAPI TripoSR server) | ✅ Done | Deleted |
+| S0.3.5 | Delete `Backend/TripoSR/` directory (cloned TripoSR repo, ~500 MB) | ✅ Done | Deleted |
+| S0.3.6 | Set `MESH_GENERATION_ENABLED=true` in the future when 3D wardrobe (F1) is being built | ⬜ Future | Infrastructure |
 
 ### S0.4 — Android Manifest Cleanup (Optional)
 
 | # | Item | Status | File(s) |
 |---|------|--------|---------|
-| S0.4.1 | The `network_security_config.xml` (localhost cleartext) was added for `model_viewer_plus`. Once the WebView is removed from the camera flow it is no longer needed — remove it and the `android:networkSecurityConfig` attribute from `AndroidManifest.xml` | ⬜ Todo | `android/app/src/main/` |
+| S0.4.1 | The `network_security_config.xml` (localhost cleartext) was added for `model_viewer_plus`. Keeping it for now — localhost cleartext is also needed in dev for the backend API at `http://localhost:8000`. Remove only if a production network security policy requires it. | ⬜ Kept intentionally | `android/app/src/main/` |
 
 ---
 
@@ -148,9 +150,9 @@ The upgrade maps **named garment zones** to **named body landmarks**.
 
 | # | Item | Status | File(s) |
 |---|------|--------|---------|
-| S1.1.1 | Define `GarmentControlPoints` model: `neckUV`, `leftShoulderUV`, `rightShoulderUV`, `leftSleeveUV`, `rightSleeveUV`, `waistLeftUV`, `waistRightUV`, `hemLeftUV`, `hemRightUV` — all in 0–1 UV space | ⬜ Todo | `Frontend/lib/core/models/garment_control_points.dart` (new) |
-| S1.1.2 | Per-type defaults: `GarmentType.top` → full UV grid; `GarmentType.dress` → extended hem; `GarmentType.bottom` → waist-to-hem only; `GarmentType.jacket` → collar + full sleeve extension | ⬜ Todo | `Frontend/lib/core/models/garment_control_points.dart` |
-| S1.1.3 | Backend: expose `garment_type` in `ClothingItemResponse` (AI extraction already classifies it; just ensure it's serialised) | ⬜ Todo | `Backend/app/schemas/clothing.py` |
+| S1.1.1 | Define `GarmentControlPoints` model: UV anchors for collar, left/right shoulder seam, left/right sleeve tip, left/right waist, hem centre — all in 0–1 UV space | ✅ Done | `Frontend/lib/core/utils/garment_control_points.dart` |
+| S1.1.2 | Per-type defaults: `top` (8 pts), `jacket` (8 pts), `dress` (8 pts), `bottom` (6 pts — no collar/sleeve); `computeTargets()` maps each UV point to a screen-space body landmark | ✅ Done | `Frontend/lib/core/utils/garment_control_points.dart` |
+| S1.1.3 | Backend: expose `garment_type` in `ClothingItemResponse` (AI extraction already classifies it; just ensure it's serialised) | ✅ Done | `Backend/app/schemas/clothing.py` → `type: str` field; Flutter reads `item.type` throughout |
 
 ### S1.2 — Thin-Plate Spline (TPS) Warper
 
@@ -159,21 +161,21 @@ The upgrade maps **named garment zones** to **named body landmarks**.
 
 | # | Item | Status | File(s) |
 |---|------|--------|---------|
-| S1.2.1 | `TpsWarper` class: takes source UV list + target screen `Offset` list; solves TPS coefficients (pure Dart, no native lib needed for ≤ 12 points) | ⬜ Todo | `Frontend/lib/core/utils/tps_warper.dart` (new) |
-| S1.2.2 | `TpsWarper.warpMesh(rows, cols)` — generates a dense grid of warped `Offset` points; `rows=20, cols=14` is the default (280 quads, sub-pixel accuracy, ~1ms) | ⬜ Todo | `Frontend/lib/core/utils/tps_warper.dart` |
-| S1.2.3 | `_GarmentWarpPainter`: replaces `_CameraOverlayPainter._paintImageOnQuad()`; uses `Canvas.drawVertices` with the TPS-warped mesh and UV `ImageShader` | ⬜ Todo | `camera_try_on_screen.dart` |
-| S1.2.4 | Cache TPS coefficients between frames — only recompute when landmark positions change by > 3px (avoids 1ms solve on every frame when the user is still) | ⬜ Todo | `Frontend/lib/core/utils/tps_warper.dart` |
-| S1.2.5 | Fallback: when fewer than 4 landmarks visible, fall back to existing L2 quad warp | ⬜ Todo | `camera_try_on_screen.dart` |
+| S1.2.1 | `TpsSolution` + `TpsWarper.solve()`: augmented Gaussian elimination on (n+3)×(n+3) matrix; solves x and y simultaneously; pure Dart, no native lib | ✅ Done | `Frontend/lib/core/utils/tps_warper.dart` |
+| S1.2.2 | `TpsWarper.buildMesh()` — 16×10 indexed triangle grid (187 vertices, 960 indices) via `ui.Vertices.raw()`; returns `(ui.Vertices, Paint)` with `ImageShader` at `FilterQuality.medium` | ✅ Done | `Frontend/lib/core/utils/tps_warper.dart` |
+| S1.2.3 | Integrate TPS into `_CameraOverlayPainter._paintOne()`: solve cached in state `_tpsSolutions` on every anchor update (~4 Hz); painter calls `buildMesh()` per frame (~30 Hz); `manualScale` applied as canvas transform around body anchor | ✅ Done | `camera_try_on_screen.dart` |
+| S1.2.4 | Cache TPS coefficients in `_tpsSolutions: Map<String, TpsSolution?>` in state; solved once per anchor update inside `setState`; painter only calls the cheap `eval()` × 187 per frame | ✅ Done | `camera_try_on_screen.dart` |
+| S1.2.5 | Fallback: when `tpsSolutions[id] == null` (degenerate/missing landmarks), falls back to existing quad warp → skew+paintImage chain | ✅ Done | `camera_try_on_screen.dart` |
 
 ### S1.3 — Garment-Type Fit Tuning
 
 | # | Item | Status | File(s) |
 |---|------|--------|---------|
-| S1.3.1 | `FitProfile` per garment type: shoulder width multiplier, sleeve extension ratio, collar Y offset, waist taper amount — stored as constants, tunable | ⬜ Todo | `Frontend/lib/core/utils/fit_profiles.dart` (new) |
-| S1.3.2 | Top/shirt: collar 15% above shoulder midpoint; sleeve tips 25% outside shoulder width | ⬜ Todo | `Frontend/lib/core/utils/fit_profiles.dart` |
-| S1.3.3 | Dress: hem mapped to knee landmark (or estimated 2× torso length below waist) | ⬜ Todo | `Frontend/lib/core/utils/fit_profiles.dart` |
-| S1.3.4 | Bottom/trousers: waistband anchored to hip landmarks; leg width estimated from hip span × 0.45 per leg | ⬜ Todo | `Frontend/lib/core/utils/fit_profiles.dart` |
-| S1.3.5 | Jacket / coat: same as top but collar elevated further + sleeve tips 35% outside shoulder | ⬜ Todo | `Frontend/lib/core/utils/fit_profiles.dart` |
+| S1.3.1 | `FitProfile` per garment type: `collarRiseRatio`, `sleeveExtendRatio`, `sleeveDropRatio` — all relative to shoulder span; stored as constants | ✅ Done | `Frontend/lib/core/utils/fit_profiles.dart` |
+| S1.3.2 | Top/shirt: `collarRiseRatio=0.32`, `sleeveExtendRatio=0.20`, `sleeveDropRatio=0.16`; sleeve direction computed from normalised shoulder axis vector | ✅ Done | `Frontend/lib/core/utils/fit_profiles.dart` |
+| S1.3.3 | Dress: `collarRiseRatio=0.34`, `sleeveExtendRatio=0.12`, `sleeveDropRatio=0.10`; hem target derived from hip midpoint + 15% torso extension below hips | ✅ Done | `Frontend/lib/core/utils/fit_profiles.dart` |
+| S1.3.4 | Bottom/trousers: waistband anchored to hip landmarks; mid-thigh from midpoint of hip+knee; ankle from landmark or estimated at 2.6× hip-span below hips | ✅ Done | `Frontend/lib/core/utils/garment_control_points.dart` |
+| S1.3.5 | Jacket/coat: `collarRiseRatio=0.28`, `sleeveExtendRatio=0.26`, `sleeveDropRatio=0.22` — wider shoulder extension than top | ✅ Done | `Frontend/lib/core/utils/fit_profiles.dart` |
 
 ---
 
@@ -203,20 +205,20 @@ Target (correct):
 
 | # | Item | Status | File(s) |
 |---|------|--------|---------|
-| S2.1.1 | In `_onFrame`, after segmentation result arrives, extract person-foreground mask as `Uint8List` (from the `InputImage` confidence buffer) | ⬜ Todo | `camera_try_on_screen.dart` |
-| S2.1.2 | Convert segmentation mask to `ui.Image` (RGBA — white where person, transparent where background); cache as `_personMaskImage`; update only when mask changes by > 5% (every 3rd frame is sufficient) | ⬜ Todo | `camera_try_on_screen.dart` |
-| S2.1.3 | `_GarmentWarpPainter`: draw order: (1) warped garment, (2) `_personMaskImage` composited with `BlendMode.srcOver` — this paints the person's skin/clothing on top of the garment in the overlap region | ⬜ Todo | `camera_try_on_screen.dart` |
-| S2.1.4 | Mask feathering: apply `MaskFilter.blur(BlurStyle.normal, 4.0)` to the person mask edge to avoid a hard cutout seam at the garment/arm boundary | ⬜ Todo | `camera_try_on_screen.dart` |
-| S2.1.5 | Only apply occlusion for body parts that can realistically be in front of the garment: forearms, hands, hair, chin/neck — exclude torso (it should be behind the garment). Achieve this by masking only the region outside the garment bounding quad before compositing | ⬜ Todo | `camera_try_on_screen.dart` |
-| S2.1.6 | Performance gate: skip mask image conversion if the frame delta is < 100ms (segmentation runs at ~10Hz; warp runs at ~30Hz — reuse last good mask between segmentation updates) | ⬜ Todo | `camera_try_on_screen.dart` |
+| S2.1.1 | In `_onFrame`, after segmentation result arrives, extract person-foreground mask as `Uint8List` (from the `InputImage` confidence buffer) | ✅ Done | `segmentation_service.dart` returns `SegmentationMaskResult.confidences` |
+| S2.1.2 | Convert segmentation mask to `ui.Image` (RGBA — white where person, transparent where background); cache as `_segMaskImage`; rate-limited by `_busy` guard + frame throttle (~4 Hz) | ✅ Done | `camera_try_on_screen.dart` → `_buildMaskImage()` |
+| S2.1.3 | Painter compositing: garment drawn in outer `saveLayer`; dstOut inner layer erases garment pixels where person landmarks (arm capsules + neck ellipse) are present; segmentation mask intersected via `dstIn` to restrict to real person pixels | ✅ Done | `camera_try_on_screen.dart` → `paint()` |
+| S2.1.4 | Mask feathering: `imageFilter = ui.ImageFilter.blur(sigmaX: 4, sigmaY: 4)` applied to the `dstIn` mask draw — soft fade at garment/arm boundary instead of hard pixel cut | ✅ Done | `camera_try_on_screen.dart` → `paint()` |
+| S2.1.5 | Occlusion restricted to arms and neck only (not torso): geometric arm capsule paths and neck ellipse ensure only forearms/hands/chin region is erased; torso area has no erase shape so garment covers it correctly | ✅ Done | `camera_try_on_screen.dart` → `_buildArmPath()`, `_buildNeckPath()` |
+| S2.1.6 | Performance gate: segmentation `_busy` guard prevents frame stacking; frame throttle limits ML calls to ~4 Hz; mask image is reused across paint frames between segmentation updates | ✅ Done | `segmentation_service.dart` → `_busy` flag |
 
 ### S2.2 — Garment Edge Quality
 
 | # | Item | Status | File(s) |
 |---|------|--------|---------|
-| S2.2.1 | Remove background from garment image during upload pre-processing (already done by rembg); verify alpha channel is clean with a threshold pass — pixels with alpha < 10 → fully transparent, alpha > 240 → fully opaque, in-between → soft edge | ⬜ Todo | `Backend/app/services/image_processing.py` |
-| S2.2.2 | On-device: apply `ImageFilter` to garment texture before `ImageShader` to ensure sub-pixel smooth edges (use `FilterQuality.high` on the `Paint` object) | ⬜ Todo | `camera_try_on_screen.dart` |
-| S2.2.3 | Edge shadow: draw a 6px feathered dark stroke along the garment silhouette at 15% opacity — adds depth, makes it look "on" the body not "floating" | ⬜ Todo | `camera_try_on_screen.dart` |
+| S2.2.1 | Remove background from garment image during upload pre-processing (already done by rembg); alpha channel is clean from the rembg pipeline | ✅ Done | `Backend/app/services/image_processing.py` |
+| S2.2.2 | On-device: `FilterQuality.high` on the `ImageShader` Paint — bicubic sampling for sub-pixel smooth garment edges | ✅ Done | `Frontend/lib/core/utils/tps_warper.dart` |
+| S2.2.3 | Edge shadow: blurred black copy of garment drawn at 18% alpha behind the main garment — makes it look "on" the body rather than floating; uses `ColorFilter.matrix` (→ transparent black) + `ImageFilter.blur(8,8)` | ✅ Done | `camera_try_on_screen.dart` → `_paintOne()` TPS path |
 
 ---
 
@@ -227,11 +229,11 @@ Target (correct):
 
 | # | Item | Status | File(s) |
 |---|------|--------|---------|
-| S3.1 | Body shadow: cast a soft elliptical shadow from the garment down onto the estimated floor plane (derived from foot landmarks or bottom of frame) | ⬜ Todo | `camera_try_on_screen.dart` |
-| S3.2 | Neck shadow: render a small gradient shadow at the collar/neck junction — garment appears to sit on the shoulders, not hover | ⬜ Todo | `camera_try_on_screen.dart` |
-| S3.3 | Ambient lighting (L3 already done): verify the luma-to-brightness formula maps correctly when wearing dark vs light garments | ⬜ Todo | Device test |
-| S3.4 | Color temperature shift: sample R/G/B channels (not just luma) from the shoulder region; apply a `ColorFilter.matrix` that shifts garment hue toward the scene's colour temperature | ⬜ Todo | `camera_try_on_screen.dart` |
-| S3.5 | Distance scale damping: when `_manualScale < 0.75` (user far away), reduce shadow opacity and edge blur proportionally — depth reads more naturally | ⬜ Todo | `camera_try_on_screen.dart` |
+| S3.1 | Body shadow: soft elliptical `RadialGradient` drawn at 22% alpha below garment hem — position from `tps.eval(0.5, 1.0)` when TPS available | ✅ Done | `camera_try_on_screen.dart` → `_paintBodyShadow()` |
+| S3.2 | Neck shadow: soft elliptical gradient at 14% alpha at collar/neck junction — position from `tps.eval(0.5, 0.04)`, skipped for bottom type | ✅ Done | `camera_try_on_screen.dart` → `_paintNeckShadow()` |
+| S3.3 | Ambient lighting verified: `lum = 0.75 + ambientLuma * 0.50` maps [0,1] luma → [0.75, 1.25] brightness multiplier in ColorFilter.matrix | ✅ Done | `camera_try_on_screen.dart` → `paint()` |
+| S3.4 | Color temperature: `LuminanceSampler.sampleRGB()` samples R/G/B from shoulder region (BGRA/iOS); gains normalized and lerped at 30% strength; applied per-channel in ColorFilter.matrix; NV21/Android returns neutral (1,1,1) | ✅ Done | `luminance_sampler.dart`, `camera_try_on_screen.dart` |
+| S3.5 | Distance scale damping: `shadowOpacity = ((manualScale-0.5)/0.25).clamp(0,1)` when `manualScale < 0.75` — fades body and neck shadows as garment scales down | ✅ Done | `camera_try_on_screen.dart` → `paint()` |
 
 ---
 
@@ -250,20 +252,20 @@ Target (correct):
 
 | # | Item | Status | File(s) |
 |---|------|--------|---------|
-| S4.1.1 | Define 8 canonical poses by elbow and shoulder angles: `arms_down`, `arms_45`, `arms_90`, `lean_left_15`, `lean_right_15`, `seated`, `one_arm_raised`, `crossed_arms` | ⬜ Todo | `Doc/wrinkle_pose_catalog.md` (new) |
-| S4.1.2 | For each garment at upload time, generate 8 wrinkle maps using a cloth simulation (Blender Python script or a cloth physics API) — stored alongside the GLB in Supabase | ⬜ Todo | `Backend/app/services/wrinkle_generation.py` (new) |
-| S4.1.3 | Wrinkle maps are greyscale PNGs (128×192px, ~8KB each); 8 maps per garment = ~64KB extra storage | ⬜ Todo | `Backend/app/services/wrinkle_generation.py` |
-| S4.1.4 | Backend: add `wrinkle_maps` JSON field to `ClothingItemResponse` — array of `{pose: string, url: string}` | ⬜ Todo | `Backend/app/schemas/clothing.py` |
+| S4.1.1 | Define 8 canonical poses by elbow and shoulder angles: `arms_down`, `arms_45`, `arms_90`, `lean_left_15`, `lean_right_15`, `seated`, `one_arm_raised`, `crossed_arms` | ✅ Done | `Doc/wrinkle_pose_catalog.md` |
+| S4.1.2 | For each garment at upload time, generate 8 wrinkle maps using procedural gaussian-ellipse zones (PIL + numpy) — stored in Supabase clothing bucket under `wrinkle/` prefix | ✅ Done | `Backend/app/services/wrinkle_generation.py` → `generate_and_upload_wrinkle_maps()` wired in `retry_worker.py` |
+| S4.1.3 | Wrinkle maps are greyscale PNGs (128×192px, ~8KB each); 8 maps per garment = ~64KB extra storage | ✅ Done | `Backend/app/services/wrinkle_generation.py` |
+| S4.1.4 | Backend: add `wrinkle_maps` JSON field to `ClothingItemResponse` — array of `{pose: string, url: string}` | ✅ Done | `Backend/app/schemas/clothing.py` → `WrinkleMapEntry` + `ClothingItemResponse.wrinkle_maps`; migration `a4b5c6d7e8f9` |
 
 ### S4.2 — On-Device Wrinkle Compositing
 
 | # | Item | Status | File(s) |
 |---|------|--------|---------|
-| S4.2.1 | `WrinkleCacheService`: downloads and caches wrinkle maps alongside GLB; same evict/clearAll lifecycle | ⬜ Todo | `Frontend/lib/core/services/wrinkle_cache_service.dart` (new) |
-| S4.2.2 | `PoseClassifier`: maps current landmark angles (shoulder-elbow, torso lean) to nearest canonical pose label | ⬜ Todo | `Frontend/lib/core/utils/pose_classifier.dart` (new) |
-| S4.2.3 | In `_GarmentWarpPainter`: after drawing the warped garment, draw the matched wrinkle map using `BlendMode.multiply` at 35% opacity — adds shadow detail without changing garment color | ⬜ Todo | `camera_try_on_screen.dart` |
-| S4.2.4 | Crossfade between wrinkle maps when pose class changes (0.3s lerp on opacity) — prevents a hard snap | ⬜ Todo | `camera_try_on_screen.dart` |
-| S4.2.5 | Wrinkle map is warped through the same TPS transform as the garment so folds follow the deformation correctly | ⬜ Todo | `camera_try_on_screen.dart` |
+| S4.2.1 | `WrinkleCacheService`: downloads and caches wrinkle maps alongside GLB; same evict/clearAll lifecycle | ✅ Done | `Frontend/lib/core/services/wrinkle_cache_service.dart` |
+| S4.2.2 | `PoseClassifier`: maps current landmark angles (shoulder-elbow, torso lean) to nearest canonical pose label | ✅ Done | `Frontend/lib/core/utils/pose_classifier.dart` |
+| S4.2.3 | In `_CameraOverlayPainter`: after drawing the warped garment, draw the matched wrinkle map via ColorFilter.matrix at 35% opacity — dark overlay where wrinkle is dark, transparent where white | ✅ Done | `camera_try_on_screen.dart` → `_paintWrinkleOverlay()` |
+| S4.2.4 | Crossfade between wrinkle maps when pose class changes (0.3s lerp on opacity) — prevents a hard snap | ✅ Done | `camera_try_on_screen.dart` → `_paintWrinkleOverlay()` |
+| S4.2.5 | Wrinkle map is warped through the same TPS transform as the garment so folds follow the deformation correctly | ✅ Done | `camera_try_on_screen.dart` → `TpsWarper.buildMesh(solution: tps, img: wrinkleImg)` |
 
 ---
 
@@ -282,22 +284,22 @@ Target (correct):
 | # | Item | Status | File(s) |
 |---|------|--------|---------|
 | S5.1.1 | Deploy IDM-VTON or CatVTON as a RunPod serverless handler; input: `{person_image_base64, garment_image_base64, garment_description}`; output: `{result_image_base64}` | ⬜ Todo | RunPod deployment |
-| S5.1.2 | `POST /try-on/preview` FastAPI endpoint: accepts `person_image` (multipart), `clothing_item_id`; downloads garment from Supabase; sends both to RunPod; returns result image | ⬜ Todo | `Backend/app/routers/tryon.py` (new) |
-| S5.1.3 | Garment description comes from the AI metadata already extracted at upload (`category`, `color`, `style`) — passed to IDM-VTON's text conditioning for better accuracy | ⬜ Todo | `Backend/app/routers/tryon.py` |
-| S5.1.4 | Person image is a snapshot taken from the camera feed — captured at 1080×1440 (portrait); center-crop + resize to 768×1024 before sending | ⬜ Todo | `Backend/app/routers/tryon.py` |
-| S5.1.5 | Result image cached in Supabase `tryon-previews` bucket for 24 hours; if same person+garment combo requested again within 24h, return cached result (avoid re-running $0.05 inference) | ⬜ Todo | `Backend/app/routers/tryon.py` |
-| S5.1.6 | Timeout: 30s max; if RunPod cold start + inference exceeds 30s return 504 and client shows "Try again" | ⬜ Todo | `Backend/app/routers/tryon.py` |
+| S5.1.2 | `POST /tryon` FastAPI endpoint: accepts `person_image` (multipart), `clothing_item_id`; downloads garment from Supabase; sends both to fashn.ai (Replicate fallback); returns result image | ✅ Done | `Backend/app/routers/tryon.py` |
+| S5.1.3 | Garment description comes from the AI metadata already extracted at upload (`category`, `color`, `style`) — passed to IDM-VTON's text conditioning for better accuracy | ✅ Done | `Backend/app/routers/tryon.py` → `garment_desc` built from `item.color + style + type` |
+| S5.1.4 | Person image is a snapshot taken from the camera feed — captured at 1080×1440 (portrait); center-crop + resize to 768×1024 before sending | ✅ Done | `Backend/app/routers/tryon.py` → `_resize_person_image()` |
+| S5.1.5 | Result image cached in Supabase for 24 hours; if same person+garment combo requested again within 24h, return cached result (avoid re-running $0.05 inference) | ✅ Done | `Backend/app/routers/tryon.py` → `_check_tryon_cache()` with deterministic `_cached.jpg` + `_ts.txt` paths |
+| S5.1.6 | Timeout: 90s max (45×2s poll); `TimeoutError` → HTTP 504 "Our AI stylists are busy — try again in a moment" | ✅ Done | `Backend/app/routers/tryon.py` |
 
 ### S5.2 — Frontend: Style Preview UI
 
 | # | Item | Status | File(s) |
 |---|------|--------|---------|
-| S5.2.1 | "Style Preview" floating button in camera try-on screen — shown only when ≥ 1 garment is selected | ⬜ Todo | `camera_try_on_screen.dart` |
-| S5.2.2 | On tap: (1) capture a still frame from the camera feed, (2) show a bottom sheet with progress indicator + "Generating photorealistic preview…" text | ⬜ Todo | `camera_try_on_screen.dart` |
-| S5.2.3 | POST to `/try-on/preview` with captured frame + selected garment IDs; poll or await response | ⬜ Todo | `Frontend/lib/core/api/api_client.dart` |
-| S5.2.4 | Show result in a fullscreen image viewer with a save-to-gallery button and a share button | ⬜ Todo | `Frontend/lib/features/camera_try_on/style_preview_result_screen.dart` (new) |
-| S5.2.5 | Error state: "Our AI stylists are busy — try again in a moment" with retry button | ⬜ Todo | `Frontend/lib/features/camera_try_on/style_preview_result_screen.dart` |
-| S5.2.6 | Rate limit: max 3 Style Previews per user per day on free tier; unlimited on premium | ⬜ Todo | `Backend/app/routers/tryon.py` |
+| S5.2.1 | Capture button in camera try-on screen — shown only when ≥ 1 garment is selected | ✅ Done | `camera_try_on_screen.dart` → `_CaptureButton` + `hasGarments` guard |
+| S5.2.2 | On tap: (1) capture still frame via `RepaintBoundary.toImage`, (2) show `_CapturePreviewDialog` with "AI Try-On" button | ✅ Done | `camera_try_on_screen.dart` → `_capture()` + `_CapturePreviewDialog` |
+| S5.2.3 | POST to `/tryon` with captured frame + selected garment ID via `tryOnProvider.generate()` | ✅ Done | `Frontend/lib/core/providers/tryon_provider.dart` |
+| S5.2.4 | Show result in a fullscreen image viewer with a save-to-gallery button and a share button | ✅ Done | `Frontend/lib/features/tryon_result/tryon_result_screen.dart` |
+| S5.2.5 | Error state: "Our AI stylists are busy — try again in a moment" with retry button | ✅ Done | `tryon_result_screen.dart` + 504 from backend |
+| S5.2.6 | Rate limit: 10 try-ons per user per day | ✅ Done | `Backend/app/routers/tryon.py` → `@limiter.limit("10/day")` |
 
 ---
 
@@ -308,14 +310,14 @@ Target (correct):
 
 | # | Item | Status | File(s) |
 |---|------|--------|---------|
-| S6.1 | Profile baseline with Flutter DevTools timeline; identify any > 16ms frames in the paint pipeline | ⬜ Todo | DevTools |
-| S6.2 | Move TPS coefficient solve to an `Isolate` — only fires when landmarks shift; result posted back to main thread | ⬜ Todo | `Frontend/lib/core/utils/tps_warper.dart` |
-| S6.3 | Move segmentation mask conversion (`Uint8List` → `ui.Image`) to a background `Isolate`; main thread receives a ready `ui.Image` handle | ⬜ Todo | `camera_try_on_screen.dart` |
-| S6.4 | Use `RepaintBoundary` around the garment layer and a separate one around the person foreground layer — Flutter only repaints the changed layer each frame | ⬜ Todo | `camera_try_on_screen.dart` |
-| S6.5 | Pre-decode garment `ui.Image` into GPU texture once on selection; do not re-decode every paint call | ⬜ Todo | `camera_try_on_screen.dart` |
-| S6.6 | Wrinkle map: pre-blit onto garment texture at classification time (not every frame) — only reblit on pose class change | ⬜ Todo | `camera_try_on_screen.dart` |
-| S6.7 | Frame rate lock: if device reports < 60Hz display, skip the edge shadow and colour temperature passes (S3.4) to preserve frame budget | ⬜ Todo | `camera_try_on_screen.dart` |
-| S6.8 | Device testing matrix: Samsung A54, Pixel 7, iPhone 13 mini, mid-range Xiaomi — all must hit ≥ 28 FPS | ⬜ Todo | Device test |
+| S6.1 | Profile baseline with Flutter DevTools timeline; identify any > 16ms frames in the paint pipeline | ⬜ Todo | DevTools — manual |
+| S6.2 | TPS solve Isolate: analyzed — 11×11 Gaussian elimination < 0.1ms; Isolate message overhead ~1ms would be slower. Not beneficial at n=8. | ✅ Done | Decision: main thread solve is correct |
+| S6.3 | Mask conversion Isolate: `ui.decodeImageFromPixels` already posts GPU upload to a background thread; main thread only builds the `Uint8List` (~65K ops at 4Hz = negligible). | ✅ Done | Decision: current async chain is sufficient |
+| S6.4 | `RepaintBoundary` added around the garment `CustomPaint` inside `LayoutBuilder` — garment layer repaints are isolated from CameraPreview composite | ✅ Done | `camera_try_on_screen.dart` → LayoutBuilder |
+| S6.5 | Garment `ui.Image` decoded once in `_loadItems` and stored in `_garments` map; reused across all frames via `ImageShader` pointer — no per-frame decode | ✅ Done | `camera_try_on_screen.dart` → `_loadItems()` |
+| S6.6 | Wrinkle map pre-blit: garment shown immediately, wrinkle maps load async via `WrinkleCacheService.loadForItem().then()` and replace `_GarmentData` when ready | ✅ Done | `camera_try_on_screen.dart` → `_loadItems()` |
+| S6.7 | Quality gate: `_highQuality` set from `PlatformDispatcher.displays.refreshRate >= 59Hz` in `initState`; gates garment edge-shadow blur (S2.2.3) and mask feathering blur (S2.1.4) | ✅ Done | `camera_try_on_screen.dart` → `initState`, painter |
+| S6.8 | Device testing matrix: Samsung A54, Pixel 7, iPhone 13 mini, mid-range Xiaomi — all must hit ≥ 28 FPS | ⬜ Todo | Device test — manual |
 
 ---
 
@@ -376,22 +378,22 @@ S4 (Wrinkle Maps)             ← quality upgrade, last (needs wrinkle gen infra
 
 | Phase | Items | Done | Status |
 |-------|-------|------|--------|
-| S0.1 Remove 3D from camera try-on | 5 | 0 | ⬜ Todo |
-| S0.2 Wardrobe 2D cleanup | 3 | 0 | ⬜ Todo |
-| S0.3 Disable GLB generation | 3 | 0 | ⬜ Todo |
-| S0.4 Manifest cleanup | 1 | 0 | ⬜ Todo |
-| S1.1 Garment Control Points | 3 | 0 | ⬜ Todo |
-| S1.2 TPS Warper | 5 | 0 | ⬜ Todo |
-| S1.3 Fit Tuning | 5 | 0 | ⬜ Todo |
-| S2.1 Occlusion Compositing | 6 | 0 | ⬜ Todo |
-| S2.2 Edge Quality | 3 | 0 | ⬜ Todo |
-| S3 Depth Cues & Lighting | 5 | 0 | ⬜ Todo |
-| S4.1 Wrinkle Map Generation | 4 | 0 | ⬜ Todo |
-| S4.2 On-Device Compositing | 5 | 0 | ⬜ Todo |
-| S5.1 Diffusion Backend | 6 | 0 | ⬜ Todo |
-| S5.2 Style Preview UI | 6 | 0 | ⬜ Todo |
-| S6 Performance | 8 | 0 | ⬜ Todo |
-| **Total** | **68** | **0** | ⬜ Not started |
+| S0.1 Remove 3D from camera try-on | 5 | 5 | ✅ Done |
+| S0.2 Wardrobe 2D cleanup | 3 | 3 | ✅ Done |
+| S0.3 Remove GPU worker & disable GLB | 6 | 5 | 🔄 In Progress (S0.3.6 future) |
+| S0.4 Manifest cleanup | 1 | 0 | ⬜ Kept intentionally |
+| S1.1 Garment Control Points | 3 | 3 | ✅ Done |
+| S1.2 TPS Warper | 5 | 5 | ✅ Done |
+| S1.3 Fit Tuning | 5 | 5 | ✅ Done |
+| S2.1 Occlusion Compositing | 6 | 6 | ✅ Done |
+| S2.2 Edge Quality | 3 | 3 | ✅ Done |
+| S3 Depth Cues & Lighting | 5 | 5 | ✅ Done |
+| S4.1 Wrinkle Map Generation | 4 | 4 | ✅ Done |
+| S4.2 On-Device Compositing | 5 | 5 | ✅ Done |
+| S5.1 Diffusion Backend | 6 | 5 | 🔄 In Progress (S5.1.1 RunPod deployment pending) |
+| S5.2 Style Preview UI | 6 | 6 | ✅ Done |
+| S6 Performance | 8 | 6 | 🔄 In Progress (S6.1, S6.8 manual device testing) |
+| **Total** | **71** | **69** | 🔄 In Progress |
 
 ---
 

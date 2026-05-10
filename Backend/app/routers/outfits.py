@@ -277,12 +277,12 @@ async def auto_generate_outfit(
         raise HTTPException(status_code=500, detail="Outfit generation failed unexpectedly")
 
     if not chosen_ids:
-        raise HTTPException(status_code=500, detail="AI could not generate an outfit")
+        raise HTTPException(status_code=422, detail="AI could not generate an outfit — try a different occasion or add more items to your wardrobe")
 
     final_ids = [uid for uid in chosen_ids if str(uid) in valid_ids]
 
     if not final_ids:
-        raise HTTPException(status_code=500, detail="AI returned invalid item IDs")
+        raise HTTPException(status_code=422, detail="AI suggested items not in your wardrobe — please try again")
 
     avatar_kind = body.avatar_kind or "maleAverage"
 
@@ -336,7 +336,7 @@ async def delete_outfit(
         raise HTTPException(status_code=404, detail="Outfit not found")
 
     try:
-        db.delete(outfit)
+        await db.delete(outfit)
         await db.commit()
     except SQLAlchemyError as e:
         await db.rollback()

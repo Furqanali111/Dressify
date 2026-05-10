@@ -15,6 +15,7 @@ class ClothingItem {
   final String processingStatus;
   final String? glbMeshUrl;
   final String? meshStatus;
+  final Map<String, String>? wrinkleMaps; // pose → signed URL
   final DateTime createdAt;
 
   const ClothingItem({
@@ -34,6 +35,7 @@ class ClothingItem {
     required this.processingStatus,
     this.glbMeshUrl,
     this.meshStatus,
+    this.wrinkleMaps,
     required this.createdAt,
   });
 
@@ -55,6 +57,15 @@ class ClothingItem {
       processingStatus: json['processing_status'] as String? ?? 'processing',
       glbMeshUrl: json['glb_mesh_path'] as String?,
       meshStatus: json['mesh_status'] as String?,
+      wrinkleMaps: () {
+        final raw = json['wrinkle_maps'];
+        if (raw is! List) return null;
+        return Map<String, String>.fromEntries(
+          raw.whereType<Map<String, dynamic>>().map(
+            (e) => MapEntry(e['pose'] as String, e['url'] as String),
+          ),
+        );
+      }(),
       createdAt: DateTime.tryParse(json['created_at'] as String? ?? '') ?? DateTime.now(),
     );
   }
@@ -76,6 +87,7 @@ class ClothingItem {
     String? processingStatus,
     String? glbMeshUrl,
     String? meshStatus,
+    Map<String, String>? wrinkleMaps,
     DateTime? createdAt,
   }) {
     return ClothingItem(
@@ -95,6 +107,7 @@ class ClothingItem {
       processingStatus: processingStatus ?? this.processingStatus,
       glbMeshUrl: glbMeshUrl ?? this.glbMeshUrl,
       meshStatus: meshStatus ?? this.meshStatus,
+      wrinkleMaps: wrinkleMaps ?? this.wrinkleMaps,
       createdAt: createdAt ?? this.createdAt,
     );
   }

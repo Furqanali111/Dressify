@@ -17,7 +17,7 @@ class OutfitItemSchema(BaseModel):
 class OutfitCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
     avatar_kind: AvatarKind
-    items: List[OutfitItemSchema] = Field(..., min_length=1)
+    items: List[OutfitItemSchema] = Field(..., min_length=1, max_length=20)
 
 
 class OutfitUpdate(BaseModel):

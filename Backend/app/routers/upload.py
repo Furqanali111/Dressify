@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import uuid
 from datetime import datetime, timezone, timedelta
@@ -69,7 +70,7 @@ async def _create_upload_entry(
     item_id = uuid.uuid4()
     raw_path = f"retries/{user_id}/{retry_id}.jpg"
 
-    stored = upload_file("clothing-raw-temp", raw_path, image_bytes, "image/jpeg")
+    stored = await asyncio.to_thread(upload_file, "clothing-raw-temp", raw_path, image_bytes, "image/jpeg")
     if not stored:
         logger.warning("Could not store raw image for entry %s — worker will fail quickly", retry_id)
 

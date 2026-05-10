@@ -22,7 +22,6 @@ from arq.connections import RedisSettings
 
 from app.config import settings
 from app.services.storage import download_file
-from app.services.mesh_reconstruction import trigger_mesh_reconstruction
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +30,7 @@ async def extract_metadata_job(ctx: dict, item_id_str: str, bucket: str, path: s
     """Download the processed garment image from storage and run AI metadata extraction."""
     from app.services.ai_vision import extract_clothing_metadata
 
-    image_bytes = download_file(bucket, path)
+    image_bytes = await asyncio.to_thread(download_file, bucket, path)
     if not image_bytes:
         logger.error(
             "extract_metadata_job: cannot download %s/%s — skipping metadata for item %s",
@@ -64,7 +63,7 @@ async def _worker_shutdown(ctx: dict) -> None:
 
 
 class WorkerSettings:
-    functions = [extract_metadata_job, process_upload_job, trigger_mesh_reconstruction]
+    functions = [extract_metadata_job, process_upload_job]
     redis_settings = RedisSettings.from_dsn(settings.REDIS_URL)
     on_startup = _worker_startup
     on_shutdown = _worker_shutdown

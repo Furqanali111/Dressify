@@ -23,4 +23,5 @@ class ClothingItem(Base):
     processing_status = Column(String, default="pending")
     glb_mesh_path = Column(String, nullable=True)
     mesh_status = Column(String, default="pending", nullable=True)
+    wrinkle_maps = Column(JSONB, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

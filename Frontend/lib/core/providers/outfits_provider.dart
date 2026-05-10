@@ -59,7 +59,7 @@ class OutfitsNotifier extends StateNotifier<AsyncValue<List<Outfit>>> {
       final List<Outfit> current = state.value ?? <Outfit>[];
       state = AsyncValue<List<Outfit>>.data(<Outfit>[...current, ...newItems]);
     } catch (_) {
-      // Silently fail; user can pull-to-refresh
+      _nextCursor = null;
     } finally {
       _isLoadingMore = false;
     }

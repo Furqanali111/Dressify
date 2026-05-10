@@ -142,13 +142,16 @@ async def _tick() -> None:
 
 async def _process_entry(entry: UploadRetryQueue) -> None:
     async with AsyncSessionLocal() as db:
-        # Re-attach the entry to this session
+        # Re-attach with a row-level lock so concurrent ticks/ARQ workers
+        # can't both claim the same entry in the TOCTOU window.
         result = await db.execute(
-            select(UploadRetryQueue).where(UploadRetryQueue.id == entry.id)
+            select(UploadRetryQueue)
+            .where(UploadRetryQueue.id == entry.id)
+            .with_for_update(skip_locked=True)
         )
         entry = result.scalar_one_or_none()
         if entry is None or entry.status != "pending":
-            return  # picked up by a concurrent tick, skip
+            return  # locked by a concurrent worker, skip
 
         entry.attempt_count += 1
         entry.status = "retrying"
@@ -167,7 +170,7 @@ async def _process_entry(entry: UploadRetryQueue) -> None:
 
 async def _do_retry(entry: UploadRetryQueue) -> None:
     # 1. Download the raw image stored when the upload first failed.
-    raw_bytes = download_file("clothing-raw-temp", entry.raw_image_path)
+    raw_bytes = await asyncio.to_thread(download_file, "clothing-raw-temp", entry.raw_image_path)
     if not raw_bytes:
         raise RuntimeError("Could not download raw image from temp storage")
 
@@ -189,7 +192,7 @@ async def _do_retry(entry: UploadRetryQueue) -> None:
             # User deleted the card — clean up and exit gracefully.
             logger.info("Retry %s: placeholder deleted by user, cleaning up", entry.id)
             await _mark_succeeded(entry)
-            delete_file("clothing-raw-temp", entry.raw_image_path)
+            await asyncio.to_thread(delete_file, "clothing-raw-temp", entry.raw_image_path)
             return
 
         # 4. Extract, bg-remove, classify, and persist each detected garment.
@@ -203,7 +206,9 @@ async def _do_retry(entry: UploadRetryQueue) -> None:
 
             # 4a. Extract + background-remove (PNG with transparency, JPEG fallback)
             try:
-                garment_bytes = extract_garment(raw_bytes, garment["bbox"], num_garments=garment_count)
+                garment_bytes = await asyncio.to_thread(
+                    extract_garment, raw_bytes, garment["bbox"], num_garments=garment_count
+                )
             except Exception as e:
                 logger.warning("Retry %s garment %d extraction failed: %s", entry.id, idx, e)
                 continue
@@ -215,7 +220,7 @@ async def _do_retry(entry: UploadRetryQueue) -> None:
                 content_type = "image/jpeg"
             else:
                 content_type = "image/png"
-            if not upload_file(settings.CLOTHING_BUCKET, processed_path, garment_bytes, content_type):
+            if not await asyncio.to_thread(upload_file, settings.CLOTHING_BUCKET, processed_path, garment_bytes, content_type):
                 logger.warning("Retry %s garment %d storage failed", entry.id, idx)
                 continue
 
@@ -224,6 +229,12 @@ async def _do_retry(entry: UploadRetryQueue) -> None:
             anchors = _TYPE_ANCHORS.get(detected_type, _TYPE_ANCHORS["other"])
             confidence = 0.85 if detected_type != "other" else 0.50
             label = garment.get("label", "clothing")
+
+            # 4d. Generate pose-conditioned wrinkle maps (8 poses × 128×192px PNG)
+            from app.services.wrinkle_generation import generate_and_upload_wrinkle_maps
+            wrinkle_paths = await asyncio.to_thread(
+                generate_and_upload_wrinkle_maps, detected_type, str(entry.user_id), str(item_id)
+            )
 
             if is_placeholder_slot:
                 placeholder.name = entry.original_name or label
@@ -237,6 +248,7 @@ async def _do_retry(entry: UploadRetryQueue) -> None:
                 placeholder.sub_type = garment.get("sub_type")
                 placeholder.size_label = garment.get("size_label", "Unknown")
                 placeholder.processing_status = "completed"
+                placeholder.wrinkle_maps = wrinkle_paths or None
             else:
                 base = entry.original_name or label
                 item_name = f"{base} ({idx + 1}/{garment_count})" if garment_count > 1 else base
@@ -254,14 +266,12 @@ async def _do_retry(entry: UploadRetryQueue) -> None:
                     sub_type=garment.get("sub_type"),
                     size_label=garment.get("size_label", "Unknown"),
                     processing_status="completed",
+                    wrinkle_maps=wrinkle_paths or None,
                 )
                 db.add(new_item)
-                
-            # Enqueue the 3D mesh reconstruction task
-            if _arq_pool is not None:
-                await _arq_pool.enqueue_job("trigger_mesh_reconstruction", str(item_id), processed_path)
-            else:
-                logger.warning("ARQ pool unavailable — skipping mesh reconstruction for %s", item_id)
+
+            # 3D mesh reconstruction is disabled (MESH_GENERATION_ENABLED=False).
+            # Re-enable when the 3D wardrobe feature is built (see SNAPCHAT_TRYON_PLAN.md §F1).
 
             processed_any = True
 
@@ -271,7 +281,7 @@ async def _do_retry(entry: UploadRetryQueue) -> None:
         await db.commit()
 
     await _mark_succeeded(entry)
-    delete_file("clothing-raw-temp", entry.raw_image_path)
+    await asyncio.to_thread(delete_file, "clothing-raw-temp", entry.raw_image_path)
     logger.info(
         "Retry %s succeeded after %d attempt(s)", entry.id, entry.attempt_count
     )
@@ -327,7 +337,7 @@ async def _handle_failure(entry: UploadRetryQueue, reason: str) -> None:
                 if ci:
                     ci.processing_status = "failed"
 
-            delete_file("clothing-raw-temp", row.raw_image_path)
+            await asyncio.to_thread(delete_file, "clothing-raw-temp", row.raw_image_path)
             logger.warning(
                 "Retry %s permanently failed after %d attempt(s): %s",
                 row.id, row.attempt_count, reason,

@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../api/api_client.dart';
 import '../models/clothing_item.dart';
-import '../services/glb_cache_service.dart';
 import '../utils/dio_retry.dart';
 
 class WardrobeNotifier extends StateNotifier<AsyncValue<List<ClothingItem>>> {
@@ -72,7 +71,9 @@ class WardrobeNotifier extends StateNotifier<AsyncValue<List<ClothingItem>>> {
       final List<ClothingItem> current = state.value ?? <ClothingItem>[];
       state = AsyncValue<List<ClothingItem>>.data(<ClothingItem>[...current, ...newItems]);
     } catch (_) {
-      // Silently fail; user can pull-to-refresh
+      // Clear cursor so hasMore → false; stops the infinite retry loop on scroll.
+      // Existing items stay visible. User can pull-to-refresh to retry from scratch.
+      _nextCursor = null;
     } finally {
       _isLoadingMore = false;
     }
@@ -93,8 +94,6 @@ class WardrobeNotifier extends StateNotifier<AsyncValue<List<ClothingItem>>> {
   Future<void> delete(String id) async {
     final Dio dio = _ref.read(apiClientProvider);
     await dio.delete<dynamic>('clothing/$id');
-    // Evict the local 3D mesh cache for this item
-    await GlbCacheService().evict(id);
     final List<ClothingItem> current = state.value ?? <ClothingItem>[];
     state = AsyncValue<List<ClothingItem>>.data(
       current.where((ClothingItem it) => it.id != id).toList(),

@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gal/gal.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../core/providers/tryon_provider.dart';
@@ -22,19 +23,36 @@ class TryOnResultScreen extends ConsumerWidget {
     ),
   );
 
-  Future<void> _share(BuildContext context) async {
+  Future<Uint8List?> _fetchBytes(BuildContext context) async {
     try {
       final Response<List<int>> resp = await _shareDio.get<List<int>>(
         imageUrl,
         options: Options(responseType: ResponseType.bytes),
       );
-      final Uint8List bytes = Uint8List.fromList(resp.data ?? <int>[]);
-      await Share.shareXFiles(
-        <XFile>[XFile.fromData(bytes, mimeType: 'image/jpeg', name: 'dressify_tryon.jpg')],
-        subject: 'My AI Try-On — Dressify',
-      );
+      return Uint8List.fromList(resp.data ?? <int>[]);
     } catch (_) {
-      if (context.mounted) AppToast.error(context, 'Could not share image');
+      if (context.mounted) AppToast.error(context, 'Could not download image');
+      return null;
+    }
+  }
+
+  Future<void> _share(BuildContext context) async {
+    final Uint8List? bytes = await _fetchBytes(context);
+    if (bytes == null) return;
+    await Share.shareXFiles(
+      <XFile>[XFile.fromData(bytes, mimeType: 'image/jpeg', name: 'dressify_tryon.jpg')],
+      subject: 'My AI Try-On — Dressify',
+    );
+  }
+
+  Future<void> _saveToGallery(BuildContext context) async {
+    final Uint8List? bytes = await _fetchBytes(context);
+    if (bytes == null) return;
+    try {
+      await Gal.putImageBytes(bytes, name: 'dressify_tryon.jpg');
+      if (context.mounted) AppToast.success(context, 'Saved to gallery');
+    } catch (_) {
+      if (context.mounted) AppToast.error(context, 'Could not save to gallery');
     }
   }
 
@@ -47,6 +65,11 @@ class TryOnResultScreen extends ConsumerWidget {
         foregroundColor: Colors.white,
         title: const Text('AI Try-On Result'),
         actions: <Widget>[
+          IconButton(
+            icon: const Icon(Icons.download_outlined),
+            onPressed: () => _saveToGallery(context),
+            tooltip: 'Save to gallery',
+          ),
           IconButton(
             icon: const Icon(Icons.share_outlined),
             onPressed: () => _share(context),

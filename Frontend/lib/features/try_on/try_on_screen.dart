@@ -58,6 +58,7 @@ class _TryOnScreenState extends ConsumerState<TryOnScreen> {
   bool _avatarInitialized = false;
 
   double _scale = 1.0;
+  double _scaleOnStart = 1.0;
   Offset _offset = Offset.zero;
   bool _avatarVisible = true;
   bool _saved = false;
@@ -294,14 +295,7 @@ class _TryOnScreenState extends ConsumerState<TryOnScreen> {
     return Scaffold(
       backgroundColor: AppConstants.tryOnCanvasColor,
       body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: () async {
-            for (final g in _garments.values) { g.dispose(); }
-            _garments.clear();
-            _resetView();
-            await _loadGarments();
-          },
-          child: Column(
+        child: Column(
             children: <Widget>[
             _TopBar(
               onBack: () => context.pop(),
@@ -314,6 +308,12 @@ class _TryOnScreenState extends ConsumerState<TryOnScreen> {
               onCheckFit: _garments.isNotEmpty
                   ? () => setState(() => _showFitBadges = !_showFitBadges)
                   : null,
+              onRefresh: () async {
+                for (final g in _garments.values) { g.dispose(); }
+                _garments.clear();
+                _resetView();
+                await _loadGarments();
+              },
               fitActive: _showFitBadges,
             ),
             Expanded(
@@ -322,8 +322,11 @@ class _TryOnScreenState extends ConsumerState<TryOnScreen> {
                 children: <Widget>[
                   Positioned.fill(
                     child: GestureDetector(
+                      onScaleStart: (ScaleStartDetails _) {
+                        _scaleOnStart = _scale;
+                      },
                       onScaleUpdate: (ScaleUpdateDetails d) => setState(() {
-                        _scale = (d.scale * _scale).clamp(0.5, 2.5);
+                        _scale = (_scaleOnStart * d.scale).clamp(0.5, 2.5);
                         _offset += d.focalPointDelta;
                       }),
                       child: ColoredBox(
@@ -538,7 +541,6 @@ class _TryOnScreenState extends ConsumerState<TryOnScreen> {
           ],
           ),
         ),
-      ),
     );
   }
 }
@@ -548,10 +550,11 @@ class _TryOnScreenState extends ConsumerState<TryOnScreen> {
 // ---------------------------------------------------------------------------
 
 class _TopBar extends StatelessWidget {
-  const _TopBar({required this.onBack, this.onCamera, this.onCheckFit, this.fitActive = false});
+  const _TopBar({required this.onBack, this.onCamera, this.onCheckFit, this.onRefresh, this.fitActive = false});
   final VoidCallback onBack;
   final VoidCallback? onCamera;
   final VoidCallback? onCheckFit;
+  final VoidCallback? onRefresh;
   final bool fitActive;
 
   @override
@@ -577,6 +580,12 @@ class _TopBar extends StatelessWidget {
               ),
               tooltip: 'Check Fit',
               onPressed: onCheckFit,
+            ),
+          if (onRefresh != null)
+            IconButton(
+              icon: const Icon(Icons.refresh, color: Colors.white),
+              tooltip: 'Reload garments',
+              onPressed: onRefresh,
             ),
           if (onCamera != null)
             IconButton(

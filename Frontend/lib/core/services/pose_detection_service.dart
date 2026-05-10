@@ -183,6 +183,8 @@ class PoseDetectionService {
     final NormAnchor? rs = lm(PoseLandmarkType.rightShoulder);
     final NormAnchor? lh = lm(PoseLandmarkType.leftHip);
     final NormAnchor? rh = lm(PoseLandmarkType.rightHip);
+    final NormAnchor? lk = lm(PoseLandmarkType.leftKnee);
+    final NormAnchor? rk = lm(PoseLandmarkType.rightKnee);
     final NormAnchor? la = lm(PoseLandmarkType.leftAnkle);
     final NormAnchor? ra = lm(PoseLandmarkType.rightAnkle);
 
@@ -210,6 +212,8 @@ class PoseDetectionService {
     // ── Hip ───────────────────────────────────────────────────────────────
     final NormAnchor? hip = _mid(lh, rh) ?? lh ?? rh;
     if (hip != null) anchors['hip'] = hip;
+    if (lh != null) anchors['leftHip']  = lh;
+    if (rh != null) anchors['rightHip'] = rh;
 
     // ── Chest + Waist (interpolated between shoulder and hip) ─────────────
     if (shoulder != null && hip != null) {
@@ -221,9 +225,15 @@ class PoseDetectionService {
       anchors['waist'] = NormAnchor(shoulder.x, shoulder.y + 0.14);
     }
 
+    // ── Knees ─────────────────────────────────────────────────────────────
+    if (lk != null) anchors['leftKnee']  = lk;
+    if (rk != null) anchors['rightKnee'] = rk;
+
     // ── Feet ──────────────────────────────────────────────────────────────
     final NormAnchor? feet = _mid(la, ra) ?? la ?? ra;
     if (feet != null) anchors['feet'] = feet;
+    if (la != null) anchors['leftAnkle']  = la;
+    if (ra != null) anchors['rightAnkle'] = ra;
 
     return anchors.isEmpty ? null : anchors;
   }

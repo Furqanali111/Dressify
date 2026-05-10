@@ -37,7 +37,8 @@ class Settings(BaseSettings):
     FASHN_API_KEY: str = ""
     REPLICATE_API_KEY: str = ""
     
-    # 3D Mesh Reconstruction Settings
+    # 3D Mesh Reconstruction Settings (disabled — re-enable when 3D wardrobe is built)
+    MESH_GENERATION_ENABLED: bool = False
     MESH_PROVIDER: str = "local" # options: "local", "replicate", "runpod"
     LOCAL_GPU_WORKER_URL: str = "http://localhost:8080/generate"
     RUNPOD_MESH_ENDPOINT: str = ""

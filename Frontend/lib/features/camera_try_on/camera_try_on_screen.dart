@@ -24,23 +24,47 @@ import '../../core/router/app_routes.dart';
 import '../../core/services/luminance_sampler.dart';
 import '../../core/services/pose_detection_service.dart';
 import '../../core/services/segmentation_service.dart';
+import '../../core/services/wrinkle_cache_service.dart';
+import '../../core/utils/pose_classifier.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_constants.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/utils/app_permissions.dart';
+import '../../core/utils/garment_control_points.dart';
 import '../../core/utils/garment_utils.dart';
+import '../../core/utils/tps_warper.dart';
 import '../../core/widgets/app_toast.dart';
-import '../../core/widgets/garment_mesh_renderer.dart';
 
 // ---------------------------------------------------------------------------
 // Garment data holder
 // ---------------------------------------------------------------------------
 
 class _GarmentData {
-  _GarmentData({required this.item, required this.uiImage});
+  _GarmentData({required this.item, required this.uiImage, this.wrinkleMaps});
   final ClothingItem item;
   final ui.Image uiImage;
-  void dispose() => uiImage.dispose();
+  final Map<String, ui.Image>? wrinkleMaps; // pose → decoded ui.Image (S6.6 pre-blit)
+  void dispose() {
+    uiImage.dispose();
+    for (final ui.Image m in wrinkleMaps?.values ?? <ui.Image>[]) {
+      m.dispose();
+    }
+  }
+}
+
+// Shared by state (_resolveTpsInto) and painter (_computeShoulderSpan).
+double _shoulderSpan(Map<String, NormAnchor> a, Size size) {
+  final NormAnchor? ls = a['leftShoulder'];
+  final NormAnchor? rs = a['rightShoulder'];
+  if (ls != null && rs != null) {
+    return (ls.x - rs.x).abs() * size.width;
+  }
+  final NormAnchor? sh = a['shoulder'];
+  final NormAnchor? hip = a['hip'];
+  if (sh != null && hip != null) {
+    return (hip.y - sh.y).abs() * size.height * 0.85;
+  }
+  return size.width * 0.40;
 }
 
 // ---------------------------------------------------------------------------
@@ -98,12 +122,26 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
   double _manualScale = 1.0;
   double _scaleOnGestureStart = 1.0;
 
-  // ── Ambient Lighting ──────────────────────────────────────────────────────
+  // ── Ambient Lighting & Color Temperature ─────────────────────────────────
   double _ambientLuma = 0.5;
+  double _rGain = 1.0;
+  double _gGain = 1.0;
+  double _bGain = 1.0;
   int _frameCount = 0;
 
-  // ── 3D Mode ───────────────────────────────────────────────────────────────
-  bool _is3dMode = false;
+  // ── TPS warp solutions ────────────────────────────────────────────────────
+  Map<String, TpsSolution?> _tpsSolutions = {};
+  Size _displaySize = Size.zero;
+  bool _pendingSizeUpdate = false;
+
+  // ── Quality tier (set once from display refresh rate) ─────────────────────
+  // false on displays < 60 Hz: skips expensive per-frame blur effects.
+  bool _highQuality = true;
+
+  // ── Wrinkle pose crossfade (S4.2.4) ──────────────────────────────────────
+  String _currentPose    = 'arms_down';
+  String _prevPose       = 'arms_down';
+  int    _poseChangedAtMs = 0;
 
   // ---------------------------------------------------------------------------
   // Lifecycle
@@ -113,6 +151,10 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // Gate expensive per-frame blur effects on displays that run at 60 Hz+.
+    final double hz =
+        ui.PlatformDispatcher.instance.displays.firstOrNull?.refreshRate ?? 60.0;
+    _highQuality = hz >= 59.0;
     _initCamera();
     if (!widget.tabMode) {
       _loadGarmentsFromOutfit(widget.outfit);
@@ -246,8 +288,26 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
           height: 0.10,
         );
         final double luma = LuminanceSampler.sample(image, region);
-        if ((luma - _ambientLuma).abs() > 0.05) {
-          if (mounted) setState(() => _ambientLuma = luma);
+        final ({double r, double g, double b}) rgb =
+            LuminanceSampler.sampleRGB(image, region);
+
+        // Compute per-channel gains relative to neutral (1.0 = no shift).
+        // Normalize so r+g+b = 3.0, then lerp 30% toward scene colour.
+        final double total = (rgb.r + rgb.g + rgb.b).clamp(0.01, 3.0);
+        const double strength = 0.30;
+        final double newR = 1.0 + (rgb.r * 3.0 / total - 1.0) * strength;
+        final double newG = 1.0 + (rgb.g * 3.0 / total - 1.0) * strength;
+        final double newB = 1.0 + (rgb.b * 3.0 / total - 1.0) * strength;
+
+        final bool lumaChanged = (luma - _ambientLuma).abs() > 0.05;
+        final bool gainChanged =
+            (newR - _rGain).abs() > 0.02 || (newB - _bGain).abs() > 0.02;
+
+        if (mounted && (lumaChanged || gainChanged)) {
+          setState(() {
+            if (lumaChanged) _ambientLuma = luma;
+            if (gainChanged) { _rGain = newR; _gGain = newG; _bGain = newB; }
+          });
         }
       }
     }
@@ -265,7 +325,22 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
           lensDirection: cam.lensDirection,
         )
         .then((Map<String, NormAnchor>? anchors) {
-      if (mounted) setState(() => _anchors = anchors);
+      if (!mounted) return;
+      setState(() {
+        _anchors = anchors;
+        if (anchors != null && _displaySize != Size.zero) {
+          _resolveTpsInto(anchors, _displaySize);
+        }
+        // S4.2.2 — classify pose and start crossfade timer if it changed
+        if (anchors != null) {
+          final String newPose = PoseClassifier.classify(anchors);
+          if (newPose != _currentPose) {
+            _prevPose        = _currentPose;
+            _currentPose     = newPose;
+            _poseChangedAtMs = DateTime.now().millisecondsSinceEpoch;
+          }
+        }
+      });
     }).catchError((_) {});
 
     _segService
@@ -297,6 +372,22 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
     }
     _garments.clear();
     _lastLoadedIds = <String>[];
+    _tpsSolutions = {};
+  }
+
+  // Solves TPS for every loaded garment against current anchors + display size.
+  // Must be called inside setState (mutates _tpsSolutions directly).
+  void _resolveTpsInto(Map<String, NormAnchor> anchors, Size size) {
+    final double span = _shoulderSpan(anchors, size);
+    final Map<String, TpsSolution?> updated = {};
+    for (final _GarmentData g in _garments.values) {
+      final GarmentControlPoints cp = GarmentControlPoints.forType(g.item.type);
+      final List<Offset>? targets =
+          cp.computeTargets(g.item.type, anchors, size, span);
+      updated[g.item.id] =
+          targets != null ? TpsWarper.solve(cp.uvPoints, targets) : null;
+    }
+    _tpsSolutions = updated;
   }
 
   Future<void> _loadGarmentsFromOutfit(Outfit? outfit) async {
@@ -336,16 +427,46 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
       if (ci.processedUrl.isEmpty) continue;
       try {
         final ui.Image img = await _decodeNetworkImage(ci.processedUrl);
-        if (!mounted) {
-          img.dispose();
-          return;
-        }
+        if (!mounted) { img.dispose(); return; }
+        // Show garment immediately; wrinkle maps load in the background (S6.6)
         _garments[ci.id] = _GarmentData(item: ci, uiImage: img);
-      } catch (_) {}
+        WrinkleCacheService.loadForItem(ci).then((Map<String, ui.Image>? wMaps) {
+          if (!mounted || wMaps == null || !_garments.containsKey(ci.id)) {
+            for (final ui.Image m in wMaps?.values ?? <ui.Image>[]) { m.dispose(); }
+            return;
+          }
+          setState(() {
+            final _GarmentData? existing = _garments[ci.id];
+            if (existing != null) {
+              // Dispose any previously loaded wrinkle maps before replacing.
+              for (final ui.Image m in existing.wrinkleMaps?.values ?? <ui.Image>[]) {
+                m.dispose();
+              }
+              _garments[ci.id] = _GarmentData(
+                item: existing.item,
+                uiImage: existing.uiImage,
+                wrinkleMaps: wMaps,
+              );
+            } else {
+              for (final ui.Image m in wMaps.values) { m.dispose(); }
+            }
+          });
+        }).catchError((_) {});
+      } catch (_) {
+        if (mounted) AppToast.error(context, 'Could not load "${ci.name}" — check your connection');
+      }
     }
 
     _lastLoadedIds = ids;
-    if (mounted) setState(() => _loadingGarments = false);
+    if (mounted) {
+      setState(() {
+        _loadingGarments = false;
+        final Map<String, NormAnchor>? a = _anchors;
+        if (a != null && _displaySize != Size.zero) {
+          _resolveTpsInto(a, _displaySize);
+        }
+      });
+    }
   }
 
   // Converts a segmentation mask (List<double> confidences) into a ui.Image
@@ -449,66 +570,6 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
   }
 
   // ---------------------------------------------------------------------------
-  // 3D Layout Calculation
-  // ---------------------------------------------------------------------------
-  double _computeShoulderSpan(Map<String, NormAnchor> a, Size size) {
-    final NormAnchor? ls = a['leftShoulder'];
-    final NormAnchor? rs = a['rightShoulder'];
-    if (ls != null && rs != null) {
-      return (ls.x - rs.x).abs() * size.width;
-    }
-    final NormAnchor? sh = a['shoulder'];
-    final NormAnchor? hip = a['hip'];
-    if (sh != null && hip != null) {
-      return (hip.y - sh.y).abs() * size.height * 0.85;
-    }
-    return size.width * 0.40;
-  }
-
-  List<Widget> _build3dGarments(Size size) {
-    if (_anchors == null) return const <Widget>[];
-    
-    final List<_GarmentData> sortedGarments = _garments.values.toList()
-      ..sort((a, b) => garmentDepth(a.item.type).compareTo(garmentDepth(b.item.type)));
-
-    return sortedGarments.map((_GarmentData g) {
-      if (g.item.glbMeshUrl == null || g.item.meshStatus != 'completed') {
-        return const SizedBox.shrink(); // Ignore items not ready for 3D
-      }
-      
-      final NormAnchor? anchor = _anchors![garmentAnchorKey(g.item.type)];
-      if (anchor == null) return const SizedBox.shrink();
-
-      final double shoulderSpan = _computeShoulderSpan(_anchors!, size);
-      final double fitScale = ref.read(fitScalesProvider).forType(g.item.type);
-      
-      // Calculate base dimensions WITHOUT _manualScale to avoid WebView reflows
-      final double baseGW = shoulderSpan * garmentShoulderMultiplier(g.item.type) * fitScale;
-      final double baseGH = baseGW / (g.uiImage.width / g.uiImage.height);
-
-      final double ax = anchor.x * size.width;
-      final double ay = anchor.y * size.height;
-      final Offset norm = garmentAnchorNorm(g.item);
-
-      final Rect baseRect = Rect.fromLTWH(ax - norm.dx * baseGW, ay - norm.dy * baseGH, baseGW, baseGH);
-
-      return Positioned(
-        left: baseRect.left,
-        top: baseRect.top,
-        width: baseRect.width,
-        height: baseRect.height,
-        child: Transform.scale(
-          scale: _manualScale,
-          // Transform.scale `alignment` maps Rect from (-1, -1) [top-left] to (1, 1) [bottom-right].
-          // The norm anchor maps (0,0) to (1,1). So we map norm to the Alignment coordinate space:
-          alignment: Alignment(norm.dx * 2 - 1, norm.dy * 2 - 1),
-          child: GarmentMeshRenderer(item: g.item),
-        ),
-      );
-    }).toList();
-  }
-
-  // ---------------------------------------------------------------------------
   // Build
   // ---------------------------------------------------------------------------
 
@@ -522,14 +583,6 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
     }
 
     final bool hasGarments = _garments.isNotEmpty;
-    final bool canEnable3d = hasGarments && _garments.values.any((_GarmentData g) => 
-        g.item.meshStatus == 'completed' && g.item.glbMeshUrl != null && g.item.glbMeshUrl!.isNotEmpty);
-
-    if (_is3dMode && !canEnable3d) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) setState(() => _is3dMode = false);
-      });
-    }
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -559,30 +612,51 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
                     fit: StackFit.expand,
                     children: <Widget>[
                       CameraPreview(_controller!),
-                      if (hasGarments && !_is3dMode)
+                      if (hasGarments)
                         LayoutBuilder(
-                          builder: (_, BoxConstraints bc) => CustomPaint(
-                            size: bc.biggest,
-                            painter: _CameraOverlayPainter(
-                              garments: (_garments.values.toList()
-                                    ..sort((a, b) => garmentDepth(a.item.type)
-                                        .compareTo(garmentDepth(b.item.type))))
-                                  .toList(),
-                              anchors: _anchors,
-                              displaySize: bc.biggest,
-                              fitScales: ref.watch(fitScalesProvider),
-                              segMaskImage: _segMaskImage,
-                              manualScale: _manualScale,
-                              ambientLuma: _ambientLuma,
-                            ),
-                          ),
-                        )
-                      else if (hasGarments && _is3dMode && _anchors != null)
-                        LayoutBuilder(
-                          builder: (_, BoxConstraints bc) => Stack(
-                            fit: StackFit.expand,
-                            children: _build3dGarments(bc.biggest),
-                          ),
+                          builder: (_, BoxConstraints bc) {
+                            final Size size = bc.biggest;
+                            if (_displaySize != size && !_pendingSizeUpdate) {
+                              _pendingSizeUpdate = true;
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                if (mounted) {
+                                  setState(() {
+                                    _displaySize = size;
+                                    _pendingSizeUpdate = false;
+                                    final Map<String, NormAnchor>? a = _anchors;
+                                    if (a != null) _resolveTpsInto(a, size);
+                                  });
+                                }
+                              });
+                            }
+                            // S6.4: RepaintBoundary isolates garment repaints
+                            // from the CameraPreview layer beneath.
+                            return RepaintBoundary(
+                              child: CustomPaint(
+                                size: size,
+                                painter: _CameraOverlayPainter(
+                                  garments: (_garments.values.toList()
+                                        ..sort((a, b) => garmentDepth(a.item.type)
+                                            .compareTo(garmentDepth(b.item.type))))
+                                      .toList(),
+                                  anchors: _anchors,
+                                  displaySize: size,
+                                  fitScales: ref.watch(fitScalesProvider),
+                                  segMaskImage: _segMaskImage,
+                                  manualScale: _manualScale,
+                                  ambientLuma: _ambientLuma,
+                                  rGain: _rGain,
+                                  gGain: _gGain,
+                                  bGain: _bGain,
+                                  tpsSolutions: _tpsSolutions,
+                                  highQuality: _highQuality,
+                                  currentPose: _currentPose,
+                                  prevPose: _prevPose,
+                                  poseChangedAtMs: _poseChangedAtMs,
+                                ),
+                              ),
+                            );
+                          },
                         ),
                     ],
                   ),
@@ -616,41 +690,6 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
                   child: _PillBadge(
                     icon: Icons.warning_amber_rounded,
                     text: 'Step closer for better fit',
-                  ),
-                ),
-              ),
-
-            // ── 3D Mode Toggle ───────────────────────────────────────────
-            if (_cameraReady && canEnable3d)
-              Positioned(
-                top: 56,
-                left: 0,
-                right: 0,
-                child: Center(
-                  child: GestureDetector(
-                    onTap: () {
-                      HapticFeedback.lightImpact();
-                      setState(() => _is3dMode = !_is3dMode);
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: _is3dMode ? context.colors.primary : Colors.black54,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Colors.white24),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: <Widget>[
-                          Icon(_is3dMode ? Icons.view_in_ar : Icons.image, color: Colors.white, size: 16),
-                          const SizedBox(width: 8),
-                          Text(
-                            _is3dMode ? '3D Mode' : '2D Mode',
-                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
-                          ),
-                        ],
-                      ),
-                    ),
                   ),
                 ),
               ),
@@ -762,6 +801,14 @@ class _CameraOverlayPainter extends CustomPainter {
     required this.fitScales,
     required this.manualScale,
     required this.ambientLuma,
+    required this.rGain,
+    required this.gGain,
+    required this.bGain,
+    required this.tpsSolutions,
+    required this.highQuality,
+    required this.currentPose,
+    required this.prevPose,
+    required this.poseChangedAtMs,
     this.segMaskImage,
   });
 
@@ -771,6 +818,14 @@ class _CameraOverlayPainter extends CustomPainter {
   final FitScales fitScales;
   final double manualScale;
   final double ambientLuma;
+  final double rGain;
+  final double gGain;
+  final double bGain;
+  final Map<String, TpsSolution?> tpsSolutions;
+  final bool highQuality;
+  final String currentPose;
+  final String prevPose;
+  final int poseChangedAtMs;
   final ui.Image? segMaskImage;
 
   @override
@@ -783,20 +838,36 @@ class _CameraOverlayPainter extends CustomPainter {
 
     final double shoulderSpan = _computeShoulderSpan(a, size);
 
-    // Isolate all garment draws (and future dstOut erases) into one layer so
-    // BlendMode.dstOut only clears pixels within this layer, not the
-    // CameraPreview rendered beneath this CustomPaint.
-    final double scale = 0.75 + ambientLuma * 0.50;
+    // Isolate all garment draws into one layer so BlendMode.dstOut only clears
+    // pixels within this layer, not the CameraPreview rendered beneath.
+    // ColorFilter applies ambient brightness + scene colour temperature shift.
+    final double lum = 0.75 + ambientLuma * 0.50;
     final ColorFilter lightingFilter = ColorFilter.matrix(<double>[
-      scale, 0, 0, 0, 0,
-      0, scale, 0, 0, 0,
-      0, 0, scale, 0, 0,
+      lum * rGain, 0, 0, 0, 0,
+      0, lum * gGain, 0, 0, 0,
+      0, 0, lum * bGain, 0, 0,
       0, 0, 0, 1, 0,
     ]);
     canvas.saveLayer(Rect.fromLTWH(0, 0, size.width, size.height), Paint()..colorFilter = lightingFilter);
 
+    // Shadow opacity damps when the user scales the garment very small (far
+    // away) so depth cues don't look wrong at tiny scale values.
+    final double shadowOpacity = manualScale < 0.75
+        ? ((manualScale - 0.5) / 0.25).clamp(0.0, 1.0)
+        : 1.0;
+
+    // S3.1 — body/ground shadow drawn before garments (appears behind them).
+    for (final _GarmentData g in sorted) {
+      _paintBodyShadow(canvas, size, g, shoulderSpan, shadowOpacity);
+    }
+
     for (final _GarmentData g in sorted) {
       _paintOne(canvas, size, g, a, shoulderSpan);
+    }
+
+    // S3.2 — neck/collar shadow drawn after garments (overlays collar area).
+    for (final _GarmentData g in sorted) {
+      _paintNeckShadow(canvas, size, g, a, shoulderSpan, shadowOpacity);
     }
 
     // ── Erase arm and neck regions so the live camera shows through ──────────
@@ -817,14 +888,20 @@ class _CameraOverlayPainter extends CustomPainter {
 
     // Phase 2: if a segmentation mask image is available, intersect the erase
     // region with person pixels only (dstIn keeps alpha where mask is opaque).
-    // This prevents erasing garment pixels that extend beyond the body edge.
+    // Blur is applied to feather the mask boundary, producing a soft fade at the
+    // garment/arm edge rather than a hard pixel-level cut.
     final ui.Image? maskImg = segMaskImage;
     if (maskImg != null) {
       canvas.drawImageRect(
         maskImg,
         Rect.fromLTWH(0, 0, maskImg.width.toDouble(), maskImg.height.toDouble()),
         canvasRect,
-        Paint()..blendMode = BlendMode.dstIn,
+        Paint()
+          ..blendMode = BlendMode.dstIn
+          // Blur feathers the mask edge; skipped on low-refresh-rate displays.
+          ..imageFilter = highQuality
+              ? ui.ImageFilter.blur(sigmaX: 4.0, sigmaY: 4.0)
+              : null,
       );
     }
 
@@ -832,22 +909,8 @@ class _CameraOverlayPainter extends CustomPainter {
     canvas.restore(); // composites garment layer into camera preview
   }
 
-  double _computeShoulderSpan(Map<String, NormAnchor> a, Size size) {
-    // Prefer actual horizontal distance between left and right shoulder tips —
-    // this gives correctly scaled garment width regardless of camera distance.
-    final NormAnchor? ls = a['leftShoulder'];
-    final NormAnchor? rs = a['rightShoulder'];
-    if (ls != null && rs != null) {
-      return (ls.x - rs.x).abs() * size.width;
-    }
-    // Fallback: torso-height proxy when only midpoint is available.
-    final NormAnchor? sh = a['shoulder'];
-    final NormAnchor? hip = a['hip'];
-    if (sh != null && hip != null) {
-      return (hip.y - sh.y).abs() * size.height * 0.85;
-    }
-    return size.width * 0.40;
-  }
+  double _computeShoulderSpan(Map<String, NormAnchor> a, Size size) =>
+      _shoulderSpan(a, size);
 
   void _paintOne(
     Canvas canvas,
@@ -860,19 +923,60 @@ class _CameraOverlayPainter extends CustomPainter {
     if (anchor == null) return;
 
     final ui.Image img = g.uiImage;
-    final double gW = shoulderSpan * garmentShoulderMultiplier(g.item.type) * fitScales.forType(g.item.type) * manualScale;
-    final double gH = gW / (img.width / img.height);
-
     final double ax = anchor.x * size.width;
     final double ay = anchor.y * size.height;
+
+    // ── TPS path: smooth multi-point warp ────────────────────────────────────
+    final TpsSolution? tps = tpsSolutions[g.item.id];
+    if (tps != null) {
+      final double effectiveScale =
+          manualScale * fitScales.forType(g.item.type);
+      canvas.save();
+      if ((effectiveScale - 1.0).abs() > 0.001) {
+        canvas.translate(ax, ay);
+        canvas.scale(effectiveScale);
+        canvas.translate(-ax, -ay);
+      }
+      final (ui.Vertices verts, Paint paint) =
+          TpsWarper.buildMesh(solution: tps, img: img);
+
+      // Soft edge shadow: blurred semi-transparent copy drawn beneath the
+      // garment so it appears to rest on the body rather than float above it.
+      // Skipped on low-refresh-rate displays to protect frame budget (S6.7).
+      if (highQuality) {
+        final Paint shadowPaint = Paint()
+          ..shader = paint.shader
+          ..colorFilter = const ColorFilter.matrix(<double>[
+            0, 0, 0, 0, 0, //  R → black
+            0, 0, 0, 0, 0, //  G → black
+            0, 0, 0, 0, 0, //  B → black
+            0, 0, 0, 0.18, 0, // A → 18% of garment alpha
+          ])
+          ..imageFilter = ui.ImageFilter.blur(sigmaX: 8.0, sigmaY: 8.0);
+        canvas.drawVertices(verts, BlendMode.srcOver, shadowPaint);
+      }
+
+      canvas.drawVertices(verts, BlendMode.srcOver, paint);
+      _paintWrinkleOverlay(canvas, g, tps);
+      canvas.restore();
+      return;
+    }
+
+    // ── Fallback: quad warp or skew+paintImage ───────────────────────────────
+    final double gW = shoulderSpan *
+        garmentShoulderMultiplier(g.item.type) *
+        fitScales.forType(g.item.type) *
+        manualScale;
+    final double gH = gW / (img.width / img.height);
+
     final Offset norm = garmentAnchorNorm(g.item);
+    final Rect rect =
+        Rect.fromLTWH(ax - norm.dx * gW, ay - norm.dy * gH, gW, gH);
 
-    final Rect rect = Rect.fromLTWH(ax - norm.dx * gW, ay - norm.dy * gH, gW, gH);
-
-    // Shoulder-angle skew: tilt the garment to match body lean.
-    // Compute skew from individual shoulder Y positions (0 when both level).
-    final double lsy = anchors['leftShoulder']?.y  ?? anchors['shoulder']?.y ?? 0.5;
-    final double rsy = anchors['rightShoulder']?.y ?? anchors['shoulder']?.y ?? 0.5;
+    final double lsy =
+        anchors['leftShoulder']?.y ?? anchors['shoulder']?.y ?? 0.5;
+    final double rsy =
+        anchors['rightShoulder']?.y ?? anchors['shoulder']?.y ?? 0.5;
     final double skewFactor = (rsy - lsy) * 0.6;
 
     final List<Offset>? quad = _computeBodyQuad(anchors, size, rect, ay);
@@ -881,8 +985,6 @@ class _CameraOverlayPainter extends CustomPainter {
       _paintImageOnQuad(canvas, img, quad);
     } else {
       canvas.save();
-      // Column-major Matrix4 for X-shear: x' = x + skewFactor*(y - ay), y' = y.
-      // Columns: [1,0,0,0], [k,1,0,0], [0,0,1,0], [-k*ay,0,0,1]
       canvas.transform(
         Matrix4(
           1, 0, 0, 0,
@@ -891,10 +993,50 @@ class _CameraOverlayPainter extends CustomPainter {
           -skewFactor * ay, 0, 0, 1,
         ).storage,
       );
-
       paintImage(canvas: canvas, rect: rect, image: img, fit: BoxFit.fill);
-
       canvas.restore();
+    }
+  }
+
+  // S4.2 — Wrinkle overlay composited on top of the TPS-warped garment.
+  // Greyscale wrinkle PNG (dark = deep wrinkle) is warped through the same TPS
+  // mesh, then blended as a dark semi-transparent overlay via a colour matrix
+  // that maps pixel luminance v to alpha = opacity*(1-v). Drawn with srcOver so
+  // transparent garment areas outside the silhouette are untouched.
+  void _paintWrinkleOverlay(Canvas canvas, _GarmentData g, TpsSolution tps) {
+    final Map<String, ui.Image>? maps = g.wrinkleMaps;
+    if (maps == null || maps.isEmpty) return;
+
+    final double t = ((DateTime.now().millisecondsSinceEpoch - poseChangedAtMs) / 300.0)
+        .clamp(0.0, 1.0);
+
+    Paint wrinklePaint(double opacity) => Paint()
+      ..colorFilter = ColorFilter.matrix(<double>[
+        0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0,
+        -opacity, 0, 0, 0, opacity * 255,
+      ])
+      ..blendMode = BlendMode.srcOver;
+
+    if (t < 1.0) {
+      final ui.Image? prev = maps[prevPose];
+      if (prev != null) {
+        canvas.drawVertices(
+          TpsWarper.buildMesh(solution: tps, img: prev).$1,
+          BlendMode.src,
+          wrinklePaint((1.0 - t) * 0.35),
+        );
+      }
+    }
+
+    final ui.Image? curr = maps[currentPose];
+    if (curr != null) {
+      canvas.drawVertices(
+        TpsWarper.buildMesh(solution: tps, img: curr).$1,
+        BlendMode.src,
+        wrinklePaint(t * 0.35),
+      );
     }
   }
 
@@ -1069,6 +1211,74 @@ class _CameraOverlayPainter extends CustomPainter {
     return path;
   }
 
+  // S3.1 — Soft elliptical ground shadow drawn below the garment hem.
+  void _paintBodyShadow(
+    Canvas canvas,
+    Size size,
+    _GarmentData g,
+    double shoulderSpan,
+    double shadowOpacity,
+  ) {
+    final TpsSolution? tps = tpsSolutions[g.item.id];
+    final Offset hemPt = tps != null
+        ? tps.eval(0.5, 1.0)
+        : Offset(size.width / 2, size.height * 0.75);
+
+    final double w = shoulderSpan * 0.55;
+    final double h = w * 0.18;
+    final Rect rect = Rect.fromCenter(
+      center: Offset(hemPt.dx, hemPt.dy + h * 0.6),
+      width: w,
+      height: h,
+    );
+    canvas.drawOval(
+      rect,
+      Paint()
+        ..shader = RadialGradient(
+          colors: <Color>[
+            Colors.black.withValues(alpha: 0.22 * shadowOpacity),
+            Colors.transparent,
+          ],
+        ).createShader(rect),
+    );
+  }
+
+  // S3.2 — Soft gradient shadow at the collar/neck junction.
+  void _paintNeckShadow(
+    Canvas canvas,
+    Size size,
+    _GarmentData g,
+    Map<String, NormAnchor> anchors,
+    double shoulderSpan,
+    double shadowOpacity,
+  ) {
+    if (g.item.type == 'bottom') return;
+
+    final TpsSolution? tps = tpsSolutions[g.item.id];
+    final Offset collarPt;
+    if (tps != null) {
+      collarPt = tps.eval(0.5, 0.04);
+    } else {
+      final NormAnchor? sh = anchors['shoulder'];
+      if (sh == null) return;
+      collarPt = Offset(sh.x * size.width, sh.y * size.height - shoulderSpan * 0.22);
+    }
+
+    final double w = shoulderSpan * 0.42;
+    final double h = w * 0.28;
+    final Rect rect = Rect.fromCenter(center: collarPt, width: w, height: h);
+    canvas.drawOval(
+      rect,
+      Paint()
+        ..shader = RadialGradient(
+          colors: <Color>[
+            Colors.black.withValues(alpha: 0.14 * shadowOpacity),
+            Colors.transparent,
+          ],
+        ).createShader(rect),
+    );
+  }
+
   @override
   bool shouldRepaint(covariant _CameraOverlayPainter old) =>
       old.anchors != anchors ||
@@ -1076,7 +1286,15 @@ class _CameraOverlayPainter extends CustomPainter {
       old.fitScales != fitScales ||
       old.manualScale != manualScale ||
       old.ambientLuma != ambientLuma ||
-      old.segMaskImage != segMaskImage;
+      old.rGain != rGain ||
+      old.gGain != gGain ||
+      old.bGain != bGain ||
+      old.segMaskImage != segMaskImage ||
+      old.tpsSolutions != tpsSolutions ||
+      old.highQuality != highQuality ||
+      old.currentPose != currentPose ||
+      old.prevPose != prevPose ||
+      old.poseChangedAtMs != poseChangedAtMs;
 }
 
 // ---------------------------------------------------------------------------

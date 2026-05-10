@@ -7,6 +7,11 @@ import uuid
 _VALID_SIZE_LABELS = {"XS", "S", "M", "L", "XL", "XXL", "One Size", "Unknown"}
 
 
+class WrinkleMapEntry(BaseModel):
+    pose: str
+    url: str
+
+
 class ClothingItemResponse(BaseModel):
     id: uuid.UUID
     name: str
@@ -23,6 +28,7 @@ class ClothingItemResponse(BaseModel):
     processing_status: str
     glb_mesh_path: Optional[str] = None
     mesh_status: Optional[str] = None
+    wrinkle_maps: Optional[list[WrinkleMapEntry]] = None
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)

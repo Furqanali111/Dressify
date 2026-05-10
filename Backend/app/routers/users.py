@@ -167,7 +167,7 @@ async def delete_account(
         await asyncio.to_thread(storage.delete_file, settings.CLOTHING_BUCKET, path)
 
     try:
-        db.delete(current_user)
+        await db.delete(current_user)
         await db.commit()
     except Exception as e:
         await db.rollback()
