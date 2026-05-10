@@ -106,15 +106,27 @@ async def generate_mesh(file: UploadFile = File(...)):
 
     try:
         device = next(model.parameters()).device
-        image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
 
-        # TripoSR works best with a centred foreground on a neutral background.
-        # Dressify already strips the background, so we just feed the RGB directly.
+        # Composite onto white before TripoSR — the model is trained on RGB with solid
+        # backgrounds. Feeding a transparent RGBA causes colour bleed (skin/grey artifacts).
+        raw = Image.open(io.BytesIO(image_bytes)).convert("RGBA")
+        white_bg = Image.new("RGBA", raw.size, (255, 255, 255, 255))
+        white_bg.paste(raw, mask=raw.split()[3])
+        image = white_bg.convert("RGB")
+
         with torch.no_grad():
             scene_codes = model([image], device=device)
-            # resolution=256 → good quality/speed balance; use 512 for production
-            meshes = model.extract_mesh(scene_codes, resolution=256)
+            meshes = model.extract_mesh(scene_codes, has_vertex_color=True, resolution=256)
             mesh = meshes[0]
+
+        # Keep only the largest connected component to discard floating debris.
+        components = mesh.split(only_watertight=False)
+        if components:
+            mesh = max(components, key=lambda m: len(m.faces))
+
+        # Smooth marching-cubes staircase artifacts.
+        import trimesh.smoothing
+        trimesh.smoothing.filter_laplacian(mesh, lamb=0.5, iterations=5)
 
         glb_io = io.BytesIO()
         mesh.export(glb_io, file_type="glb")

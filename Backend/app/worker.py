@@ -22,6 +22,7 @@ from arq.connections import RedisSettings
 
 from app.config import settings
 from app.services.storage import download_file
+from app.services.mesh_reconstruction import trigger_mesh_reconstruction
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +64,6 @@ async def _worker_shutdown(ctx: dict) -> None:
 
 
 class WorkerSettings:
-    from app.services.mesh_reconstruction import trigger_mesh_reconstruction
     functions = [extract_metadata_job, process_upload_job, trigger_mesh_reconstruction]
     redis_settings = RedisSettings.from_dsn(settings.REDIS_URL)
     on_startup = _worker_startup
