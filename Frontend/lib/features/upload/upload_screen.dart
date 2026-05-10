@@ -19,7 +19,6 @@ import '../../core/utils/app_permissions.dart';
 import '../../core/widgets/app_toast.dart';
 import '../../core/widgets/dashed_border.dart';
 import '../../core/widgets/primary_button.dart';
-import '../../core/widgets/secondary_button.dart';
 
 enum _UploadStage { idle, picked, processing, done, error }
 
@@ -208,18 +207,12 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
                 uploadedItems: _uploadedItems,
                 onProcess: _startProcessing,
                 onChangeImage: _reset,
-                onTryOn: () =>
-                    context.pushReplacementNamed(AppRoute.tryOn.name),
                 onGoToWardrobe: () {
                   AppToast.success(
                     context,
                     '${_uploadedItems.length} item${_uploadedItems.length == 1 ? '' : 's'} saved to wardrobe',
                   );
                   context.goNamed(AppRoute.wardrobe.name);
-                },
-                onSave: () {
-                  AppToast.success(context, 'Saved to wardrobe');
-                  context.pop();
                 },
               ),
             ],
@@ -527,9 +520,7 @@ class _Bottom extends StatelessWidget {
     required this.uploadedItems,
     required this.onProcess,
     required this.onChangeImage,
-    required this.onTryOn,
     required this.onGoToWardrobe,
-    required this.onSave,
   });
 
   final _UploadStage stage;
@@ -537,9 +528,7 @@ class _Bottom extends StatelessWidget {
   final List<ClothingItem> uploadedItems;
   final VoidCallback onProcess;
   final VoidCallback onChangeImage;
-  final VoidCallback onTryOn;
   final VoidCallback onGoToWardrobe;
-  final VoidCallback onSave;
 
   @override
   Widget build(BuildContext context) {
@@ -550,39 +539,20 @@ class _Bottom extends StatelessWidget {
     }
 
     if (stage == _UploadStage.done) {
-      // Multi-item: just go to wardrobe
-      if (uploadedItems.length > 1) {
-        return PrimaryButton(
-          label: 'View in Wardrobe',
-          icon: Icons.checkroom,
-          onPressed: onGoToWardrobe,
-        );
-      }
-
-      // Single item: offer try-on or save
+      // Single or multi-item: items are always auto-saved; just navigate to wardrobe
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          _TypeChip(type: detectedType, color: c.success),
-          const SizedBox(height: AppSpacing.lg),
-          Row(
-            children: <Widget>[
-              Expanded(
-                child: SecondaryButton(
-                  label: 'Save to Wardrobe',
-                  icon: Icons.bookmark_outline,
-                  onPressed: onSave,
-                ),
-              ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: PrimaryButton(
-                  label: 'Try On',
-                  icon: Icons.checkroom,
-                  onPressed: onTryOn,
-                ),
-              ),
-            ],
+          if (uploadedItems.length == 1)
+            _TypeChip(type: detectedType, color: c.success),
+          if (uploadedItems.length == 1)
+            const SizedBox(height: AppSpacing.lg),
+          PrimaryButton(
+            label: uploadedItems.length > 1
+                ? 'View in Wardrobe'
+                : 'Go to Wardrobe',
+            icon: Icons.checkroom,
+            onPressed: onGoToWardrobe,
           ),
         ],
       );
@@ -604,7 +574,7 @@ class _Bottom extends StatelessWidget {
         PrimaryButton(
           label: stage == _UploadStage.processing
               ? 'Processing…'
-              : 'Remove Background',
+              : 'Upload Image',
           onPressed: stage == _UploadStage.processing ? null : onProcess,
           loading: stage == _UploadStage.processing,
         ),
