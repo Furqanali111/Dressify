@@ -635,7 +635,7 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       decoration: BoxDecoration(
-                        color: _is3dMode ? AppColors.primary : Colors.black54,
+                        color: _is3dMode ? context.colors.primary : Colors.black54,
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(color: Colors.white24),
                       ),
