@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import uuid
 from typing import Optional
@@ -269,7 +270,9 @@ async def auto_generate_outfit(
         weather_context = await get_current_weather(body.lat, body.lon)
 
     try:
-        chosen_ids = generate_outfit(wardrobe_details_str, body.occasion, weather_context, seed_item_details, style_profile_str)
+        chosen_ids = await asyncio.to_thread(
+            generate_outfit, wardrobe_details_str, body.occasion, weather_context, seed_item_details, style_profile_str
+        )
     except RuntimeError as e:
         raise HTTPException(status_code=503, detail=str(e))
     except Exception as e:

@@ -53,7 +53,7 @@ def _resize_for_seg(img: Image.Image) -> Image.Image:
     return img.resize((int(w * scale), int(h * scale)), Image.Resampling.LANCZOS)
 
 
-def _clean_alpha(result: Image.Image, kernel: int = 41) -> Image.Image:
+def _clean_alpha(result: Image.Image, kernel: int = 21) -> Image.Image:
     """Morphological opening on the alpha channel: removes isolated noise blobs.
 
     Erosion (MinFilter) kills pixels whose neighbors are all transparent — this

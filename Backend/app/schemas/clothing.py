@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing import Literal, Optional
 from datetime import datetime
 import uuid
@@ -32,6 +32,16 @@ class ClothingItemResponse(BaseModel):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+    @field_validator("wrinkle_maps", mode="before")
+    @classmethod
+    def _drop_raw_dict(cls, v):
+        # The DB stores {pose: storage_path}. _inject_urls replaces this with a
+        # signed list of WrinkleMapEntry after model_validate runs, so discard
+        # the raw dict here to avoid a type mismatch during initial validation.
+        if isinstance(v, dict):
+            return None
+        return v
 
 
 class ClothingItemUpdate(BaseModel):

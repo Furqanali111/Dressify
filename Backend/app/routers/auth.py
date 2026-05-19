@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import uuid
 
@@ -38,10 +39,10 @@ async def google_auth(request: Request, body: GoogleAuthRequest, db: AsyncSessio
         avatar_url = ""
     else:
         try:
-            auth_response = supabase.auth.sign_in_with_id_token({
-                "provider": "google",
-                "token": body.id_token,
-            })
+            auth_response = await asyncio.to_thread(
+                supabase.auth.sign_in_with_id_token,
+                {"provider": "google", "token": body.id_token},
+            )
         except AuthApiError as e:
             logger.warning(f"Supabase auth rejected token: {e}")
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired Google token")

@@ -72,8 +72,10 @@ class WardrobeNotifier extends StateNotifier<AsyncValue<List<ClothingItem>>> {
       state = AsyncValue<List<ClothingItem>>.data(<ClothingItem>[...current, ...newItems]);
     } catch (_) {
       // Clear cursor so hasMore → false; stops the infinite retry loop on scroll.
-      // Existing items stay visible. User can pull-to-refresh to retry from scratch.
+      // Re-emit current items so widgets rebuild and hide the spinner cell.
       _nextCursor = null;
+      final List<ClothingItem> current = state.value ?? <ClothingItem>[];
+      state = AsyncValue<List<ClothingItem>>.data(current);
     } finally {
       _isLoadingMore = false;
     }

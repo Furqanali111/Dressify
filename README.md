@@ -172,7 +172,8 @@ alembic upgrade head
 **5. Start the API and worker** (two terminals)
 ```bash
 # Terminal 1 — API
-uvicorn app.main:app --reload
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
 
 # Terminal 2 — ARQ background worker (garment processing, metadata extraction)
 python -m arq app.worker.WorkerSettings

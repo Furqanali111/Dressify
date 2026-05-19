@@ -187,8 +187,9 @@ def _noise_layer(seed: int, strength: float = 0.10) -> np.ndarray:
 def generate_wrinkle_map(garment_type: str, pose: str) -> bytes:
     """Return 128×192 greyscale PNG bytes for (garment_type, pose).
 
-    Brighter pixels = stronger fold/shadow. Designed to be composited with
-    BlendMode.multiply at ~35% opacity over the warped garment image.
+    Brighter pixels = stronger fold/shadow. Composited in Flutter via a
+    ColorFilter that maps luminance directly to alpha (A' = opacity * R),
+    so bright zone pixels produce a stronger dark overlay on the garment.
     """
     zone_table = _BOTTOM_ZONES if garment_type == "bottom" else _TOP_ZONES
     zones = zone_table.get(pose)
@@ -218,24 +219,30 @@ def generate_and_upload_wrinkle_maps(
     user_id: str,
     item_id: str,
 ) -> dict[str, str]:
-    """Generate all 8 wrinkle maps and upload to clothing storage.
+    """Generate all 8 wrinkle maps and upload to clothing storage in parallel.
 
     Returns {pose: storage_path} for every successfully uploaded map.
     Partial success is acceptable — missing poses fall back to no wrinkle effect.
     Called synchronously from the background ARQ worker.
     """
+    from concurrent.futures import ThreadPoolExecutor
     from app.services.storage import upload_file
 
-    results: dict[str, str] = {}
-    for pose in CANONICAL_POSES:
+    def _one(pose: str) -> tuple[str, str | None]:
         try:
             map_bytes = generate_wrinkle_map(garment_type, pose)
             path = f"wrinkle/{user_id}/{item_id}/{pose}.png"
             ok = upload_file(settings.CLOTHING_BUCKET, path, map_bytes, "image/png")
             if ok:
-                results[pose] = path
-            else:
-                logger.warning("wrinkle upload failed: item=%s pose=%s", item_id, pose)
+                return pose, path
+            logger.warning("wrinkle upload failed: item=%s pose=%s", item_id, pose)
         except Exception as exc:
             logger.warning("wrinkle generation error: item=%s pose=%s: %s", item_id, pose, exc)
+        return pose, None
+
+    results: dict[str, str] = {}
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        for pose, path in pool.map(_one, CANONICAL_POSES):
+            if path:
+                results[pose] = path
     return results

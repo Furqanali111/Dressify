@@ -23,7 +23,7 @@ import '../../core/providers/wardrobe_provider.dart';
 import '../../core/router/app_routes.dart';
 import '../../core/services/luminance_sampler.dart';
 import '../../core/services/pose_detection_service.dart';
-import '../../core/services/segmentation_service.dart';
+
 import '../../core/services/wrinkle_cache_service.dart';
 import '../../core/utils/pose_classifier.dart';
 import '../../core/theme/app_colors.dart';
@@ -102,10 +102,6 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
   Map<String, NormAnchor>? _anchors;
   DateTime _lastFrameTime = DateTime.fromMillisecondsSinceEpoch(0);
   static const Duration _frameThrottle = AppConstants.frameThrottle;
-
-  // ── Segmentation ──────────────────────────────────────────────────────────
-  final SegmentationService _segService = SegmentationService();
-  ui.Image? _segMaskImage;
 
   // ── Garments ──────────────────────────────────────────────────────────────
   // Maps ClothingItem.id → loaded garment data.
@@ -191,8 +187,6 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
     WidgetsBinding.instance.removeObserver(this);
     _controller?.dispose();
     _poseService.dispose();
-    _segService.dispose();
-    _segMaskImage?.dispose();
     _clearGarments();
     super.dispose();
   }
@@ -343,23 +337,6 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
       });
     }).catchError((_) {});
 
-    _segService
-        .processFrame(
-          image: image,
-          sensorOrientation: cam.sensorOrientation,
-          deviceOrientation: ctrl.value.deviceOrientation,
-          lensDirection: cam.lensDirection,
-        )
-        .then((SegmentationMaskResult? result) {
-      if (!mounted || result == null) return;
-      _buildMaskImage(result).then((ui.Image img) {
-        if (!mounted) { img.dispose(); return; }
-        setState(() {
-          _segMaskImage?.dispose();
-          _segMaskImage = img;
-        });
-      });
-    }).catchError((_) {});
   }
 
   // ---------------------------------------------------------------------------
@@ -469,25 +446,7 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
     }
   }
 
-  // Converts a segmentation mask (List<double> confidences) into a ui.Image
-  // where each pixel's alpha = confidence. Used by the painter to clip erases
-  // to only pixels where a person is detected.
-  static Future<ui.Image> _buildMaskImage(SegmentationMaskResult result) {
-    final int w = result.width;
-    final int h = result.height;
-    final Uint8List pixels = Uint8List(w * h * 4);
-    final int count = result.confidences.length.clamp(0, w * h);
-    for (int i = 0; i < count; i++) {
-      final int a = (result.confidences[i] * 255).round().clamp(0, 255);
-      pixels[i * 4]     = 255;
-      pixels[i * 4 + 1] = 255;
-      pixels[i * 4 + 2] = 255;
-      pixels[i * 4 + 3] = a;
-    }
-    final Completer<ui.Image> c = Completer<ui.Image>();
-    ui.decodeImageFromPixels(pixels, w, h, ui.PixelFormat.rgba8888, c.complete);
-    return c.future;
-  }
+
 
   // Shared Dio for garment image downloads — avoids a new TCP handshake per item.
   static final Dio _imageDio = Dio(
@@ -642,7 +601,6 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
                                   anchors: _anchors,
                                   displaySize: size,
                                   fitScales: ref.watch(fitScalesProvider),
-                                  segMaskImage: _segMaskImage,
                                   manualScale: _manualScale,
                                   ambientLuma: _ambientLuma,
                                   rGain: _rGain,
@@ -809,7 +767,6 @@ class _CameraOverlayPainter extends CustomPainter {
     required this.currentPose,
     required this.prevPose,
     required this.poseChangedAtMs,
-    this.segMaskImage,
   });
 
   final List<_GarmentData> garments;
@@ -826,7 +783,7 @@ class _CameraOverlayPainter extends CustomPainter {
   final String currentPose;
   final String prevPose;
   final int poseChangedAtMs;
-  final ui.Image? segMaskImage;
+
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -870,42 +827,6 @@ class _CameraOverlayPainter extends CustomPainter {
       _paintNeckShadow(canvas, size, g, a, shoulderSpan, shadowOpacity);
     }
 
-    // ── Erase arm and neck regions so the live camera shows through ──────────
-    // The inner saveLayer composites with dstOut into the garment layer above,
-    // erasing garment pixels proportionally to the alpha drawn in this layer.
-    final Path leftArm  = _buildArmPath(a, 'left',  size, shoulderSpan);
-    final Path rightArm = _buildArmPath(a, 'right', size, shoulderSpan);
-    final Path neck     = _buildNeckPath(a, size, shoulderSpan);
-
-    final Rect canvasRect = Rect.fromLTWH(0, 0, size.width, size.height);
-    canvas.saveLayer(canvasRect, Paint()..blendMode = BlendMode.dstOut);
-
-    // Draw erase shapes with soft gradient (no explicit blendMode — the layer
-    // itself applies dstOut when it composites back into the garment layer).
-    canvas.drawPath(leftArm,  _softGradientPaint(leftArm.getBounds()));
-    canvas.drawPath(rightArm, _softGradientPaint(rightArm.getBounds()));
-    canvas.drawPath(neck,     _softGradientPaint(neck.getBounds()));
-
-    // Phase 2: if a segmentation mask image is available, intersect the erase
-    // region with person pixels only (dstIn keeps alpha where mask is opaque).
-    // Blur is applied to feather the mask boundary, producing a soft fade at the
-    // garment/arm edge rather than a hard pixel-level cut.
-    final ui.Image? maskImg = segMaskImage;
-    if (maskImg != null) {
-      canvas.drawImageRect(
-        maskImg,
-        Rect.fromLTWH(0, 0, maskImg.width.toDouble(), maskImg.height.toDouble()),
-        canvasRect,
-        Paint()
-          ..blendMode = BlendMode.dstIn
-          // Blur feathers the mask edge; skipped on low-refresh-rate displays.
-          ..imageFilter = highQuality
-              ? ui.ImageFilter.blur(sigmaX: 4.0, sigmaY: 4.0)
-              : null,
-      );
-    }
-
-    canvas.restore(); // composites erase layer (dstOut) → punches holes in garments
     canvas.restore(); // composites garment layer into camera preview
   }
 
@@ -998,46 +919,13 @@ class _CameraOverlayPainter extends CustomPainter {
     }
   }
 
-  // S4.2 — Wrinkle overlay composited on top of the TPS-warped garment.
-  // Greyscale wrinkle PNG (dark = deep wrinkle) is warped through the same TPS
-  // mesh, then blended as a dark semi-transparent overlay via a colour matrix
-  // that maps pixel luminance v to alpha = opacity*(1-v). Drawn with srcOver so
-  // transparent garment areas outside the silhouette are untouched.
+  // S4.2 — Wrinkle overlay (disabled).
+  // All canvas-based approaches (srcOver, multiply, saveLayer+dstIn, saveLayer+srcATop)
+  // produce solid black in the TPS path on Android.  The wrinkle maps are still
+  // generated and cached by the backend; this can be re-enabled once the
+  // Flutter/Skia compositing issue is reproduced in isolation and fixed.
   void _paintWrinkleOverlay(Canvas canvas, _GarmentData g, TpsSolution tps) {
-    final Map<String, ui.Image>? maps = g.wrinkleMaps;
-    if (maps == null || maps.isEmpty) return;
-
-    final double t = ((DateTime.now().millisecondsSinceEpoch - poseChangedAtMs) / 300.0)
-        .clamp(0.0, 1.0);
-
-    Paint wrinklePaint(double opacity) => Paint()
-      ..colorFilter = ColorFilter.matrix(<double>[
-        0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0,
-        -opacity, 0, 0, 0, opacity * 255,
-      ])
-      ..blendMode = BlendMode.srcOver;
-
-    if (t < 1.0) {
-      final ui.Image? prev = maps[prevPose];
-      if (prev != null) {
-        canvas.drawVertices(
-          TpsWarper.buildMesh(solution: tps, img: prev).$1,
-          BlendMode.src,
-          wrinklePaint((1.0 - t) * 0.35),
-        );
-      }
-    }
-
-    final ui.Image? curr = maps[currentPose];
-    if (curr != null) {
-      canvas.drawVertices(
-        TpsWarper.buildMesh(solution: tps, img: curr).$1,
-        BlendMode.src,
-        wrinklePaint(t * 0.35),
-      );
-    }
+    return;
   }
 
   List<Offset>? _computeBodyQuad(
@@ -1124,92 +1012,7 @@ class _CameraOverlayPainter extends CustomPainter {
     canvas.drawVertices(vertices, BlendMode.srcOver, paint);
   }
 
-  // Returns a paint with a soft radial gradient (opaque centre → transparent edge).
-  // Used inside the dstOut erase layer — no blendMode needed here since the
-  // layer itself composites with dstOut when restored.
-  static Paint _softGradientPaint(Rect bounds) {
-    if (bounds.isEmpty) return Paint()..color = Colors.white;
-    return Paint()
-      ..shader = const RadialGradient(
-        colors: <Color>[Colors.white, Color(0x00FFFFFF)],
-        stops: <double>[0.55, 1.0],
-      ).createShader(bounds);
-  }
 
-  // Builds a capsule path covering one arm: shoulder → elbow → wrist.
-  // Falls back gracefully when elbow or wrist landmark is unavailable.
-  static Path _buildArmPath(
-    Map<String, NormAnchor> a,
-    String side,
-    Size size,
-    double shoulderSpan,
-  ) {
-    final String sKey = side == 'left' ? 'leftShoulder' : 'rightShoulder';
-    final String eKey = side == 'left' ? 'leftElbow'    : 'rightElbow';
-    final String wKey = side == 'left' ? 'leftWrist'    : 'rightWrist';
-
-    final NormAnchor? shoulder = a[sKey];
-    if (shoulder == null) return Path();
-
-    final double r = shoulderSpan * 0.18;
-    final Offset p0 = Offset(shoulder.x * size.width, shoulder.y * size.height);
-
-    final NormAnchor? elbowA = a[eKey];
-    final Offset p1 = elbowA != null
-        ? Offset(elbowA.x * size.width, elbowA.y * size.height)
-        : Offset(p0.dx + (side == 'left' ? -r * 0.5 : r * 0.5), p0.dy + shoulderSpan * 0.6);
-
-    final NormAnchor? wristA = a[wKey];
-    final List<Offset> joints = <Offset>[
-      p0,
-      p1,
-      if (wristA != null) Offset(wristA.x * size.width, wristA.y * size.height),
-    ];
-    return _capsulePath(joints, r);
-  }
-
-  // Builds a soft ellipse covering the neck region between nose and shoulders.
-  static Path _buildNeckPath(
-    Map<String, NormAnchor> a,
-    Size size,
-    double shoulderSpan,
-  ) {
-    final NormAnchor? shoulder = a['shoulder'];
-    if (shoulder == null) return Path();
-
-    final double cx = shoulder.x * size.width;
-    final NormAnchor? nose = a['nose'];
-    final double top = nose != null
-        ? (nose.y * size.height + shoulder.y * size.height) / 2
-        : shoulder.y * size.height - shoulderSpan * 0.35;
-    final double bottom = shoulder.y * size.height;
-    final double neckW = shoulderSpan * 0.38;
-    final double neckH = (bottom - top).abs();
-
-    return Path()
-      ..addOval(Rect.fromCenter(
-        center: Offset(cx, top + neckH / 2),
-        width: neckW,
-        height: neckH,
-      ));
-  }
-
-  // Builds a rounded-capsule path connecting a sequence of joint offsets.
-  // Each segment becomes an RRect inflated by [radius], giving a pill shape.
-  static Path _capsulePath(List<Offset> joints, double radius) {
-    if (joints.isEmpty) return Path();
-    if (joints.length == 1) {
-      return Path()..addOval(Rect.fromCircle(center: joints[0], radius: radius));
-    }
-    final Path path = Path();
-    for (int i = 0; i < joints.length - 1; i++) {
-      path.addRRect(RRect.fromRectAndRadius(
-        Rect.fromPoints(joints[i], joints[i + 1]).inflate(radius),
-        Radius.circular(radius),
-      ));
-    }
-    return path;
-  }
 
   // S3.1 — Soft elliptical ground shadow drawn below the garment hem.
   void _paintBodyShadow(
@@ -1289,7 +1092,6 @@ class _CameraOverlayPainter extends CustomPainter {
       old.rGain != rGain ||
       old.gGain != gGain ||
       old.bGain != bGain ||
-      old.segMaskImage != segMaskImage ||
       old.tpsSolutions != tpsSolutions ||
       old.highQuality != highQuality ||
       old.currentPose != currentPose ||

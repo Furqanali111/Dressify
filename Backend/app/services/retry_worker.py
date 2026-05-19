@@ -199,19 +199,30 @@ async def _do_retry(entry: UploadRetryQueue) -> None:
         garment_count = len(garments)
         processed_any = False
 
+        # 4a. Extract all garments in parallel — rembg is CPU-bound in a thread so
+        # multiple garments can be segmented concurrently without blocking the loop.
+        extraction_results: list[bytes | BaseException] = list(
+            await asyncio.gather(
+                *[
+                    asyncio.to_thread(
+                        extract_garment, raw_bytes, g["bbox"], num_garments=garment_count
+                    )
+                    for g in garments
+                ],
+                return_exceptions=True,
+            )
+        )
+
         for idx, garment in enumerate(garments):
             is_placeholder_slot = idx == 0
             item_id = entry.clothing_item_id if is_placeholder_slot else uuid.uuid4()
             processed_path = f"{entry.user_id}/{item_id}.png"
 
-            # 4a. Extract + background-remove (PNG with transparency, JPEG fallback)
-            try:
-                garment_bytes = await asyncio.to_thread(
-                    extract_garment, raw_bytes, garment["bbox"], num_garments=garment_count
-                )
-            except Exception as e:
-                logger.warning("Retry %s garment %d extraction failed: %s", entry.id, idx, e)
+            garment_bytes_or_exc = extraction_results[idx]
+            if isinstance(garment_bytes_or_exc, BaseException):
+                logger.warning("Retry %s garment %d extraction failed: %s", entry.id, idx, garment_bytes_or_exc)
                 continue
+            garment_bytes: bytes = garment_bytes_or_exc
 
             # 4b. Upload to processed bucket
             is_jpeg = garment_bytes[:2] == b'\xff\xd8'

@@ -59,7 +59,10 @@ class OutfitsNotifier extends StateNotifier<AsyncValue<List<Outfit>>> {
       final List<Outfit> current = state.value ?? <Outfit>[];
       state = AsyncValue<List<Outfit>>.data(<Outfit>[...current, ...newItems]);
     } catch (_) {
+      // Clear cursor so hasMore → false; re-emit so widgets rebuild and hide the spinner cell.
       _nextCursor = null;
+      final List<Outfit> current = state.value ?? <Outfit>[];
+      state = AsyncValue<List<Outfit>>.data(current);
     } finally {
       _isLoadingMore = false;
     }

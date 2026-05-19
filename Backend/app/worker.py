@@ -51,10 +51,25 @@ async def process_upload_job(ctx: dict, entry_id_str: str) -> None:
     await _process_entry_by_id(uuid.UUID(entry_id_str))
 
 
+def _prewarm_rembg() -> None:
+    """Load the BiRefNet segmentation model into memory at startup.
+
+    Without this, the first process_upload_job call triggers a cold model load
+    that can add 2-3 minutes to the first job's wall time.
+    """
+    from app.services.image_processing import _get_rembg_session
+    try:
+        _get_rembg_session()
+        logger.info("rembg BiRefNet model pre-warmed")
+    except Exception as exc:
+        logger.warning("rembg pre-warm failed (will retry on first job): %s", exc)
+
+
 async def _worker_startup(ctx: dict) -> None:
-    """Initialize the ARQ pool in the worker process so jobs can re-enqueue tasks."""
+    """Initialize the ARQ pool and pre-load the segmentation model."""
     from app.services.retry_worker import init_arq_pool
     await init_arq_pool()
+    await asyncio.to_thread(_prewarm_rembg)
 
 
 async def _worker_shutdown(ctx: dict) -> None:

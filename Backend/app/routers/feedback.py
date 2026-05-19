@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime, timezone
 import logging
 import random
@@ -138,7 +139,8 @@ async def generate_feedback(
         weather_context = await get_current_weather(body.lat, body.lon)
 
     try:
-        feedback_data = get_feedback_for_outfit(
+        feedback_data = await asyncio.to_thread(
+            get_feedback_for_outfit,
             outfit_details_str,
             body.occasion,
             wardrobe_sample,
