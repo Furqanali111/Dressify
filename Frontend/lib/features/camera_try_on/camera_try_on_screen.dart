@@ -38,15 +38,11 @@ import '../../core/widgets/app_toast.dart';
 // ---------------------------------------------------------------------------
 
 class _GarmentData {
-  _GarmentData({required this.item, required this.uiImage, this.wrinkleMaps});
+  _GarmentData({required this.item, required this.uiImage});
   final ClothingItem item;
   final ui.Image uiImage;
-  final Map<String, ui.Image>? wrinkleMaps; // pose → decoded ui.Image (S6.6 pre-blit)
   void dispose() {
     uiImage.dispose();
-    for (final ui.Image m in wrinkleMaps?.values ?? <ui.Image>[]) {
-      m.dispose();
-    }
   }
 }
 
@@ -282,34 +278,7 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
     if (_frameCount % 3 == 0) {
       final Map<String, NormAnchor>? currentAnchors = _anchors;
       if (currentAnchors != null && currentAnchors.containsKey('shoulder')) {
-        final NormAnchor shoulder = currentAnchors['shoulder']!;
-        final Rect region = Rect.fromCenter(
-          center: Offset(shoulder.x, shoulder.y),
-          width: 0.10,
-          height: 0.10,
-        );
-        final double luma = LuminanceSampler.sample(image, region);
-        final ({double r, double g, double b}) rgb =
-            LuminanceSampler.sampleRGB(image, region);
-
-        // Compute per-channel gains relative to neutral (1.0 = no shift).
-        // Normalize so r+g+b = 3.0, then lerp 30% toward scene colour.
-        final double total = (rgb.r + rgb.g + rgb.b).clamp(0.01, 3.0);
-        const double strength = 0.30;
-        final double newR = 1.0 + (rgb.r * 3.0 / total - 1.0) * strength;
-        final double newG = 1.0 + (rgb.g * 3.0 / total - 1.0) * strength;
-        final double newB = 1.0 + (rgb.b * 3.0 / total - 1.0) * strength;
-
-        final bool lumaChanged = (luma - _ambientLuma).abs() > 0.05;
-        final bool gainChanged =
-            (newR - _rGain).abs() > 0.02 || (newB - _bGain).abs() > 0.02;
-
-        if (mounted && (lumaChanged || gainChanged)) {
-          setState(() {
-            if (lumaChanged) _ambientLuma = luma;
-            if (gainChanged) { _rGain = newR; _gGain = newG; _bGain = newB; }
-          });
-        }
+        // Ambient lighting adjustment removed — feature is speculative.
       }
     }
 
@@ -340,12 +309,7 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
           _resolveTpsInto(_anchors!, _displaySize);
         }
         if (_anchors != null) {
-          final String newPose = PoseClassifier.classify(_anchors!);
-          if (newPose != _currentPose) {
-            _prevPose        = _currentPose;
-            _currentPose     = newPose;
-            _poseChangedAtMs = DateTime.now().millisecondsSinceEpoch;
-          }
+          // Pose classification removed — feature is speculative.
         }
       });
     }).catchError((_) {});
@@ -464,28 +428,7 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
         _garments[ci.id] = _GarmentData(item: ci, uiImage: img);
         _garmentLoadTimes[ci.id] = DateTime.now().millisecondsSinceEpoch;
         _startFadeTimer();
-        WrinkleCacheService.loadForItem(ci).then((Map<String, ui.Image>? wMaps) {
-          if (!mounted || wMaps == null || !_garments.containsKey(ci.id)) {
-            for (final ui.Image m in wMaps?.values ?? <ui.Image>[]) { m.dispose(); }
-            return;
-          }
-          setState(() {
-            final _GarmentData? existing = _garments[ci.id];
-            if (existing != null) {
-              // Dispose any previously loaded wrinkle maps before replacing.
-              for (final ui.Image m in existing.wrinkleMaps?.values ?? <ui.Image>[]) {
-                m.dispose();
-              }
-              _garments[ci.id] = _GarmentData(
-                item: existing.item,
-                uiImage: existing.uiImage,
-                wrinkleMaps: wMaps,
-              );
-            } else {
-              for (final ui.Image m in wMaps.values) { m.dispose(); }
-            }
-          });
-        }).catchError((_) {});
+        // Wrinkle cache removed — speculative feature.
       } catch (_) {
         if (mounted) AppToast.error(context, 'Could not load "${ci.name}" — check your connection');
       }
