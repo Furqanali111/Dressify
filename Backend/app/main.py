@@ -31,6 +31,13 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Warn early if no VTON API key is configured so ops notices immediately.
+    if not settings.FASHN_API_KEY and not settings.REPLICATE_API_KEY:
+        logger.warning(
+            "No VTON API key configured (FASHN_API_KEY / REPLICATE_API_KEY). "
+            "All /tryon requests will return 503."
+        )
+
     await init_arq_pool()
     retry_task = asyncio.create_task(run_retry_worker())
     logger.info("Upload retry worker started")

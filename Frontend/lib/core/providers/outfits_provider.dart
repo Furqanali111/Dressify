@@ -40,8 +40,8 @@ class OutfitsNotifier extends StateNotifier<AsyncValue<List<Outfit>>> {
     }
   }
 
-  Future<void> fetchMore() async {
-    if (_nextCursor == null || _isLoadingMore) return;
+  Future<bool> fetchMore() async {
+    if (_nextCursor == null || _isLoadingMore) return true;
     _isLoadingMore = true;
     try {
       final Dio dio = _ref.read(apiClientProvider);
@@ -58,11 +58,12 @@ class OutfitsNotifier extends StateNotifier<AsyncValue<List<Outfit>>> {
       final List<Outfit> newItems = _parse(data);
       final List<Outfit> current = state.value ?? <Outfit>[];
       state = AsyncValue<List<Outfit>>.data(<Outfit>[...current, ...newItems]);
+      return true;
     } catch (_) {
-      // Clear cursor so hasMore → false; re-emit so widgets rebuild and hide the spinner cell.
       _nextCursor = null;
       final List<Outfit> current = state.value ?? <Outfit>[];
       state = AsyncValue<List<Outfit>>.data(current);
+      return false;
     } finally {
       _isLoadingMore = false;
     }

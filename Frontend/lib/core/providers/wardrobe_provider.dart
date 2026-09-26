@@ -49,8 +49,8 @@ class WardrobeNotifier extends StateNotifier<AsyncValue<List<ClothingItem>>> {
     }
   }
 
-  Future<void> fetchMore() async {
-    if (_nextCursor == null || _isLoadingMore) return;
+  Future<bool> fetchMore() async {
+    if (_nextCursor == null || _isLoadingMore) return true;
     _isLoadingMore = true;
     try {
       final Dio dio = _ref.read(apiClientProvider);
@@ -70,12 +70,12 @@ class WardrobeNotifier extends StateNotifier<AsyncValue<List<ClothingItem>>> {
       final List<ClothingItem> newItems = _parse(data);
       final List<ClothingItem> current = state.value ?? <ClothingItem>[];
       state = AsyncValue<List<ClothingItem>>.data(<ClothingItem>[...current, ...newItems]);
+      return true;
     } catch (_) {
-      // Clear cursor so hasMore → false; stops the infinite retry loop on scroll.
-      // Re-emit current items so widgets rebuild and hide the spinner cell.
       _nextCursor = null;
       final List<ClothingItem> current = state.value ?? <ClothingItem>[];
       state = AsyncValue<List<ClothingItem>>.data(current);
+      return false;
     } finally {
       _isLoadingMore = false;
     }
@@ -104,15 +104,16 @@ class WardrobeNotifier extends StateNotifier<AsyncValue<List<ClothingItem>>> {
 
   /// Polls each item in [itemIds] every 3 s until its processing_status
   /// leaves "processing", or until 30 s have elapsed (10 attempts).
-  Future<void> pollUntilComplete(List<String> itemIds) async {
+  /// Returns false if more than half the items could not be polled (network issue).
+  Future<bool> pollUntilComplete(List<String> itemIds) async {
     const Duration interval = Duration(seconds: 3);
     const int maxAttempts = 10;
     final Set<String> pending = Set<String>.from(itemIds);
+    final Map<String, int> failCount = <String, int>{};
 
     for (int attempt = 0; attempt < maxAttempts && pending.isNotEmpty; attempt++) {
       await Future<void>.delayed(interval);
       final Dio dio = _ref.read(apiClientProvider);
-      // Poll all pending items in parallel so N items don't take N× longer.
       await Future.wait<void>(
         List<String>.from(pending).map((String id) async {
           try {
@@ -120,21 +121,25 @@ class WardrobeNotifier extends StateNotifier<AsyncValue<List<ClothingItem>>> {
             final ClothingItem updated =
                 ClothingItem.fromJson(resp.data as Map<String, dynamic>);
             if (updated.processingStatus != 'processing') pending.remove(id);
+            failCount.remove(id);
             final List<ClothingItem> current = state.value ?? <ClothingItem>[];
             state = AsyncValue<List<ClothingItem>>.data(
-              current
-                  .map((ClothingItem it) => it.id == id ? updated : it)
-                  .toList(),
+              current.map((ClothingItem it) => it.id == id ? updated : it).toList(),
             );
           } catch (_) {
-            // Skip individual failures; keep polling the others.
+            failCount[id] = (failCount[id] ?? 0) + 1;
           }
         }),
       );
+
+      // If every pending item has failed 3+ times in a row, give up early.
+      if (pending.isNotEmpty &&
+          pending.every((String id) => (failCount[id] ?? 0) >= 3)) {
+        return false;
+      }
     }
 
-    // Items still polling after max attempts remain as "processing" — the
-    // backend retry worker will finish them; user can pull-to-refresh.
+    return true;
   }
 
   /// Backend may return `{ items: [...] }` (with cursor) or `[...]` directly.

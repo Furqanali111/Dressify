@@ -13,6 +13,7 @@ import '../../core/router/app_routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/widgets/app_chip.dart';
+import '../../core/widgets/app_toast.dart';
 import 'clothing_card.dart';
 import 'outfit_card.dart';
 import 'style_me_sheet.dart';
@@ -25,13 +26,15 @@ class WardrobeScreen extends ConsumerStatefulWidget {
 }
 
 class _WardrobeScreenState extends ConsumerState<WardrobeScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late final TabController _tabController;
   ClothingType? _filter; // null = "All"
+  int _lastResumeRefreshMs = 0;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _tabController = TabController(length: 2, vsync: this);
     _tabController.addListener(() {
       if (_tabController.indexIsChanging) return;
@@ -41,8 +44,19 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _tabController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) return;
+    final int now = DateTime.now().millisecondsSinceEpoch;
+    if (now - _lastResumeRefreshMs < 5 * 60 * 1000) return;
+    _lastResumeRefreshMs = now;
+    ref.read(wardrobeProvider.notifier).fetch();
+    ref.read(outfitsProvider.notifier).fetch();
   }
 
   Future<void> _refresh() async {
@@ -357,9 +371,10 @@ class _ClothingTabState extends ConsumerState<_ClothingTab> {
     super.dispose();
   }
 
-  void _onScroll() {
+  Future<void> _onScroll() async {
     if (_scroll.position.pixels >= _scroll.position.maxScrollExtent - 200) {
-      ref.read(wardrobeProvider.notifier).fetchMore();
+      final bool ok = await ref.read(wardrobeProvider.notifier).fetchMore();
+      if (!ok && mounted) AppToast.error(context, 'Could not load more items');
     }
   }
 
@@ -381,11 +396,16 @@ class _ClothingTabState extends ConsumerState<_ClothingTab> {
             : all.where((ClothingItem it) => it.type == widget.filter!.apiValue).toList();
 
         if (items.isEmpty) {
-          return const _ScrollableState(
+          return _ScrollableState(
             child: _Empty(
               imageAsset: 'assets/images/03_empty_wardrobe.png',
               title: 'No clothing items yet',
-              subtitle: 'Upload your first item from the + button',
+              subtitle: 'Upload your first item to get started',
+              action: FilledButton.icon(
+                onPressed: () => context.pushNamed(AppRoute.upload.name),
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('Add Clothing'),
+              ),
             ),
           );
         }
@@ -449,9 +469,10 @@ class _OutfitsTabState extends ConsumerState<_OutfitsTab> {
     super.dispose();
   }
 
-  void _onScroll() {
+  Future<void> _onScroll() async {
     if (_scroll.position.pixels >= _scroll.position.maxScrollExtent - 200) {
-      ref.read(outfitsProvider.notifier).fetchMore();
+      final bool ok = await ref.read(outfitsProvider.notifier).fetchMore();
+      if (!ok && mounted) AppToast.error(context, 'Could not load more outfits');
     }
   }
 
@@ -470,11 +491,16 @@ class _OutfitsTabState extends ConsumerState<_OutfitsTab> {
       ),
       data: (List<Outfit> outfits) {
         if (outfits.isEmpty) {
-          return const _ScrollableState(
+          return _ScrollableState(
             child: _Empty(
               imageAsset: 'assets/images/04_no_outfits.png',
               title: 'No saved outfits yet',
               subtitle: 'Try on something and save the look',
+              action: FilledButton.icon(
+                onPressed: () => context.pushNamed(AppRoute.cameraTryOn.name),
+                icon: const Icon(Icons.camera_alt_outlined, size: 18),
+                label: const Text('Try It On'),
+              ),
             ),
           );
         }
@@ -597,11 +623,13 @@ class _Empty extends StatelessWidget {
     required this.imageAsset,
     required this.title,
     required this.subtitle,
+    this.action,
   });
 
   final String imageAsset;
   final String title;
   final String subtitle;
+  final Widget? action;
 
   @override
   Widget build(BuildContext context) {
@@ -623,6 +651,10 @@ class _Empty extends StatelessWidget {
               style: text.bodySmall?.copyWith(color: c.textSecondary),
               textAlign: TextAlign.center,
             ),
+            if (action != null) ...<Widget>[
+              const SizedBox(height: AppSpacing.lg),
+              action!,
+            ],
           ],
         ),
       ),

@@ -127,7 +127,9 @@ class _StyleMeSheetState extends ConsumerState<StyleMeSheet> {
       );
       if (e.response?.statusCode == 400 &&
           e.response?.data['detail'] == 'Wardrobe is empty') {
-        AppToast.error(context, 'Your wardrobe is empty! Add clothes first.');
+        context.pop();
+        context.pushNamed(AppRoute.upload.name);
+        AppToast.error(context, 'Your wardrobe is empty — add clothes first!');
       } else {
         AppToast.error(context, 'Failed to generate outfit. Try again.');
       }
@@ -281,6 +283,16 @@ class _StyleMeSheetState extends ConsumerState<StyleMeSheet> {
                       ? null
                       : _handleGenerate,
                 ),
+                if (_isGenerating) ...<Widget>[
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    'Usually takes 5–10 seconds',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: context.colors.textSecondary,
+                        ),
+                  ),
+                ],
               ],
             ),
           ),

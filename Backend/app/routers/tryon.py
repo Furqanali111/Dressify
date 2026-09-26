@@ -148,7 +148,9 @@ def _check_tryon_cache(cache_img_path: str) -> str | None:
         cached_at = int(ts_bytes.decode().strip())
     except (ValueError, UnicodeDecodeError):
         return None
-    if time.time() - cached_at >= 86400:
+    now = time.time()
+    # Reject timestamps that are in the future or older than 7 days (corrupted).
+    if cached_at > now or now - cached_at >= 86400:
         return None
     return storage.get_signed_url(settings.CLOTHING_BUCKET, cache_img_path, 3600)
 

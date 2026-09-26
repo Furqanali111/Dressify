@@ -241,7 +241,7 @@ def generate_and_upload_wrinkle_maps(
         return pose, None
 
     results: dict[str, str] = {}
-    with ThreadPoolExecutor(max_workers=4) as pool:
+    with ThreadPoolExecutor(max_workers=2) as pool:
         for pose, path in pool.map(_one, CANONICAL_POSES):
             if path:
                 results[pose] = path

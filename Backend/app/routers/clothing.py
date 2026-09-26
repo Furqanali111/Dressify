@@ -2,7 +2,7 @@ import asyncio
 import logging
 import uuid
 from typing import Optional
-from datetime import datetime  # used in cursor parsing
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.exc import SQLAlchemyError
@@ -17,7 +17,7 @@ from app.models.profile import Profile
 from app.models.upload_retry_queue import UploadRetryQueue
 from app.models.user import User
 from app.deps import get_current_user
-from app.schemas.clothing import ClothingItemResponse, ClothingItemUpdate, ClothingListResponse, FitRatingResponse
+from app.schemas.clothing import ClothingItemResponse, ClothingItemUpdate, ClothingListResponse, FitRatingResponse, WrinkleMapEntry
 from app.services.fit_rating import compute_fit_rating
 from app.services import storage
 from app.core.limiter import limiter
@@ -28,8 +28,6 @@ router = APIRouter(prefix="/clothing", tags=["Clothing"])
 
 
 async def _inject_urls(item) -> ClothingItemResponse:
-    from app.schemas.clothing import WrinkleMapEntry
-
     resp = ClothingItemResponse.model_validate(item)
     raw_maps: dict | None = getattr(item, "wrinkle_maps", None)
     poses: list[tuple[str, str]] = list(raw_maps.items()) if raw_maps else []
@@ -37,29 +35,23 @@ async def _inject_urls(item) -> ClothingItemResponse:
     async def _sign(bucket: str, path: str) -> str | None:
         return await asyncio.to_thread(storage.get_signed_url, bucket, path)
 
-    async def _noop() -> None:
-        return None
+    # Sign the processed image and all wrinkle maps in one parallel batch
+    tasks = []
+    if item.processed_image_path:
+        tasks.append(_sign(settings.CLOTHING_BUCKET, item.processed_image_path))
+    tasks.extend(_sign(settings.CLOTHING_BUCKET, path) for _, path in poses)
+    results: list = await asyncio.gather(*tasks, return_exceptions=True)
 
-    # Sign the processed image, GLB, and all wrinkle maps in one parallel batch
-    # instead of sequential awaits (30 items × 8 poses = 240 round-trips otherwise).
-    results: list = await asyncio.gather(
-        _sign(settings.CLOTHING_BUCKET, item.processed_image_path) if item.processed_image_path else _noop(),
-        _sign("clothing-meshes", item.glb_mesh_path) if item.glb_mesh_path else _noop(),
-        *[_sign(settings.CLOTHING_BUCKET, path) for _, path in poses],
-        return_exceptions=True,
-    )
-
-    processed_url = results[0]
-    resp.processed_url = (processed_url if isinstance(processed_url, str) else None) or ""
-
-    glb_url = results[1]
-    if isinstance(glb_url, str) and glb_url:
-        resp.glb_mesh_path = glb_url
+    idx = 0
+    if item.processed_image_path:
+        processed_url = results[idx]
+        resp.processed_url = (processed_url if isinstance(processed_url, str) else None) or ""
+        idx += 1
 
     if poses:
         signed = [
             WrinkleMapEntry(pose=pose, url=url)
-            for (pose, _), url in zip(poses, results[2:])
+            for (pose, _), url in zip(poses, results[idx:])
             if isinstance(url, str) and url
         ]
         resp.wrinkle_maps = signed or None
@@ -85,8 +77,6 @@ async def get_clothing(
         ClothingItem.type,
         ClothingItem.processed_image_path,
         ClothingItem.processing_status,
-        ClothingItem.glb_mesh_path,
-        ClothingItem.mesh_status,
         ClothingItem.wrinkle_maps,
         ClothingItem.size_label,
         ClothingItem.created_at,
@@ -273,13 +263,11 @@ async def delete_clothing_item(
         logger.error(f"DB error deleting clothing item {item_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to delete item")
 
-    # Delete all storage files in parallel — processed image, GLB, wrinkle maps.
+    # Delete all storage files in parallel — processed image, wrinkle maps.
     raw_maps: dict | None = getattr(item, "wrinkle_maps", None)
     cleanup = []
     if item.processed_image_path:
         cleanup.append(asyncio.to_thread(storage.delete_file, settings.CLOTHING_BUCKET, item.processed_image_path))
-    if item.glb_mesh_path:
-        cleanup.append(asyncio.to_thread(storage.delete_file, "clothing-meshes", item.glb_mesh_path))
     if raw_maps:
         cleanup.extend(
             asyncio.to_thread(storage.delete_file, settings.CLOTHING_BUCKET, path)
@@ -308,7 +296,6 @@ async def batch_delete_clothing(
         select(
             ClothingItem.id,
             ClothingItem.processed_image_path,
-            ClothingItem.glb_mesh_path,
             ClothingItem.wrinkle_maps,
         )
         .where(
@@ -339,8 +326,6 @@ async def batch_delete_clothing(
     for row in rows:
         if row.processed_image_path:
             cleanup.append(asyncio.to_thread(storage.delete_file, settings.CLOTHING_BUCKET, row.processed_image_path))
-        if row.glb_mesh_path:
-            cleanup.append(asyncio.to_thread(storage.delete_file, "clothing-meshes", row.glb_mesh_path))
         if row.wrinkle_maps:
             cleanup.extend(
                 asyncio.to_thread(storage.delete_file, settings.CLOTHING_BUCKET, path)

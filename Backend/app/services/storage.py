@@ -1,20 +1,40 @@
-from app.security import supabase_admin as supabase
+import time
 import logging
+
+from app.security import supabase_admin as supabase
 
 logger = logging.getLogger(__name__)
 
+_TRANSIENT_KEYWORDS = ("disconnected", "connection", "timeout", "reset", "protocol")
 
-def upload_file(bucket_name: str, file_path: str, file_bytes: bytes, content_type: str = "image/jpeg", upsert: bool = False) -> bool:
-    try:
-        supabase.storage.from_(bucket_name).upload(
-            file_path,
-            file_bytes,
-            file_options={"content-type": content_type, "upsert": str(upsert).lower()},
-        )
-        return True
-    except Exception as e:
-        logger.error(f"Failed to upload to {bucket_name}/{file_path}: {e}", exc_info=True)
-        return False
+
+def _is_transient(exc: Exception) -> bool:
+    return any(k in str(exc).lower() for k in _TRANSIENT_KEYWORDS)
+
+
+def upload_file(
+    bucket_name: str,
+    file_path: str,
+    file_bytes: bytes,
+    content_type: str = "image/jpeg",
+    upsert: bool = False,
+    _retries: int = 3,
+) -> bool:
+    for attempt in range(_retries):
+        try:
+            supabase.storage.from_(bucket_name).upload(
+                file_path,
+                file_bytes,
+                file_options={"content-type": content_type, "upsert": str(upsert).lower()},
+            )
+            return True
+        except Exception as e:
+            if attempt < _retries - 1 and _is_transient(e):
+                time.sleep(0.5 * (attempt + 1))
+                continue
+            logger.error("Failed to upload to %s/%s: %s", bucket_name, file_path, e, exc_info=True)
+            return False
+    return False  # unreachable but satisfies type checker
 
 
 def download_file(bucket_name: str, file_path: str) -> bytes | None:

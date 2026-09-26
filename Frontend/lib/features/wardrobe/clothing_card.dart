@@ -117,7 +117,7 @@ class ClothingCard extends ConsumerWidget {
     final String subtitle;
     final Color subtitleColor;
     if (isFailed) {
-      subtitle = 'Detection failed — hold to delete';
+      subtitle = 'Detection failed — tap to delete';
       subtitleColor = c.error;
     } else if (isProcessing) {
       subtitle = 'Analyzing with AI…';
@@ -131,7 +131,7 @@ class ClothingCard extends ConsumerWidget {
       color: c.surface,
       borderRadius: radius,
       child: InkWell(
-        onTap: (isProcessing || isFailed) ? null : () => _showContextMenu(context, ref),
+        onTap: isProcessing ? null : () => _showContextMenu(context, ref),
         onLongPress: isProcessing ? null : () => _showContextMenu(context, ref),
         borderRadius: radius,
         child: DecoratedBox(
