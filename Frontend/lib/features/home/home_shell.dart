@@ -10,7 +10,7 @@ class HomeShell extends StatelessWidget {
   final StatefulNavigationShell navigationShell;
 
   static const List<_Tab> _tabs = <_Tab>[
-    _Tab(icon: Icons.home_outlined, activeIcon: Icons.home_rounded, label: 'Home'),
+    _Tab(icon: Icons.checkroom_outlined, activeIcon: Icons.checkroom, label: 'Wardrobe'),
     _Tab(icon: Icons.camera_alt_outlined, activeIcon: Icons.camera_alt, label: 'Try On'),
     _Tab(icon: Icons.person_outline, activeIcon: Icons.person, label: 'Profile'),
   ];
@@ -31,19 +31,13 @@ class HomeShell extends StatelessWidget {
       body: navigationShell,
       bottomNavigationBar: DecoratedBox(
         decoration: BoxDecoration(
-          color: c.surface,
-          boxShadow: <BoxShadow>[
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 12,
-              offset: const Offset(0, -2),
-            ),
-          ],
+          color: c.background,
+          border: Border(top: BorderSide(color: c.border)),
         ),
         child: SafeArea(
           top: false,
           child: SizedBox(
-            height: 64,
+            height: 60,
             child: Row(
               children: <Widget>[
                 for (int i = 0; i < _tabs.length; i++)
@@ -85,20 +79,21 @@ class _NavItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final AppColors c = context.colors;
-    final Color color = active ? c.primary : c.textSecondary;
+    final Color color = active ? c.textPrimary : c.textSecondary;
 
     return InkWell(
       onTap: onTap,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: <Widget>[
-          Icon(active ? tab.activeIcon : tab.icon, color: color, size: 24),
+          Icon(active ? tab.activeIcon : tab.icon, color: color, size: 22),
           const SizedBox(height: AppSpacing.xs),
           Text(
             tab.label,
             style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
+              fontSize: 10.5,
+              letterSpacing: 0.6,
+              fontWeight: FontWeight.w500,
               color: color,
             ),
           ),
@@ -106,11 +101,11 @@ class _NavItem extends StatelessWidget {
           AnimatedContainer(
             duration: const Duration(milliseconds: 180),
             curve: Curves.easeOut,
-            width: active ? 4 : 0,
-            height: 4,
+            width: active ? 16 : 0,
+            height: 1.5,
             decoration: BoxDecoration(
               color: c.primary,
-              borderRadius: BorderRadius.circular(2),
+              borderRadius: BorderRadius.zero,
             ),
           ),
         ],

@@ -67,31 +67,23 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
-              const Spacer(flex: 2),
-              Center(
-                child: Container(
-                  width: 96,
-                  height: 96,
-                  decoration: BoxDecoration(
-                    color: c.primary.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(28),
-                  ),
-                  child: Icon(Icons.checkroom_outlined, size: 56, color: c.primary),
-                ),
-              ),
-              const Spacer(),
+              const Spacer(flex: 3),
               Text(
-                'Welcome to Dressify',
-                style: text.displayMedium,
-                textAlign: TextAlign.center,
+                'DRESSIFY',
+                style: text.labelSmall?.copyWith(color: c.textSecondary, letterSpacing: 3),
               ),
-              const SizedBox(height: AppSpacing.sm),
+              const SizedBox(height: AppSpacing.xl),
+              Text(
+                'Your wardrobe,\ntried on.',
+                style: text.displayLarge?.copyWith(fontSize: 48),
+              ),
+              const SizedBox(height: AppSpacing.md),
               Text(
                 'Sign in to save your outfits and style profile',
                 style: text.bodyMedium?.copyWith(color: c.textSecondary),
-                textAlign: TextAlign.center,
+                textAlign: TextAlign.left,
               ),
-              const SizedBox(height: AppSpacing.xl),
+              const Spacer(),
               if (AppFlags.bypassAuth) ...<Widget>[
                 const _BypassHint(),
                 const SizedBox(height: AppSpacing.md),
@@ -118,9 +110,9 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                     ),
                   ],
                 ),
-                textAlign: TextAlign.center,
+                textAlign: TextAlign.left,
               ),
-              const Spacer(flex: 2),
+              const SizedBox(height: AppSpacing.xl),
             ],
           ),
         ),
@@ -143,9 +135,9 @@ class _GoogleSignInButton extends StatelessWidget {
       child: OutlinedButton(
         onPressed: loading ? null : onPressed,
         style: OutlinedButton.styleFrom(
-          backgroundColor: Colors.white,
-          side: const BorderSide(color: Color(0xFFDADCE0)),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          backgroundColor: Theme.of(context).extension<AppColors>()!.surface,
+          side: BorderSide(color: Theme.of(context).extension<AppColors>()!.border),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.button)),
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
         ),
         child: loading
@@ -161,11 +153,7 @@ class _GoogleSignInButton extends StatelessWidget {
                   SizedBox(width: AppSpacing.md),
                   Text(
                     'Sign in with Google',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF1F1F1F),
-                    ),
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
                   ),
                 ],
               ),
@@ -185,7 +173,7 @@ class _GoogleGlyph extends StatelessWidget {
       height: 20,
       alignment: Alignment.center,
       decoration: const BoxDecoration(
-        color: Color(0xFF4285F4),
+        color: Color(0xFF111111),
         shape: BoxShape.circle,
       ),
       child: const Text(

@@ -101,9 +101,11 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen>
               ),
               TabBar(
                 controller: _tabController,
-                labelColor: c.primary,
+                labelColor: c.textPrimary,
                 unselectedLabelColor: c.textSecondary,
                 indicatorColor: c.primary,
+                indicatorWeight: 1.5,
+                dividerColor: c.border,
                 indicatorSize: TabBarIndicatorSize.label,
                 labelStyle: text.labelLarge,
                 tabs: const <Widget>[
@@ -169,7 +171,12 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen>
                 FloatingActionButton.small(
                   heroTag: 'upload',
                   backgroundColor: c.surface,
-                  foregroundColor: c.primary,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    side: BorderSide(color: c.border),
+                    borderRadius: BorderRadius.circular(AppRadius.button),
+                  ),
+                  foregroundColor: c.textPrimary,
                   onPressed: () => context.pushNamed(AppRoute.upload.name),
                   child: const Icon(Icons.add),
                 ),
@@ -177,7 +184,11 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen>
                 FloatingActionButton.extended(
                   heroTag: 'style_me',
                   backgroundColor: c.primary,
-                  foregroundColor: Colors.white,
+                  foregroundColor: c.onPrimary,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppRadius.button),
+                  ),
                   onPressed: () {
                     showModalBottomSheet<void>(
                       context: context,
@@ -190,7 +201,7 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen>
                     'assets/icons/05_icon_magic_wand.png',
                     width: 24,
                     height: 24,
-                    color: Colors.white,
+                    color: c.onPrimary,
                   ),
                   label: const Text('Style Me'),
                 ),
@@ -520,16 +531,16 @@ class _OutfitsTabState extends ConsumerState<_OutfitsTab> {
                 avatar: Icon(
                   _starredOnly ? Icons.star : Icons.star_border,
                   size: 16,
-                  color: _starredOnly ? Colors.white : c.primary,
+                  color: _starredOnly ? c.onPrimary : c.textPrimary,
                 ),
                 selected: _starredOnly,
                 onSelected: (v) => setState(() => _starredOnly = v),
                 selectedColor: c.primary,
                 labelStyle: TextStyle(
-                  color: _starredOnly ? Colors.white : c.textPrimary,
+                  color: _starredOnly ? c.onPrimary : c.textPrimary,
                   fontWeight: FontWeight.w600,
                 ),
-                checkmarkColor: Colors.white,
+                checkmarkColor: c.onPrimary,
                 showCheckmark: false,
               ),
             ),

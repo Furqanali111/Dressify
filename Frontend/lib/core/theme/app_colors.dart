@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 class AppColors extends ThemeExtension<AppColors> {
   const AppColors({
     required this.primary,
+    required this.onPrimary,
     required this.primaryDark,
     required this.surface,
     required this.background,
@@ -16,6 +17,7 @@ class AppColors extends ThemeExtension<AppColors> {
   });
 
   final Color primary;
+  final Color onPrimary;
   final Color primaryDark;
   final Color surface;
   final Color background;
@@ -26,35 +28,39 @@ class AppColors extends ThemeExtension<AppColors> {
   final Color overlay;
   final Color border;
 
+  // Warm monochrome: ink on bone. Colour is reserved for status only.
   static const AppColors light = AppColors(
-    primary: Color(0xFF6C63FF),
-    primaryDark: Color(0xFF4B44CC),
+    primary: Color(0xFF111111),
+    onPrimary: Color(0xFFFFFFFF),
+    primaryDark: Color(0xFF333333),
     surface: Color(0xFFFFFFFF),
-    background: Color(0xFFF5F4FF),
-    textPrimary: Color(0xFF1A1A2E),
-    textSecondary: Color(0xFF6B6B8A),
-    success: Color(0xFF22C97A),
-    error: Color(0xFFFF5C5C),
+    background: Color(0xFFF7F6F3),
+    textPrimary: Color(0xFF111111),
+    textSecondary: Color(0xFF787774),
+    success: Color(0xFF346538),
+    error: Color(0xFF9F2F2D),
     overlay: Color(0x8C000000),
-    border: Color(0xFFE8E6F0),
+    border: Color(0xFFEAEAEA),
   );
 
   static const AppColors dark = AppColors(
-    primary: Color(0xFFA89CFF),
-    primaryDark: Color(0xFF7B70EE),
-    surface: Color(0xFF1C1C2E),
-    background: Color(0xFF0D0D1A),
-    textPrimary: Color(0xFFF0EFFF),
-    textSecondary: Color(0xFF9999BB),
-    success: Color(0xFF1FA865),
-    error: Color(0xFFFF7070),
+    primary: Color(0xFFF2F0EB),
+    onPrimary: Color(0xFF111111),
+    primaryDark: Color(0xFFD9D6CE),
+    surface: Color(0xFF181817),
+    background: Color(0xFF0F0F0E),
+    textPrimary: Color(0xFFF2F0EB),
+    textSecondary: Color(0xFF9B9892),
+    success: Color(0xFF8FBF93),
+    error: Color(0xFFE08A87),
     overlay: Color(0x8C000000),
-    border: Color(0xFF2A2A40),
+    border: Color(0xFF2A2A28),
   );
 
   @override
   AppColors copyWith({
     Color? primary,
+    Color? onPrimary,
     Color? primaryDark,
     Color? surface,
     Color? background,
@@ -67,6 +73,7 @@ class AppColors extends ThemeExtension<AppColors> {
   }) {
     return AppColors(
       primary: primary ?? this.primary,
+      onPrimary: onPrimary ?? this.onPrimary,
       primaryDark: primaryDark ?? this.primaryDark,
       surface: surface ?? this.surface,
       background: background ?? this.background,
@@ -84,6 +91,7 @@ class AppColors extends ThemeExtension<AppColors> {
     if (other is! AppColors) return this;
     return AppColors(
       primary: Color.lerp(primary, other.primary, t)!,
+      onPrimary: Color.lerp(onPrimary, other.onPrimary, t)!,
       primaryDark: Color.lerp(primaryDark, other.primaryDark, t)!,
       surface: Color.lerp(surface, other.surface, t)!,
       background: Color.lerp(background, other.background, t)!,

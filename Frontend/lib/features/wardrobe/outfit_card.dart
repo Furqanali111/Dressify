@@ -145,13 +145,7 @@ class OutfitCard extends ConsumerWidget {
         child: DecoratedBox(
           decoration: BoxDecoration(
             borderRadius: radius,
-            boxShadow: <BoxShadow>[
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.06),
-                blurRadius: 10,
-                offset: const Offset(0, 3),
-              ),
-            ],
+            border: Border.all(color: c.border),
           ),
           child: ClipRRect(
             borderRadius: radius,
@@ -163,17 +157,10 @@ class OutfitCard extends ConsumerWidget {
                     fit: StackFit.expand,
                     children: <Widget>[
                       DecoratedBox(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: <Color>[
-                              accent.withValues(alpha: 0.22),
-                              accent.withValues(alpha: 0.06),
-                            ],
-                          ),
+                        decoration: BoxDecoration(color: accent.withValues(alpha: 0.10)),
+                        child: Center(
+                          child: Icon(Icons.person_outline, size: 64, color: c.textSecondary),
                         ),
-                        child: Center(child: Icon(Icons.person, size: 80, color: accent)),
                       ),
                       Positioned(
                         top: 4,
@@ -186,13 +173,13 @@ class OutfitCard extends ConsumerWidget {
                           child: Container(
                             padding: const EdgeInsets.all(4),
                             decoration: BoxDecoration(
-                              color: Colors.black.withValues(alpha: 0.25),
+                              color: c.surface.withValues(alpha: 0.9),
                               shape: BoxShape.circle,
                             ),
                             child: Icon(
                               outfit.isStarred ? Icons.star_rounded : Icons.star_border_rounded,
                               size: 18,
-                              color: outfit.isStarred ? Colors.amber : Colors.white,
+                              color: outfit.isStarred ? c.textPrimary : c.textSecondary,
                             ),
                           ),
                         ),

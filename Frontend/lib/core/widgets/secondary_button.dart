@@ -26,7 +26,7 @@ class SecondaryButton extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
         if (icon != null) ...<Widget>[
-          Icon(icon, size: 20, color: c.primary),
+          Icon(icon, size: 20, color: c.textPrimary),
           const SizedBox(width: AppSpacing.sm),
         ],
         Flexible(
@@ -34,8 +34,8 @@ class SecondaryButton extends StatelessWidget {
             label,
             style: TextStyle(
               fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: c.primary,
+              fontWeight: FontWeight.w500,
+              color: c.textPrimary,
             ),
             overflow: TextOverflow.ellipsis,
             maxLines: 1,
@@ -47,10 +47,10 @@ class SecondaryButton extends StatelessWidget {
     final Widget button = OutlinedButton(
       onPressed: onPressed,
       style: ButtonStyle(
-        side: WidgetStatePropertyAll<BorderSide>(BorderSide(color: c.primary, width: 1.5)),
+        side: WidgetStatePropertyAll<BorderSide>(BorderSide(color: c.border, width: 1)),
         backgroundColor: WidgetStateProperty.resolveWith<Color>((Set<WidgetState> states) {
           if (states.contains(WidgetState.pressed)) {
-            return c.primary.withValues(alpha: 0.08);
+            return c.border.withValues(alpha: 0.5);
           }
           return Colors.transparent;
         }),

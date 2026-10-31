@@ -16,9 +16,9 @@ class AppTheme {
     final ColorScheme colorScheme = ColorScheme(
       brightness: brightness,
       primary: c.primary,
-      onPrimary: Colors.white,
+      onPrimary: c.onPrimary,
       secondary: c.primaryDark,
-      onSecondary: Colors.white,
+      onSecondary: c.onPrimary,
       error: c.error,
       onError: Colors.white,
       surface: c.surface,
@@ -33,7 +33,8 @@ class AppTheme {
       canvasColor: c.surface,
       textTheme: textTheme,
       primaryTextTheme: textTheme,
-      splashFactory: InkRipple.splashFactory,
+      splashFactory: NoSplash.splashFactory,
+      highlightColor: c.border.withValues(alpha: 0.4),
       extensions: <ThemeExtension<dynamic>>[c],
       appBarTheme: AppBarTheme(
         backgroundColor: c.background,
@@ -61,7 +62,7 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadius.input),
-          borderSide: BorderSide(color: c.primary, width: 1.5),
+          borderSide: BorderSide(color: c.primary, width: 1),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadius.input),
@@ -72,6 +73,7 @@ class AppTheme {
           borderSide: BorderSide(color: c.error, width: 1.5),
         ),
       ),
+      bottomSheetTheme: const BottomSheetThemeData(backgroundColor: Colors.transparent),
       dividerTheme: DividerThemeData(color: c.border, thickness: 1, space: 1),
     );
   }

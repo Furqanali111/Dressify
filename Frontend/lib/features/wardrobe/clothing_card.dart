@@ -125,7 +125,7 @@ class ClothingCard extends ConsumerWidget {
       subtitleColor = c.error;
     } else if (isProcessing) {
       subtitle = 'Analyzing with AI…';
-      subtitleColor = c.primary;
+      subtitleColor = c.textSecondary;
     } else {
       subtitle = uiType.label;
       subtitleColor = c.textSecondary;
@@ -141,13 +141,7 @@ class ClothingCard extends ConsumerWidget {
         child: DecoratedBox(
           decoration: BoxDecoration(
             borderRadius: radius,
-            boxShadow: <BoxShadow>[
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.06),
-                blurRadius: 10,
-                offset: const Offset(0, 3),
-              ),
-            ],
+            border: Border.all(color: c.border),
           ),
           child: ClipRRect(
             borderRadius: radius,
@@ -170,13 +164,13 @@ class ClothingCard extends ConsumerWidget {
                             child: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
-                                color: Colors.black.withValues(alpha: 0.55),
-                                borderRadius: BorderRadius.circular(4),
+                                color: c.surface.withValues(alpha: 0.9),
+                                borderRadius: BorderRadius.circular(2),
                               ),
                               child: Text(
                                 item.sizeLabel!,
-                                style: const TextStyle(
-                                    color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700),
+                                style: TextStyle(
+                                    color: c.textPrimary, fontSize: 10, letterSpacing: 0.6, fontWeight: FontWeight.w600),
                               ),
                             ),
                           ),
@@ -204,7 +198,7 @@ class ClothingCard extends ConsumerWidget {
                         item.name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: text.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                        style: text.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
                       ),
                       const SizedBox(height: 2),
                       Text(
@@ -241,16 +235,17 @@ class _SeeOnMeButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final AppColors c = context.colors;
     return GestureDetector(
       onTap: onTap,
       child: Container(
         width: 32,
         height: 32,
         decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.55),
-          shape: BoxShape.circle,
+          color: c.primary,
+          borderRadius: BorderRadius.circular(AppRadius.button),
         ),
-        child: const Icon(Icons.camera_alt_outlined, color: Colors.white, size: 16),
+        child: Icon(Icons.camera_alt_outlined, color: c.onPrimary, size: 16),
       ),
     );
   }
@@ -311,10 +306,10 @@ class _ClothingImage extends StatelessWidget {
         width: 64,
         height: 64,
         decoration: BoxDecoration(
-          color: c.primary.withValues(alpha: 0.18),
+          color: c.border,
           borderRadius: BorderRadius.circular(AppRadius.thumbnail),
         ),
-        child: Icon(type.icon, color: c.primary, size: 28),
+        child: Icon(type.icon, color: c.textSecondary, size: 28),
       ),
     );
   }
