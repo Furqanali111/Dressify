@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/api/friendly_error_interceptor.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -63,10 +64,10 @@ class _MeasurementsSheetState extends ConsumerState<MeasurementsSheet> {
       if (!mounted) return;
       Navigator.of(context).pop();
       AppToast.success(context, 'Measurements saved');
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
-      AppToast.error(context, 'Failed to save measurements');
+      AppToast.error(context, errorMessage(e, 'Failed to save measurements'));
     }
   }
 

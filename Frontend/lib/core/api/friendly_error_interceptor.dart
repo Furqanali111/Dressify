@@ -26,3 +26,7 @@ String friendlyMessage(DioException e) {
       return 'Something went wrong. Please try again.';
   }
 }
+
+/// Message for any caught error: friendly text for network errors, else [fallback].
+String errorMessage(Object e, [String fallback = 'Something went wrong. Please try again.']) =>
+    e is DioException ? friendlyMessage(e) : fallback;

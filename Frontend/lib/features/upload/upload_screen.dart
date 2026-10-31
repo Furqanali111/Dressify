@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../../core/api/friendly_error_interceptor.dart';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
@@ -131,9 +132,7 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
       }
     } on DioException catch (e) {
       if (!mounted) return;
-      final String msg =
-          ((e.response?.data as Map?)?['detail'] as String?) ??
-          'Upload failed. Check your connection and try again.';
+      final String msg = friendlyMessage(e);
       setState(() {
         _stage = _UploadStage.error;
         _error = msg;

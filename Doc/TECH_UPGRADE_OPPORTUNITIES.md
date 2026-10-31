@@ -4,7 +4,7 @@
 
 **Done**
 - Removed unused Flutter deps: `flame`, `model_viewer_plus`, `flutter_svg`, `freezed_annotation`, `riverpod_annotation`.
-- User-friendly API errors (offline / timeout / 429 / 5xx) via `FriendlyErrorInterceptor`. Screens still need to display `e.message`.
+- User-friendly API errors (offline / timeout / 429 / 5xx) via `FriendlyErrorInterceptor`. Wired into wardrobe/outfits load errors, upload, measurements & Style DNA save, profile photo/delete account, outfit save (`errorMessage()` helper).
 - Backend smoke tests (health, auth guard, body-size limit, prompt formatting); 4 passing.
 - CI workflow: `pytest` + `flutter analyze` on every push (`.github/workflows/ci.yml`; not yet run on GitHub).
 - **Bug fix:** outfit prompt had unescaped braces, so every `/outfits/generate` call failed with `KeyError`. Fixed with a regression test.
@@ -12,7 +12,7 @@
 
 **Left** (see sections below; ordered by the suggested order at the bottom)
 - Device profiling (S6.1/S6.8) and crash monitoring (Sentry/Crashlytics)
-- Show friendly errors + retry in wardrobe/upload/try-on screens
+- Friendly errors still missing in: camera try-on, AI feedback sheet, sign-in, analytics screen, background polling failures
 - Offline read-through cache, Realtime/push for upload status
 - pgvector embeddings, structured-output LLM calls, second try-on provider / self-hosted VTON
 - Split `camera_try_on_screen.dart` and `profile_screen.dart`; golden tests; more backend tests (needs `pytest-asyncio` + test DB)

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/api/friendly_error_interceptor.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -386,7 +387,7 @@ class _ClothingTabState extends ConsumerState<_ClothingTab> {
       loading: () => const _LoadingShimmer(aspectRatio: 0.85),
       error: (Object e, _) => _ScrollableState(
         child: _ErrorState(
-          message: 'Could not load your wardrobe',
+          message: errorMessage(e, 'Could not load your wardrobe'),
           onRetry: () => ref.read(wardrobeProvider.notifier).fetch(),
         ),
       ),
@@ -485,7 +486,7 @@ class _OutfitsTabState extends ConsumerState<_OutfitsTab> {
       loading: () => const _LoadingShimmer(aspectRatio: 0.7),
       error: (Object e, _) => _ScrollableState(
         child: _ErrorState(
-          message: 'Could not load your outfits',
+          message: errorMessage(e, 'Could not load your outfits'),
           onRetry: () => ref.read(outfitsProvider.notifier).fetch(),
         ),
       ),

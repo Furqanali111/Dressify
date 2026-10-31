@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/api/friendly_error_interceptor.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/style_profile.dart';
@@ -68,10 +69,10 @@ class _StyleDnaSheetState extends ConsumerState<StyleDnaSheet> {
       if (!mounted) return;
       Navigator.of(context).pop();
       AppToast.success(context, 'Style DNA saved');
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
-      AppToast.error(context, 'Failed to save style preferences');
+      AppToast.error(context, errorMessage(e, 'Failed to save style preferences'));
     }
   }
 
