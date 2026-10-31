@@ -145,13 +145,7 @@ class OutfitCard extends ConsumerWidget {
         child: DecoratedBox(
           decoration: BoxDecoration(
             borderRadius: radius,
-            boxShadow: <BoxShadow>[
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.06),
-                blurRadius: 10,
-                offset: const Offset(0, 3),
-              ),
-            ],
+            border: Border.all(color: c.border),
           ),
           child: ClipRRect(
             borderRadius: radius,
@@ -186,13 +180,13 @@ class OutfitCard extends ConsumerWidget {
                           child: Container(
                             padding: const EdgeInsets.all(4),
                             decoration: BoxDecoration(
-                              color: Colors.black.withValues(alpha: 0.25),
+                              color: c.surface.withValues(alpha: 0.85),
                               shape: BoxShape.circle,
                             ),
                             child: Icon(
                               outfit.isStarred ? Icons.star_rounded : Icons.star_border_rounded,
                               size: 18,
-                              color: outfit.isStarred ? Colors.amber : Colors.white,
+                              color: outfit.isStarred ? c.primary : c.textSecondary,
                             ),
                           ),
                         ),
@@ -209,7 +203,7 @@ class OutfitCard extends ConsumerWidget {
                         outfit.name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: text.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                        style: text.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
                       ),
                       const SizedBox(height: 2),
                       Text(

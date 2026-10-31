@@ -41,11 +41,10 @@ class PrimaryButton extends StatelessWidget {
               Flexible(
                 child: Text(
                   label,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                  ),
+                  style: Theme.of(context)
+                      .textTheme
+                      .labelLarge
+                      ?.copyWith(color: Colors.white),
                   overflow: TextOverflow.ellipsis,
                   maxLines: 1,
                 ),

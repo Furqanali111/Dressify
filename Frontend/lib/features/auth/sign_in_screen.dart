@@ -67,29 +67,17 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
-              const Spacer(flex: 2),
-              Center(
-                child: Container(
-                  width: 96,
-                  height: 96,
-                  decoration: BoxDecoration(
-                    color: c.primary.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(28),
-                  ),
-                  child: Icon(Icons.checkroom_outlined, size: 56, color: c.primary),
-                ),
-              ),
-              const Spacer(),
+              const SizedBox(height: AppSpacing.lg),
+              Expanded(child: _ArchComposition(colors: c)),
+              const SizedBox(height: AppSpacing.xl),
               Text(
                 'Welcome to Dressify',
-                style: text.displayMedium,
-                textAlign: TextAlign.center,
+                style: text.displayLarge,
               ),
               const SizedBox(height: AppSpacing.sm),
               Text(
                 'Sign in to save your outfits and style profile',
-                style: text.bodyMedium?.copyWith(color: c.textSecondary),
-                textAlign: TextAlign.center,
+                style: text.bodyLarge?.copyWith(color: c.textSecondary),
               ),
               const SizedBox(height: AppSpacing.xl),
               if (AppFlags.bypassAuth) ...<Widget>[
@@ -120,7 +108,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                 ),
                 textAlign: TextAlign.center,
               ),
-              const Spacer(flex: 2),
+              const SizedBox(height: AppSpacing.lg),
             ],
           ),
         ),
@@ -145,7 +133,7 @@ class _GoogleSignInButton extends StatelessWidget {
         style: OutlinedButton.styleFrom(
           backgroundColor: Colors.white,
           side: const BorderSide(color: Color(0xFFDADCE0)),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          shape: const StadiumBorder(),
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
         ),
         child: loading
@@ -170,6 +158,53 @@ class _GoogleSignInButton extends StatelessWidget {
                 ],
               ),
       ),
+    );
+  }
+}
+
+/// Three arches in the palette: a wardrobe door motif, no assets.
+class _ArchComposition extends StatelessWidget {
+  const _ArchComposition({required this.colors});
+
+  final AppColors colors;
+
+  @override
+  Widget build(BuildContext context) {
+    final bool dark = Theme.of(context).brightness == Brightness.dark;
+    final List<Color> tones = <Color>[
+      colors.primary,
+      dark ? const Color(0xFF3A332D) : const Color(0xFF1B1714),
+      dark ? const Color(0xFFC9B8A2) : const Color(0xFFD9C7AE),
+    ];
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints box) {
+        final double w = (box.maxWidth - 2 * AppSpacing.sm) / 3;
+        final double h = box.maxHeight;
+        final List<double> heights = <double>[h * 0.78, h, h * 0.62];
+        return ExcludeSemantics(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: <Widget>[
+              for (int i = 0; i < 3; i++)
+                Container(
+                  width: w,
+                  height: heights[i],
+                  decoration: BoxDecoration(
+                    color: tones[i],
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(w / 2)),
+                  ),
+                  alignment: Alignment.topCenter,
+                  padding: const EdgeInsets.only(top: AppSpacing.xl),
+                  child: i == 1
+                      ? Icon(Icons.checkroom_outlined,
+                          size: 34, color: dark ? colors.textPrimary : colors.background)
+                      : null,
+                ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

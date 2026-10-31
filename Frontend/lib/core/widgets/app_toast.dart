@@ -34,7 +34,7 @@ class AppToast {
         SnackBar(
           duration: duration,
           behavior: SnackBarBehavior.floating,
-          backgroundColor: const Color(0xFF1A1A2E),
+          backgroundColor: const Color(0xFF1B1714),
           margin: const EdgeInsets.all(AppSpacing.lg),
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.lg,
@@ -46,15 +46,6 @@ class AppToast {
           action: action,
           content: Row(
             children: <Widget>[
-              Container(
-                width: 4,
-                height: 24,
-                decoration: BoxDecoration(
-                  color: accent,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.md),
               Icon(icon, color: accent, size: 20),
               const SizedBox(width: AppSpacing.sm),
               Expanded(

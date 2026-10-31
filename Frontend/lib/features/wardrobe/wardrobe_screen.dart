@@ -89,7 +89,7 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen>
                 ),
                 child: Row(
                   children: <Widget>[
-                    Expanded(child: Text('My Wardrobe', style: text.displayMedium)),
+                    Expanded(child: Text('My Wardrobe', style: text.displayLarge)),
                     if (_tabController.index == 0)
                       _SortButton(
                         current: ref.read(wardrobeProvider.notifier).sortBy,
@@ -101,9 +101,10 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen>
               ),
               TabBar(
                 controller: _tabController,
-                labelColor: c.primary,
+                labelColor: c.textPrimary,
                 unselectedLabelColor: c.textSecondary,
                 indicatorColor: c.primary,
+                indicatorWeight: 3,
                 indicatorSize: TabBarIndicatorSize.label,
                 labelStyle: text.labelLarge,
                 tabs: const <Widget>[
@@ -168,8 +169,8 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen>
               children: <Widget>[
                 FloatingActionButton.small(
                   heroTag: 'upload',
-                  backgroundColor: c.surface,
-                  foregroundColor: c.primary,
+                  backgroundColor: c.textPrimary,
+                  foregroundColor: c.background,
                   onPressed: () => context.pushNamed(AppRoute.upload.name),
                   child: const Icon(Icons.add),
                 ),

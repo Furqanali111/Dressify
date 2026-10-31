@@ -141,13 +141,7 @@ class ClothingCard extends ConsumerWidget {
         child: DecoratedBox(
           decoration: BoxDecoration(
             borderRadius: radius,
-            boxShadow: <BoxShadow>[
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.06),
-                blurRadius: 10,
-                offset: const Offset(0, 3),
-              ),
-            ],
+            border: Border.all(color: c.border),
           ),
           child: ClipRRect(
             borderRadius: radius,
@@ -156,7 +150,7 @@ class ClothingCard extends ConsumerWidget {
               children: <Widget>[
                 Expanded(
                   child: ColoredBox(
-                    color: c.background,
+                    color: Color.alphaBlend(c.primary.withValues(alpha: 0.04), c.background),
                     child: Stack(
                       fit: StackFit.expand,
                       children: <Widget>[
@@ -168,15 +162,15 @@ class ClothingCard extends ConsumerWidget {
                             top: AppSpacing.xs,
                             right: AppSpacing.xs,
                             child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                               decoration: BoxDecoration(
-                                color: Colors.black.withValues(alpha: 0.55),
-                                borderRadius: BorderRadius.circular(4),
+                                color: c.textPrimary.withValues(alpha: 0.85),
+                                borderRadius: BorderRadius.circular(999),
                               ),
                               child: Text(
                                 item.sizeLabel!,
-                                style: const TextStyle(
-                                    color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700),
+                                style: TextStyle(
+                                    color: c.background, fontSize: 10, fontWeight: FontWeight.w800),
                               ),
                             ),
                           ),
@@ -204,7 +198,7 @@ class ClothingCard extends ConsumerWidget {
                         item.name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: text.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                        style: text.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
                       ),
                       const SizedBox(height: 2),
                       Text(
@@ -244,13 +238,13 @@ class _SeeOnMeButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 32,
-        height: 32,
+        width: 34,
+        height: 34,
         decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.55),
+          color: context.colors.primary,
           shape: BoxShape.circle,
         ),
-        child: const Icon(Icons.camera_alt_outlined, color: Colors.white, size: 16),
+        child: const Icon(Icons.camera_alt_outlined, color: Colors.white, size: 17),
       ),
     );
   }
@@ -311,7 +305,7 @@ class _ClothingImage extends StatelessWidget {
         width: 64,
         height: 64,
         decoration: BoxDecoration(
-          color: c.primary.withValues(alpha: 0.18),
+          color: c.primary.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(AppRadius.thumbnail),
         ),
         child: Icon(type.icon, color: c.primary, size: 28),
