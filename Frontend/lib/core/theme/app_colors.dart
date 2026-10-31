@@ -13,6 +13,7 @@ class AppColors extends ThemeExtension<AppColors> {
     required this.error,
     required this.overlay,
     required this.border,
+    this.onPrimary = const Color(0xFFFFFFFF),
   });
 
   final Color primary;
@@ -25,31 +26,33 @@ class AppColors extends ThemeExtension<AppColors> {
   final Color error;
   final Color overlay;
   final Color border;
+  final Color onPrimary;
 
   static const AppColors light = AppColors(
-    primary: Color(0xFF6C63FF),
-    primaryDark: Color(0xFF4B44CC),
-    surface: Color(0xFFFFFFFF),
-    background: Color(0xFFF5F4FF),
-    textPrimary: Color(0xFF1A1A2E),
-    textSecondary: Color(0xFF6B6B8A),
-    success: Color(0xFF22C97A),
-    error: Color(0xFFFF5C5C),
+    primary: Color(0xFFB8472A),
+    primaryDark: Color(0xFF8F3219),
+    surface: Color(0xFFFCFAF6),
+    background: Color(0xFFF4F1EB),
+    textPrimary: Color(0xFF1A1612),
+    textSecondary: Color(0xFF6E665C),
+    success: Color(0xFF3F7D5A),
+    error: Color(0xFFC0392B),
     overlay: Color(0x8C000000),
-    border: Color(0xFFE8E6F0),
+    border: Color(0xFFE6E0D6),
   );
 
   static const AppColors dark = AppColors(
-    primary: Color(0xFFA89CFF),
-    primaryDark: Color(0xFF7B70EE),
-    surface: Color(0xFF1C1C2E),
-    background: Color(0xFF0D0D1A),
-    textPrimary: Color(0xFFF0EFFF),
-    textSecondary: Color(0xFF9999BB),
-    success: Color(0xFF1FA865),
-    error: Color(0xFFFF7070),
+    primary: Color(0xFFE0825F),
+    primaryDark: Color(0xFFC4623F),
+    surface: Color(0xFF1D1A17),
+    background: Color(0xFF12100E),
+    textPrimary: Color(0xFFF3EEE6),
+    textSecondary: Color(0xFFA39A8E),
+    success: Color(0xFF6FB38C),
+    error: Color(0xFFE87A6B),
     overlay: Color(0x8C000000),
-    border: Color(0xFF2A2A40),
+    border: Color(0xFF302B26),
+    onPrimary: Color(0xFF1A0F0A),
   );
 
   @override
@@ -64,6 +67,7 @@ class AppColors extends ThemeExtension<AppColors> {
     Color? error,
     Color? overlay,
     Color? border,
+    Color? onPrimary,
   }) {
     return AppColors(
       primary: primary ?? this.primary,
@@ -76,6 +80,7 @@ class AppColors extends ThemeExtension<AppColors> {
       error: error ?? this.error,
       overlay: overlay ?? this.overlay,
       border: border ?? this.border,
+      onPrimary: onPrimary ?? this.onPrimary,
     );
   }
 
@@ -93,8 +98,22 @@ class AppColors extends ThemeExtension<AppColors> {
       error: Color.lerp(error, other.error, t)!,
       overlay: Color.lerp(overlay, other.overlay, t)!,
       border: Color.lerp(border, other.border, t)!,
+      onPrimary: Color.lerp(onPrimary, other.onPrimary, t)!,
     );
   }
+}
+
+extension AppShadow on AppColors {
+  /// Warm-tinted soft shadow (single top-left light source).
+  List<BoxShadow> get softShadow => <BoxShadow>[
+    BoxShadow(
+      color: const Color(
+        0xFF3A2A1A,
+      ).withValues(alpha: surface.computeLuminance() > 0.5 ? 0.10 : 0.35),
+      blurRadius: 18,
+      offset: const Offset(0, 6),
+    ),
+  ];
 }
 
 extension AppColorsX on BuildContext {

@@ -19,7 +19,7 @@ class TpsSolution {
   final List<Offset> srcPoints;
 
   final List<double> weightsX; // n TPS weights for the x mapping
-  final List<double> affineX;  // [a0, a1, a2] affine terms for x
+  final List<double> affineX; // [a0, a1, a2] affine terms for x
   final List<double> weightsY;
   final List<double> affineY;
 
@@ -77,11 +77,11 @@ class TpsWarper {
           }
         }
         // P block: [1, u, v]
-        row[n]     = 1.0;
+        row[n] = 1.0;
         row[n + 1] = src[i].dx;
         row[n + 2] = src[i].dy;
         // RHS
-        row[m]     = dst[i].dx;
+        row[m] = dst[i].dx;
         row[m + 1] = dst[i].dy;
       } else {
         // Pᵀ block rows (orthogonality constraints), RHS = 0
@@ -105,7 +105,10 @@ class TpsWarper {
       double maxVal = aug[col][col].abs();
       for (int row = col + 1; row < m; row++) {
         final double v = aug[row][col].abs();
-        if (v > maxVal) { maxVal = v; maxRow = row; }
+        if (v > maxVal) {
+          maxVal = v;
+          maxRow = row;
+        }
       }
       if (maxVal < 1e-10) return null; // singular / degenerate
 
@@ -172,7 +175,7 @@ class TpsWarper {
 
     final Float32List positions = Float32List(vertexCount * 2);
     final Float32List texCoords = Float32List(vertexCount * 2);
-    final Uint16List indices    = Uint16List(indexCount);
+    final Uint16List indices = Uint16List(indexCount);
 
     // Evaluate TPS at every grid vertex
     for (int r = 0; r < vRows; r++) {
@@ -181,9 +184,9 @@ class TpsWarper {
         final double v = r / rows;
         final Offset screen = solution.eval(u, v);
         final int base = (r * vCols + c) * 2;
-        positions[base]     = screen.dx;
+        positions[base] = screen.dx;
         positions[base + 1] = screen.dy;
-        texCoords[base]     = u * img.width;
+        texCoords[base] = u * img.width;
         texCoords[base + 1] = v * img.height;
       }
     }
@@ -196,8 +199,12 @@ class TpsWarper {
         final int tr = tl + 1;
         final int bl = tl + vCols;
         final int br = bl + 1;
-        indices[ii++] = tl; indices[ii++] = tr; indices[ii++] = bl;
-        indices[ii++] = tr; indices[ii++] = br; indices[ii++] = bl;
+        indices[ii++] = tl;
+        indices[ii++] = tr;
+        indices[ii++] = bl;
+        indices[ii++] = tr;
+        indices[ii++] = br;
+        indices[ii++] = bl;
       }
     }
 

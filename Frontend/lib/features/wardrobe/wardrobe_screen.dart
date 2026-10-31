@@ -77,127 +77,142 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen>
       backgroundColor: c.background,
       body: SafeArea(
         child: Stack(
-        children: <Widget>[
-          Column(
-            children: <Widget>[
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.xl,
-                  AppSpacing.lg,
-                  AppSpacing.xl,
-                  AppSpacing.md,
-                ),
-                child: Row(
-                  children: <Widget>[
-                    Expanded(child: Text('My Wardrobe', style: text.displayMedium)),
-                    if (_tabController.index == 0)
-                      _SortButton(
-                        current: ref.read(wardrobeProvider.notifier).sortBy,
-                        onSelected: (String value) =>
-                            ref.read(wardrobeProvider.notifier).setSortBy(value),
-                      ),
-                  ],
-                ),
-              ),
-              TabBar(
-                controller: _tabController,
-                labelColor: c.primary,
-                unselectedLabelColor: c.textSecondary,
-                indicatorColor: c.primary,
-                indicatorSize: TabBarIndicatorSize.label,
-                labelStyle: text.labelLarge,
-                tabs: const <Widget>[
-                  Tab(text: 'Clothing Items'),
-                  Tab(text: 'Saved Outfits'),
-                ],
-              ),
-              if (_tabController.index == 0)
+          children: <Widget>[
+            Column(
+              children: <Widget>[
                 Padding(
                   padding: const EdgeInsets.fromLTRB(
                     AppSpacing.xl,
-                    AppSpacing.md,
+                    AppSpacing.lg,
                     AppSpacing.xl,
-                    0,
+                    AppSpacing.md,
                   ),
-                  child: SizedBox(
-                    height: 36,
-                    child: ListView(
-                      scrollDirection: Axis.horizontal,
-                      children: <Widget>[
-                        AppChip(
-                          label: 'All',
-                          selected: _filter == null,
-                          onTap: () => setState(() => _filter = null),
+                  child: Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: Text('My Wardrobe', style: text.displayLarge),
+                      ),
+                      if (_tabController.index == 0)
+                        _SortButton(
+                          current: ref.read(wardrobeProvider.notifier).sortBy,
+                          onSelected: (String value) => ref
+                              .read(wardrobeProvider.notifier)
+                              .setSortBy(value),
                         ),
-                        const SizedBox(width: AppSpacing.sm),
-                        for (final ClothingType t in ClothingType.values) ...<Widget>[
-                          AppChip(
-                            label: t.label,
-                            selected: _filter == t,
-                            onTap: () => setState(() => _filter = t),
-                          ),
-                          const SizedBox(width: AppSpacing.sm),
-                        ],
-                      ],
-                    ),
+                    ],
                   ),
                 ),
-              Expanded(
-                child: TabBarView(
+                TabBar(
                   controller: _tabController,
-                  children: <Widget>[
-                    RefreshIndicator(
-                      onRefresh: _refresh,
-                      child: _ClothingTab(filter: _filter),
-                    ),
-                    RefreshIndicator(
-                      onRefresh: _refresh,
-                      child: const _OutfitsTab(),
-                    ),
+                  labelColor: c.textPrimary,
+                  unselectedLabelColor: c.textSecondary,
+                  indicatorColor: c.primary,
+                  indicatorWeight: 2,
+                  dividerColor: c.border,
+                  indicatorSize: TabBarIndicatorSize.label,
+                  labelStyle: text.labelLarge,
+                  tabs: const <Widget>[
+                    Tab(text: 'Clothing Items'),
+                    Tab(text: 'Saved Outfits'),
                   ],
                 ),
-              ),
-            ],
-          ),
-          Positioned(
-            right: AppSpacing.lg,
-            bottom: AppSpacing.lg,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: <Widget>[
-                FloatingActionButton.small(
-                  heroTag: 'upload',
-                  backgroundColor: c.surface,
-                  foregroundColor: c.primary,
-                  onPressed: () => context.pushNamed(AppRoute.upload.name),
-                  child: const Icon(Icons.add),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                FloatingActionButton.extended(
-                  heroTag: 'style_me',
-                  backgroundColor: c.primary,
-                  foregroundColor: Colors.white,
-                  onPressed: () {
-                    showModalBottomSheet<void>(
-                      context: context,
-                      backgroundColor: Colors.transparent,
-                      isScrollControlled: true,
-                      builder: (_) => const StyleMeSheet(),
-                    );
-                  },
-                  icon: Image.asset(
-                    'assets/icons/05_icon_magic_wand.png',
-                    width: 24,
-                    height: 24,
-                    color: Colors.white,
+                if (_tabController.index == 0)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.xl,
+                      AppSpacing.md,
+                      AppSpacing.xl,
+                      0,
+                    ),
+                    child: SizedBox(
+                      height: 36,
+                      child: ListView(
+                        scrollDirection: Axis.horizontal,
+                        children: <Widget>[
+                          AppChip(
+                            label: 'All',
+                            selected: _filter == null,
+                            onTap: () => setState(() => _filter = null),
+                          ),
+                          const SizedBox(width: AppSpacing.sm),
+                          for (final ClothingType t
+                              in ClothingType.values) ...<Widget>[
+                            AppChip(
+                              label: t.label,
+                              selected: _filter == t,
+                              onTap: () => setState(() => _filter = t),
+                            ),
+                            const SizedBox(width: AppSpacing.sm),
+                          ],
+                        ],
+                      ),
+                    ),
                   ),
-                  label: const Text('Style Me'),
+                Expanded(
+                  child: TabBarView(
+                    controller: _tabController,
+                    children: <Widget>[
+                      RefreshIndicator(
+                        onRefresh: _refresh,
+                        child: _ClothingTab(filter: _filter),
+                      ),
+                      RefreshIndicator(
+                        onRefresh: _refresh,
+                        child: const _OutfitsTab(),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
-          ),
-        ],
+            Positioned(
+              right: AppSpacing.lg,
+              bottom: AppSpacing.lg,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: <Widget>[
+                  FloatingActionButton.small(
+                    heroTag: 'upload',
+                    backgroundColor: c.surface,
+                    foregroundColor: c.textPrimary,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppRadius.button),
+                      side: BorderSide(color: c.border),
+                    ),
+                    onPressed: () => context.pushNamed(AppRoute.upload.name),
+                    child: const Icon(Icons.add),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  FloatingActionButton.extended(
+                    heroTag: 'style_me',
+                    backgroundColor: c.primary,
+                    foregroundColor: c.onPrimary,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppRadius.button),
+                    ),
+                    onPressed: () {
+                      showModalBottomSheet<void>(
+                        context: context,
+                        backgroundColor: Colors.transparent,
+                        isScrollControlled: true,
+                        builder: (_) => const StyleMeSheet(),
+                      );
+                    },
+                    icon: Image.asset(
+                      'assets/icons/05_icon_magic_wand.png',
+                      width: 24,
+                      height: 24,
+                      color: c.onPrimary,
+                    ),
+                    label: const Text('Style Me'),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -213,8 +228,16 @@ class _SortButton extends StatelessWidget {
   final ValueChanged<String> onSelected;
 
   static const List<_SortOption> _options = <_SortOption>[
-    _SortOption(value: 'newest', label: 'Newest First', icon: Icons.arrow_downward_rounded),
-    _SortOption(value: 'oldest', label: 'Oldest First', icon: Icons.arrow_upward_rounded),
+    _SortOption(
+      value: 'newest',
+      label: 'Newest First',
+      icon: Icons.arrow_downward_rounded,
+    ),
+    _SortOption(
+      value: 'oldest',
+      label: 'Oldest First',
+      icon: Icons.arrow_upward_rounded,
+    ),
   ];
 
   Future<void> _show(BuildContext context) async {
@@ -227,10 +250,15 @@ class _SortButton extends StatelessWidget {
       builder: (_) => Container(
         decoration: BoxDecoration(
           color: c.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.sheetTop)),
+          borderRadius: const BorderRadius.vertical(
+            top: Radius.circular(AppRadius.sheetTop),
+          ),
         ),
         padding: const EdgeInsets.fromLTRB(
-          AppSpacing.xl, AppSpacing.md, AppSpacing.xl, AppSpacing.xl,
+          AppSpacing.xl,
+          AppSpacing.md,
+          AppSpacing.xl,
+          AppSpacing.xl,
         ),
         child: SafeArea(
           top: false,
@@ -249,7 +277,10 @@ class _SortButton extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: AppSpacing.lg),
-              Text('Sort by', style: text.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+              Text(
+                'Sort by',
+                style: text.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+              ),
               const SizedBox(height: AppSpacing.md),
               for (final _SortOption opt in _options) ...<Widget>[
                 InkWell(
@@ -261,7 +292,8 @@ class _SortButton extends StatelessWidget {
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 150),
                     padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.lg, vertical: AppSpacing.md,
+                      horizontal: AppSpacing.lg,
+                      vertical: AppSpacing.md,
                     ),
                     decoration: BoxDecoration(
                       color: current == opt.value
@@ -275,9 +307,13 @@ class _SortButton extends StatelessWidget {
                     ),
                     child: Row(
                       children: <Widget>[
-                        Icon(opt.icon,
-                            size: 20,
-                            color: current == opt.value ? c.primary : c.textSecondary),
+                        Icon(
+                          opt.icon,
+                          size: 20,
+                          color: current == opt.value
+                              ? c.primary
+                              : c.textSecondary,
+                        ),
                         const SizedBox(width: AppSpacing.md),
                         Expanded(
                           child: Text(
@@ -286,12 +322,18 @@ class _SortButton extends StatelessWidget {
                               fontWeight: current == opt.value
                                   ? FontWeight.w700
                                   : FontWeight.w500,
-                              color: current == opt.value ? c.primary : c.textPrimary,
+                              color: current == opt.value
+                                  ? c.primary
+                                  : c.textPrimary,
                             ),
                           ),
                         ),
                         if (current == opt.value)
-                          Icon(Icons.check_circle_rounded, size: 18, color: c.primary),
+                          Icon(
+                            Icons.check_circle_rounded,
+                            size: 18,
+                            color: c.primary,
+                          ),
                       ],
                     ),
                   ),
@@ -311,7 +353,10 @@ class _SortButton extends StatelessWidget {
     return GestureDetector(
       onTap: () => _show(context),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 7),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: 7,
+        ),
         decoration: BoxDecoration(
           color: c.surface,
           borderRadius: BorderRadius.circular(AppRadius.chip),
@@ -338,14 +383,17 @@ class _SortButton extends StatelessWidget {
 }
 
 class _SortOption {
-  const _SortOption({required this.value, required this.label, required this.icon});
+  const _SortOption({
+    required this.value,
+    required this.label,
+    required this.icon,
+  });
   final String value;
   final String label;
   final IconData icon;
 }
 
 // ─── Tabs ─────────────────────────────────────────────────────────────────────
-
 
 class _ClothingTab extends ConsumerStatefulWidget {
   const _ClothingTab({required this.filter});
@@ -394,7 +442,11 @@ class _ClothingTabState extends ConsumerState<_ClothingTab> {
       data: (List<ClothingItem> all) {
         final List<ClothingItem> items = widget.filter == null
             ? all
-            : all.where((ClothingItem it) => it.type == widget.filter!.apiValue).toList();
+            : all
+                  .where(
+                    (ClothingItem it) => it.type == widget.filter!.apiValue,
+                  )
+                  .toList();
 
         if (items.isEmpty) {
           return _ScrollableState(
@@ -473,7 +525,8 @@ class _OutfitsTabState extends ConsumerState<_OutfitsTab> {
   Future<void> _onScroll() async {
     if (_scroll.position.pixels >= _scroll.position.maxScrollExtent - 200) {
       final bool ok = await ref.read(outfitsProvider.notifier).fetchMore();
-      if (!ok && mounted) AppToast.error(context, 'Could not load more outfits');
+      if (!ok && mounted)
+        AppToast.error(context, 'Could not load more outfits');
     }
   }
 
@@ -506,15 +559,20 @@ class _OutfitsTabState extends ConsumerState<_OutfitsTab> {
           );
         }
 
-        final List<Outfit> filtered =
-            _starredOnly ? outfits.where((o) => o.isStarred).toList() : outfits;
+        final List<Outfit> filtered = _starredOnly
+            ? outfits.where((o) => o.isStarred).toList()
+            : outfits;
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             Padding(
               padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.xl, AppSpacing.md, AppSpacing.xl, 0),
+                AppSpacing.xl,
+                AppSpacing.md,
+                AppSpacing.xl,
+                0,
+              ),
               child: FilterChip(
                 label: const Text('Starred'),
                 avatar: Icon(
@@ -539,23 +597,24 @@ class _OutfitsTabState extends ConsumerState<_OutfitsTab> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
-                      Icon(Icons.star_border_rounded,
-                          size: 48, color: c.textSecondary.withValues(alpha: 0.4)),
+                      Icon(
+                        Icons.star_border_rounded,
+                        size: 48,
+                        color: c.textSecondary.withValues(alpha: 0.4),
+                      ),
                       const SizedBox(height: AppSpacing.md),
                       Text(
                         'No starred outfits yet',
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleSmall
-                            ?.copyWith(color: c.textSecondary),
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          color: c.textSecondary,
+                        ),
                       ),
                       const SizedBox(height: AppSpacing.xs),
                       Text(
                         'Tap the ★ on any outfit to star it',
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodySmall
-                            ?.copyWith(color: c.textSecondary),
+                        style: Theme.of(
+                          context,
+                        ).textTheme.bodySmall?.copyWith(color: c.textSecondary),
                       ),
                     ],
                   ),
@@ -578,7 +637,9 @@ class _OutfitsTabState extends ConsumerState<_OutfitsTab> {
                     mainAxisSpacing: AppSpacing.md,
                     childAspectRatio: 0.7,
                   ),
-                  itemCount: filtered.length + (ref.read(outfitsProvider.notifier).hasMore ? 1 : 0),
+                  itemCount:
+                      filtered.length +
+                      (ref.read(outfitsProvider.notifier).hasMore ? 1 : 0),
                   itemBuilder: (_, int i) {
                     if (i == filtered.length) {
                       return const Center(
@@ -610,10 +671,7 @@ class _ScrollableState extends StatelessWidget {
     return CustomScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
       slivers: <Widget>[
-        SliverFillRemaining(
-          hasScrollBody: false,
-          child: child,
-        ),
+        SliverFillRemaining(hasScrollBody: false, child: child),
       ],
     );
   }
@@ -683,10 +741,9 @@ class _ErrorState extends StatelessWidget {
             const SizedBox(height: AppSpacing.md),
             Text(
               message,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyMedium
-                  ?.copyWith(color: c.textSecondary),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: c.textSecondary),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: AppSpacing.lg),

@@ -30,9 +30,9 @@ class _MeasurementsSheetState extends ConsumerState<MeasurementsSheet> {
   void initState() {
     super.initState();
     final p = widget.profile;
-    _chestCtrl    = TextEditingController(text: _fmt(p?.chestCm));
-    _waistCtrl    = TextEditingController(text: _fmt(p?.waistCm));
-    _hipCtrl      = TextEditingController(text: _fmt(p?.hipCm));
+    _chestCtrl = TextEditingController(text: _fmt(p?.chestCm));
+    _waistCtrl = TextEditingController(text: _fmt(p?.waistCm));
+    _hipCtrl = TextEditingController(text: _fmt(p?.hipCm));
     _shoulderCtrl = TextEditingController(text: _fmt(p?.shoulderCm));
   }
 
@@ -56,9 +56,9 @@ class _MeasurementsSheetState extends ConsumerState<MeasurementsSheet> {
     setState(() => _saving = true);
     try {
       await ref.read(profileProvider.notifier).updateProfile(<String, dynamic>{
-        if (_parse(_chestCtrl)    != null) 'chest_cm':    _parse(_chestCtrl),
-        if (_parse(_waistCtrl)    != null) 'waist_cm':    _parse(_waistCtrl),
-        if (_parse(_hipCtrl)      != null) 'hip_cm':      _parse(_hipCtrl),
+        if (_parse(_chestCtrl) != null) 'chest_cm': _parse(_chestCtrl),
+        if (_parse(_waistCtrl) != null) 'waist_cm': _parse(_waistCtrl),
+        if (_parse(_hipCtrl) != null) 'hip_cm': _parse(_hipCtrl),
         if (_parse(_shoulderCtrl) != null) 'shoulder_cm': _parse(_shoulderCtrl),
       });
       if (!mounted) return;
@@ -108,17 +108,49 @@ class _MeasurementsSheetState extends ConsumerState<MeasurementsSheet> {
           const SizedBox(height: AppSpacing.xl),
           Row(
             children: <Widget>[
-              Expanded(child: _Field(label: 'Chest', hint: '90', ctrl: _chestCtrl, min: 50, max: 200)),
+              Expanded(
+                child: _Field(
+                  label: 'Chest',
+                  hint: '90',
+                  ctrl: _chestCtrl,
+                  min: 50,
+                  max: 200,
+                ),
+              ),
               const SizedBox(width: AppSpacing.md),
-              Expanded(child: _Field(label: 'Waist', hint: '74', ctrl: _waistCtrl, min: 50, max: 180)),
+              Expanded(
+                child: _Field(
+                  label: 'Waist',
+                  hint: '74',
+                  ctrl: _waistCtrl,
+                  min: 50,
+                  max: 180,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: AppSpacing.md),
           Row(
             children: <Widget>[
-              Expanded(child: _Field(label: 'Hip', hint: '96', ctrl: _hipCtrl, min: 50, max: 200)),
+              Expanded(
+                child: _Field(
+                  label: 'Hip',
+                  hint: '96',
+                  ctrl: _hipCtrl,
+                  min: 50,
+                  max: 200,
+                ),
+              ),
               const SizedBox(width: AppSpacing.md),
-              Expanded(child: _Field(label: 'Shoulder', hint: '42', ctrl: _shoulderCtrl, min: 30, max: 80)),
+              Expanded(
+                child: _Field(
+                  label: 'Shoulder',
+                  hint: '42',
+                  ctrl: _shoulderCtrl,
+                  min: 30,
+                  max: 80,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: AppSpacing.xl),
@@ -130,7 +162,10 @@ class _MeasurementsSheetState extends ConsumerState<MeasurementsSheet> {
           const SizedBox(height: AppSpacing.sm),
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: Text('Cancel', style: text.labelLarge?.copyWith(color: c.textSecondary)),
+            child: Text(
+              'Cancel',
+              style: text.labelLarge?.copyWith(color: c.textSecondary),
+            ),
           ),
         ],
       ),

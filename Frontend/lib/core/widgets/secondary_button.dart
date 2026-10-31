@@ -26,7 +26,7 @@ class SecondaryButton extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
         if (icon != null) ...<Widget>[
-          Icon(icon, size: 20, color: c.primary),
+          Icon(icon, size: 20, color: c.textPrimary),
           const SizedBox(width: AppSpacing.sm),
         ],
         Flexible(
@@ -34,8 +34,9 @@ class SecondaryButton extends StatelessWidget {
             label,
             style: TextStyle(
               fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: c.primary,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.2,
+              color: c.textPrimary,
             ),
             overflow: TextOverflow.ellipsis,
             maxLines: 1,
@@ -47,10 +48,14 @@ class SecondaryButton extends StatelessWidget {
     final Widget button = OutlinedButton(
       onPressed: onPressed,
       style: ButtonStyle(
-        side: WidgetStatePropertyAll<BorderSide>(BorderSide(color: c.primary, width: 1.5)),
-        backgroundColor: WidgetStateProperty.resolveWith<Color>((Set<WidgetState> states) {
+        side: WidgetStatePropertyAll<BorderSide>(
+          BorderSide(color: c.textPrimary.withValues(alpha: 0.85), width: 1),
+        ),
+        backgroundColor: WidgetStateProperty.resolveWith<Color>((
+          Set<WidgetState> states,
+        ) {
           if (states.contains(WidgetState.pressed)) {
-            return c.primary.withValues(alpha: 0.08);
+            return c.textPrimary.withValues(alpha: 0.06);
           }
           return Colors.transparent;
         }),
@@ -59,7 +64,9 @@ class SecondaryButton extends StatelessWidget {
         ),
         minimumSize: const WidgetStatePropertyAll<Size>(Size(0, 52)),
         shape: WidgetStatePropertyAll<RoundedRectangleBorder>(
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.button)),
+          RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.button),
+          ),
         ),
       ),
       child: child,

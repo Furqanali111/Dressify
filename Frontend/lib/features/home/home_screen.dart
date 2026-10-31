@@ -282,7 +282,6 @@ class _QuickActionTile extends StatelessWidget {
   }
 }
 
-
 // ---------------------------------------------------------------------------
 // Recent Outfits
 // ---------------------------------------------------------------------------
@@ -297,7 +296,9 @@ class _RecentOutfits extends ConsumerWidget {
       error: (_, _) => const _OutfitsEmpty(isError: true),
       data: (List<Outfit> outfits) {
         if (outfits.isEmpty) return const _OutfitsEmpty(isError: false);
-        final List<Outfit> recent = outfits.length > 3 ? outfits.sublist(0, 3) : outfits;
+        final List<Outfit> recent = outfits.length > 3
+            ? outfits.sublist(0, 3)
+            : outfits;
         return SizedBox(
           height: 120,
           child: ListView.separated(

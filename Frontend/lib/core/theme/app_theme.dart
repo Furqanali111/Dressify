@@ -12,11 +12,17 @@ class AppTheme {
 
   static ThemeData _build(AppColors c, Brightness brightness) {
     final TextTheme textTheme = AppTypography.textTheme(c.textPrimary);
+    final PageTransitionsTheme pt = const PageTransitionsTheme(
+      builders: <TargetPlatform, PageTransitionsBuilder>{
+        TargetPlatform.android: FadeForwardsPageTransitionsBuilder(),
+        TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+      },
+    );
 
     final ColorScheme colorScheme = ColorScheme(
       brightness: brightness,
       primary: c.primary,
-      onPrimary: Colors.white,
+      onPrimary: c.onPrimary,
       secondary: c.primaryDark,
       onSecondary: Colors.white,
       error: c.error,
@@ -33,12 +39,28 @@ class AppTheme {
       canvasColor: c.surface,
       textTheme: textTheme,
       primaryTextTheme: textTheme,
-      splashFactory: InkRipple.splashFactory,
+      splashFactory: InkSparkle.splashFactory,
+      pageTransitionsTheme: pt,
+      dialogTheme: DialogThemeData(
+        backgroundColor: c.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.card),
+        ),
+      ),
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: c.surface,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(AppRadius.sheetTop),
+          ),
+        ),
+      ),
       extensions: <ThemeExtension<dynamic>>[c],
       appBarTheme: AppBarTheme(
         backgroundColor: c.background,
         foregroundColor: c.textPrimary,
         elevation: 0,
+        scrolledUnderElevation: 0,
         centerTitle: false,
         titleTextStyle: textTheme.titleLarge,
       ),

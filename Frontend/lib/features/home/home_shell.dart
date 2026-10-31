@@ -10,9 +10,21 @@ class HomeShell extends StatelessWidget {
   final StatefulNavigationShell navigationShell;
 
   static const List<_Tab> _tabs = <_Tab>[
-    _Tab(icon: Icons.home_outlined, activeIcon: Icons.home_rounded, label: 'Home'),
-    _Tab(icon: Icons.camera_alt_outlined, activeIcon: Icons.camera_alt, label: 'Try On'),
-    _Tab(icon: Icons.person_outline, activeIcon: Icons.person, label: 'Profile'),
+    _Tab(
+      icon: Icons.home_outlined,
+      activeIcon: Icons.home_rounded,
+      label: 'Home',
+    ),
+    _Tab(
+      icon: Icons.camera_alt_outlined,
+      activeIcon: Icons.camera_alt,
+      label: 'Try On',
+    ),
+    _Tab(
+      icon: Icons.person_outline,
+      activeIcon: Icons.person,
+      label: 'Profile',
+    ),
   ];
 
   void _goBranch(int index) {
@@ -32,13 +44,7 @@ class HomeShell extends StatelessWidget {
       bottomNavigationBar: DecoratedBox(
         decoration: BoxDecoration(
           color: c.surface,
-          boxShadow: <BoxShadow>[
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 12,
-              offset: const Offset(0, -2),
-            ),
-          ],
+          border: Border(top: BorderSide(color: c.border)),
         ),
         child: SafeArea(
           top: false,
@@ -64,7 +70,11 @@ class HomeShell extends StatelessWidget {
 }
 
 class _Tab {
-  const _Tab({required this.icon, required this.activeIcon, required this.label});
+  const _Tab({
+    required this.icon,
+    required this.activeIcon,
+    required this.label,
+  });
 
   final IconData icon;
   final IconData activeIcon;
@@ -85,7 +95,7 @@ class _NavItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final AppColors c = context.colors;
-    final Color color = active ? c.primary : c.textSecondary;
+    final Color color = active ? c.textPrimary : c.textSecondary;
 
     return InkWell(
       onTap: onTap,
@@ -98,19 +108,20 @@ class _NavItem extends StatelessWidget {
             tab.label,
             style: TextStyle(
               fontSize: 11,
+              letterSpacing: 0.3,
               fontWeight: FontWeight.w600,
               color: color,
             ),
           ),
-          const SizedBox(height: 3),
+          const SizedBox(height: 4),
           AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            curve: Curves.easeOut,
-            width: active ? 4 : 0,
-            height: 4,
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+            width: active ? 20 : 0,
+            height: 2,
             decoration: BoxDecoration(
               color: c.primary,
-              borderRadius: BorderRadius.circular(2),
+              borderRadius: BorderRadius.circular(1),
             ),
           ),
         ],

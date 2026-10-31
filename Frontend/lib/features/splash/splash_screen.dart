@@ -27,13 +27,19 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
   // Replace context.motion() with direct duration checks
   Duration get _motionDuration {
-    final disableAnimations = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
-    return disableAnimations ? Duration.zero : const Duration(milliseconds: 400);
+    final disableAnimations =
+        MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+    return disableAnimations
+        ? Duration.zero
+        : const Duration(milliseconds: 400);
   }
 
   Duration get _motionDelay {
-    final disableAnimations = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
-    return disableAnimations ? Duration.zero : const Duration(milliseconds: 200);
+    final disableAnimations =
+        MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+    return disableAnimations
+        ? Duration.zero
+        : const Duration(milliseconds: 200);
   }
 
   @override
@@ -54,7 +60,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
       context.goNamed(AppRoute.profileSetup.name);
       return;
     }
-    
+
     final bool loggedIn = await ref.read(authStateProvider.notifier).init();
     if (!mounted) return;
 
@@ -102,13 +108,16 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: <Widget>[
                     Text(
-                      'Dressify',
-                      style: text.displayLarge?.copyWith(
-                        color: Colors.white,
-                        fontSize: 40,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ).animate().fadeIn(duration: _motionDuration).scale(
+                          'Dressify',
+                          style: text.displayLarge?.copyWith(
+                            color: Colors.white,
+                            fontSize: 40,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        )
+                        .animate()
+                        .fadeIn(duration: _motionDuration)
+                        .scale(
                           begin: const Offset(0.96, 0.96),
                           end: const Offset(1, 1),
                           duration: _motionDuration,
@@ -120,7 +129,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                       style: text.bodyLarge?.copyWith(
                         color: Colors.white.withValues(alpha: 0.85),
                       ),
-                    ).animate().fadeIn(delay: _motionDelay, duration: _motionDuration),
+                    ).animate().fadeIn(
+                      delay: _motionDelay,
+                      duration: _motionDuration,
+                    ),
                     const SizedBox(height: AppSpacing.xxxl),
                     const SizedBox(
                       width: 28,

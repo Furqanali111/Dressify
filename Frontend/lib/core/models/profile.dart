@@ -68,19 +68,19 @@ class Profile {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'user_id': userId,
-        'height_cm': heightCm,
-        'weight_kg': weightKg,
-        'body_type': bodyType,
-        'gender': gender,
-        'avatar_kind': avatarKind,
-        'preferences': preferences,
-        'chest_cm': chestCm,
-        'waist_cm': waistCm,
-        'hip_cm': hipCm,
-        'shoulder_cm': shoulderCm,
-        'created_at': createdAt.toIso8601String(),
-        'updated_at': updatedAt.toIso8601String(),
-      };
+    'id': id,
+    'user_id': userId,
+    'height_cm': heightCm,
+    'weight_kg': weightKg,
+    'body_type': bodyType,
+    'gender': gender,
+    'avatar_kind': avatarKind,
+    'preferences': preferences,
+    'chest_cm': chestCm,
+    'waist_cm': waistCm,
+    'hip_cm': hipCm,
+    'shoulder_cm': shoulderCm,
+    'created_at': createdAt.toIso8601String(),
+    'updated_at': updatedAt.toIso8601String(),
+  };
 }

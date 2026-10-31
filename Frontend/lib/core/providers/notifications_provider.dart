@@ -19,12 +19,11 @@ class NotificationsState {
     List<NotificationItem>? items,
     int? unreadCount,
     bool? loading,
-  }) =>
-      NotificationsState(
-        items: items ?? this.items,
-        unreadCount: unreadCount ?? this.unreadCount,
-        loading: loading ?? this.loading,
-      );
+  }) => NotificationsState(
+    items: items ?? this.items,
+    unreadCount: unreadCount ?? this.unreadCount,
+    loading: loading ?? this.loading,
+  );
 }
 
 class NotificationsNotifier extends StateNotifier<NotificationsState> {
@@ -37,7 +36,9 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
   Future<void> _fetchCount() async {
     try {
       final Dio dio = _ref.read(apiClientProvider);
-      final Response<dynamic> res = await dio.get<dynamic>('/notifications/unread-count');
+      final Response<dynamic> res = await dio.get<dynamic>(
+        '/notifications/unread-count',
+      );
       final int count =
           ((res.data as Map<String, dynamic>)['count'] as int?) ?? 0;
       state = state.copyWith(unreadCount: count);
@@ -67,7 +68,10 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
     // Optimistic update
     final List<NotificationItem> next = List<NotificationItem>.from(current);
     next[idx] = next[idx].copyWith(isRead: true);
-    state = state.copyWith(items: next, unreadCount: (state.unreadCount - 1).clamp(0, 999));
+    state = state.copyWith(
+      items: next,
+      unreadCount: (state.unreadCount - 1).clamp(0, 999),
+    );
 
     try {
       final Dio dio = _ref.read(apiClientProvider);
@@ -82,7 +86,9 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
     try {
       final Dio dio = _ref.read(apiClientProvider);
       await dio.post<dynamic>('/notifications/read-all');
-      final List<NotificationItem> next = state.items.map((it) => it.copyWith(isRead: true)).toList();
+      final List<NotificationItem> next = state.items
+          .map((it) => it.copyWith(isRead: true))
+          .toList();
       state = state.copyWith(items: next, unreadCount: 0);
     } catch (_) {}
   }
@@ -91,7 +97,7 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
 }
 
 final StateNotifierProvider<NotificationsNotifier, NotificationsState>
-    notificationsProvider =
+notificationsProvider =
     StateNotifierProvider<NotificationsNotifier, NotificationsState>(
-  NotificationsNotifier.new,
-);
+      NotificationsNotifier.new,
+    );

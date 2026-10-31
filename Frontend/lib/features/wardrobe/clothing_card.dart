@@ -67,10 +67,12 @@ class ClothingCard extends ConsumerWidget {
       case WardrobeAction.rename:
         break;
       case WardrobeAction.logWear:
-        // Log wear for a single item is not directly supported by the unified /wear-logs yet 
+        // Log wear for a single item is not directly supported by the unified /wear-logs yet
         // without an outfit, but we can call it with a single item ID.
         try {
-          await ref.read(outfitsProvider.notifier).logWear(clothingItemIds: <String>[item.id]);
+          await ref
+              .read(outfitsProvider.notifier)
+              .logWear(clothingItemIds: <String>[item.id]);
           if (!context.mounted) return;
           AppToast.success(context, 'Wear logged for ${item.name}');
         } catch (_) {
@@ -89,7 +91,9 @@ class ClothingCard extends ConsumerWidget {
                 child: const Text('Cancel'),
               ),
               TextButton(
-                style: TextButton.styleFrom(foregroundColor: context.colors.error),
+                style: TextButton.styleFrom(
+                  foregroundColor: context.colors.error,
+                ),
                 onPressed: () => Navigator.of(ctx).pop(true),
                 child: const Text('Delete'),
               ),
@@ -141,13 +145,7 @@ class ClothingCard extends ConsumerWidget {
         child: DecoratedBox(
           decoration: BoxDecoration(
             borderRadius: radius,
-            boxShadow: <BoxShadow>[
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.06),
-                blurRadius: 10,
-                offset: const Offset(0, 3),
-              ),
-            ],
+            boxShadow: c.softShadow,
           ),
           child: ClipRRect(
             borderRadius: radius,
@@ -163,20 +161,30 @@ class ClothingCard extends ConsumerWidget {
                         isFailed
                             ? _FailedPlaceholder(c: c)
                             : _ClothingImage(item: item, fallbackType: uiType),
-                        if (!isFailed && !isProcessing && item.sizeLabel != null && item.sizeLabel != 'Unknown')
+                        if (!isFailed &&
+                            !isProcessing &&
+                            item.sizeLabel != null &&
+                            item.sizeLabel != 'Unknown')
                           Positioned(
                             top: AppSpacing.xs,
                             right: AppSpacing.xs,
                             child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
                                 color: Colors.black.withValues(alpha: 0.55),
-                                borderRadius: BorderRadius.circular(4),
+                                borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
                                 item.sizeLabel!,
                                 style: const TextStyle(
-                                    color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700),
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.4,
+                                ),
                               ),
                             ),
                           ),
@@ -186,7 +194,11 @@ class ClothingCard extends ConsumerWidget {
                             bottom: AppSpacing.xs,
                             child: _SeeOnMeButton(
                               onTap: () {
-                                ref.read(cameraGarmentsProvider.notifier).state = <ClothingItem>[item];
+                                ref
+                                    .read(cameraGarmentsProvider.notifier)
+                                    .state = <ClothingItem>[
+                                  item,
+                                ];
                                 context.goNamed(AppRoute.camera.name);
                               },
                             ),
@@ -204,7 +216,7 @@ class ClothingCard extends ConsumerWidget {
                         item.name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: text.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                        style: text.titleMedium?.copyWith(fontSize: 14),
                       ),
                       const SizedBox(height: 2),
                       Text(
@@ -250,7 +262,11 @@ class _SeeOnMeButton extends StatelessWidget {
           color: Colors.black.withValues(alpha: 0.55),
           shape: BoxShape.circle,
         ),
-        child: const Icon(Icons.camera_alt_outlined, color: Colors.white, size: 16),
+        child: const Icon(
+          Icons.camera_alt_outlined,
+          color: Colors.white,
+          size: 16,
+        ),
       ),
     );
   }
@@ -266,7 +282,11 @@ class _FailedPlaceholder extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          Icon(Icons.error_outline, size: 36, color: c.error.withValues(alpha: 0.7)),
+          Icon(
+            Icons.error_outline,
+            size: 36,
+            color: c.error.withValues(alpha: 0.7),
+          ),
           const SizedBox(height: 6),
           Text(
             'Processing\nfailed',

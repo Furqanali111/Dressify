@@ -61,7 +61,9 @@ extension AvatarKindX on AvatarKind {
 
   static Color accentForKind(String kind, {required Color fallback}) {
     try {
-      return AvatarKind.values.firstWhere((AvatarKind e) => e.name == kind).accent;
+      return AvatarKind.values
+          .firstWhere((AvatarKind e) => e.name == kind)
+          .accent;
     } catch (_) {
       return fallback;
     }

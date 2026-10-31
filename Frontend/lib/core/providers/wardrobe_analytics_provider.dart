@@ -35,5 +35,5 @@ class WardrobeAnalyticsNotifier extends AsyncNotifier<WardrobeAnalytics?> {
 
 final wardrobeAnalyticsProvider =
     AsyncNotifierProvider<WardrobeAnalyticsNotifier, WardrobeAnalytics?>(() {
-  return WardrobeAnalyticsNotifier();
-});
+      return WardrobeAnalyticsNotifier();
+    });

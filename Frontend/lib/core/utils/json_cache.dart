@@ -11,7 +11,9 @@ class JsonCache {
     try {
       final SharedPreferences p = await SharedPreferences.getInstance();
       await p.setString('$_prefix$key', jsonEncode(json));
-    } catch (_) {/* cache is best-effort */}
+    } catch (_) {
+      /* cache is best-effort */
+    }
   }
 
   static Future<dynamic> get(String key) async {
@@ -28,7 +30,8 @@ class JsonCache {
   static Future<void> clearAll() async {
     try {
       final SharedPreferences p = await SharedPreferences.getInstance();
-      for (final String k in p.getKeys().where((String k) => k.startsWith(_prefix)).toList()) {
+      for (final String k
+          in p.getKeys().where((String k) => k.startsWith(_prefix)).toList()) {
         await p.remove(k);
       }
     } catch (_) {}

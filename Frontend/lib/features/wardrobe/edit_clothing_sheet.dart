@@ -19,7 +19,13 @@ class EditClothingSheet extends ConsumerStatefulWidget {
 
 class _EditClothingSheetState extends ConsumerState<EditClothingSheet> {
   static const List<String> _sizeOptions = <String>[
-    'XS', 'S', 'M', 'L', 'XL', 'XXL', 'One Size',
+    'XS',
+    'S',
+    'M',
+    'L',
+    'XL',
+    'XXL',
+    'One Size',
   ];
 
   late final TextEditingController _nameCtrl;
@@ -35,9 +41,9 @@ class _EditClothingSheetState extends ConsumerState<EditClothingSheet> {
     _colorCtrl = TextEditingController(text: widget.item.color ?? '');
     final String? sl = widget.item.sizeLabel;
     _selectedSize = (sl != null && _sizeOptions.contains(sl)) ? sl : null;
-    _selectedType = ClothingType.values.where(
-      (t) => t.apiValue == widget.item.type,
-    ).firstOrNull;
+    _selectedType = ClothingType.values
+        .where((t) => t.apiValue == widget.item.type)
+        .firstOrNull;
   }
 
   @override
@@ -52,15 +58,15 @@ class _EditClothingSheetState extends ConsumerState<EditClothingSheet> {
     if (name.isEmpty) return;
     setState(() => _saving = true);
     try {
-      await ref.read(wardrobeProvider.notifier).update(
-        widget.item.id,
-        <String, dynamic>{
-          'name': name,
-          if (_colorCtrl.text.trim().isNotEmpty) 'color': _colorCtrl.text.trim(),
-          if (_selectedSize != null) 'size_label': _selectedSize,
-          if (_selectedType != null) 'type': _selectedType!.apiValue,
-        },
-      );
+      await ref
+          .read(wardrobeProvider.notifier)
+          .update(widget.item.id, <String, dynamic>{
+            'name': name,
+            if (_colorCtrl.text.trim().isNotEmpty)
+              'color': _colorCtrl.text.trim(),
+            if (_selectedSize != null) 'size_label': _selectedSize,
+            if (_selectedType != null) 'type': _selectedType!.apiValue,
+          });
       if (!mounted) return;
       AppToast.success(context, 'Updated "$name"');
       Navigator.of(context).pop();
@@ -77,7 +83,9 @@ class _EditClothingSheetState extends ConsumerState<EditClothingSheet> {
     final TextTheme text = Theme.of(context).textTheme;
 
     return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
       child: Container(
         decoration: BoxDecoration(
           color: c.surface,
@@ -86,7 +94,10 @@ class _EditClothingSheetState extends ConsumerState<EditClothingSheet> {
           ),
         ),
         padding: const EdgeInsets.fromLTRB(
-          AppSpacing.xl, AppSpacing.md, AppSpacing.xl, AppSpacing.xl,
+          AppSpacing.xl,
+          AppSpacing.md,
+          AppSpacing.xl,
+          AppSpacing.xl,
         ),
         child: SafeArea(
           top: false,
@@ -132,7 +143,9 @@ class _EditClothingSheetState extends ConsumerState<EditClothingSheet> {
                 decoration: const InputDecoration(labelText: 'Type'),
                 hint: const Text('Select type'),
                 items: ClothingType.values
-                    .map((t) => DropdownMenuItem(value: t, child: Text(t.label)))
+                    .map(
+                      (t) => DropdownMenuItem(value: t, child: Text(t.label)),
+                    )
                     .toList(),
                 onChanged: (v) => setState(() => _selectedType = v),
               ),

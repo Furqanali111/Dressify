@@ -12,7 +12,9 @@ import 'package:dio/dio.dart';
 
 /// Thrown when the server responds with HTTP 429 (rate limit exceeded).
 class RateLimitException implements Exception {
-  const RateLimitException([this.message = 'Too many requests — please wait a moment and try again.']);
+  const RateLimitException([
+    this.message = 'Too many requests — please wait a moment and try again.',
+  ]);
   final String message;
 
   @override

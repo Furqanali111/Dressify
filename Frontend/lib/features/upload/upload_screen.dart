@@ -56,8 +56,10 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
         final bool granted = await AppPermissions.ensureCamera(context);
         if (!granted || !mounted) return;
       }
-      final XFile? file =
-          await _picker.pickImage(source: source, imageQuality: 90);
+      final XFile? file = await _picker.pickImage(
+        source: source,
+        imageQuality: 90,
+      );
       if (file == null) return;
       setState(() {
         _picked = file;
@@ -88,8 +90,11 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
       final String fileName = _picked!.name;
 
       final FormData form = FormData.fromMap(<String, dynamic>{
-        'image': await MultipartFile.fromFile(_picked!.path, filename: fileName),
-        'name': '',  // let the backend use the AI-detected garment label
+        'image': await MultipartFile.fromFile(
+          _picked!.path,
+          filename: fileName,
+        ),
+        'name': '', // let the backend use the AI-detected garment label
       });
 
       final Response<dynamic> response = await dio.post<dynamic>(
@@ -112,10 +117,14 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
           .toList();
 
       if (!mounted) return;
-      items.length > 1 ? HapticFeedback.heavyImpact() : HapticFeedback.lightImpact();
+      items.length > 1
+          ? HapticFeedback.heavyImpact()
+          : HapticFeedback.lightImpact();
       setState(() {
         _uploadedItems = items;
-        _detectedType = items.isNotEmpty ? _typeFromString(items.first.type) : ClothingType.other;
+        _detectedType = items.isNotEmpty
+            ? _typeFromString(items.first.type)
+            : ClothingType.other;
         _progress = 1.0;
         _stage = _UploadStage.done;
       });
@@ -128,7 +137,10 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
           .map((ClothingItem it) => it.id)
           .toList();
       if (pendingIds.isNotEmpty) {
-        ref.read(wardrobeProvider.notifier).pollUntilComplete(pendingIds).ignore();
+        ref
+            .read(wardrobeProvider.notifier)
+            .pollUntilComplete(pendingIds)
+            .ignore();
       }
     } on DioException catch (e) {
       if (!mounted) return;
@@ -147,22 +159,29 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
   }
 
   void _reset() => setState(() {
-        _stage = _UploadStage.idle;
-        _picked = null;
-        _progress = 0;
-        _error = null;
-        _uploadedItems = const [];
-      });
+    _stage = _UploadStage.idle;
+    _picked = null;
+    _progress = 0;
+    _error = null;
+    _uploadedItems = const [];
+  });
 
   static ClothingType _typeFromString(String type) {
     switch (type) {
-      case 'top':        return ClothingType.top;
-      case 'bottom':     return ClothingType.bottom;
-      case 'dress':      return ClothingType.dress;
-      case 'jacket':     return ClothingType.jacket;
-      case 'shoes':      return ClothingType.shoes;
-      case 'accessory':  return ClothingType.accessory;
-      default:           return ClothingType.other;
+      case 'top':
+        return ClothingType.top;
+      case 'bottom':
+        return ClothingType.bottom;
+      case 'dress':
+        return ClothingType.dress;
+      case 'jacket':
+        return ClothingType.jacket;
+      case 'shoes':
+        return ClothingType.shoes;
+      case 'accessory':
+        return ClothingType.accessory;
+      default:
+        return ClothingType.other;
     }
   }
 
@@ -253,7 +272,9 @@ class _Hero extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppRadius.card),
           onTap: onPick,
           child: CustomPaint(
-            painter: DashedRRectPainter(color: c.primary.withValues(alpha: 0.6)),
+            painter: DashedRRectPainter(
+              color: c.primary.withValues(alpha: 0.6),
+            ),
             child: SizedBox(
               width: double.infinity,
               child: Padding(
@@ -261,7 +282,11 @@ class _Hero extends StatelessWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: <Widget>[
-                    Icon(Icons.cloud_upload_outlined, size: 56, color: c.primary),
+                    Icon(
+                      Icons.cloud_upload_outlined,
+                      size: 56,
+                      color: c.primary,
+                    ),
                     const SizedBox(height: AppSpacing.md),
                     Text(
                       'Tap to upload or drag here',
@@ -289,8 +314,9 @@ class _Hero extends StatelessWidget {
     }
 
     // Single-item done / processing — show the image
-    final String? processedUrl =
-        uploadedItems.isNotEmpty ? uploadedItems.first.processedUrl : null;
+    final String? processedUrl = uploadedItems.isNotEmpty
+        ? uploadedItems.first.processedUrl
+        : null;
     final bool showProcessed =
         stage == _UploadStage.done &&
         processedUrl != null &&
@@ -302,7 +328,9 @@ class _Hero extends StatelessWidget {
             fit: BoxFit.contain,
             width: double.infinity,
             loadingBuilder: (_, Widget child, ImageChunkEvent? prog) =>
-                prog == null ? child : const Center(child: CircularProgressIndicator()),
+                prog == null
+                ? child
+                : const Center(child: CircularProgressIndicator()),
             errorBuilder: (_, _, _) => _localImage,
           )
         : _localImage;
@@ -312,10 +340,7 @@ class _Hero extends StatelessWidget {
         Positioned.fill(
           child: ClipRRect(
             borderRadius: BorderRadius.circular(AppRadius.card),
-            child: ColoredBox(
-              color: c.surface,
-              child: imageWidget,
-            ),
+            child: ColoredBox(color: c.surface, child: imageWidget),
           ),
         ),
         if (stage == _UploadStage.processing)
@@ -334,8 +359,12 @@ class _Hero extends StatelessWidget {
                           borderRadius: BorderRadius.circular(8),
                           child: LinearProgressIndicator(
                             value: progress < 0.8 ? progress : null,
-                            backgroundColor: Colors.white.withValues(alpha: 0.2),
-                            valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                            backgroundColor: Colors.white.withValues(
+                              alpha: 0.2,
+                            ),
+                            valueColor: const AlwaysStoppedAnimation<Color>(
+                              Colors.white,
+                            ),
                             minHeight: 6,
                           ),
                         ),
@@ -361,7 +390,10 @@ class _Hero extends StatelessWidget {
             top: AppSpacing.md,
             left: AppSpacing.md,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 4),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.sm,
+                vertical: 4,
+              ),
               decoration: BoxDecoration(
                 color: context.colors.success,
                 borderRadius: BorderRadius.circular(AppRadius.chip),
@@ -397,7 +429,11 @@ class _Hero extends StatelessWidget {
 }
 
 class _MultiItemSummary extends StatefulWidget {
-  const _MultiItemSummary({required this.items, required this.c, required this.text});
+  const _MultiItemSummary({
+    required this.items,
+    required this.c,
+    required this.text,
+  });
 
   final List<ClothingItem> items;
   final AppColors c;
@@ -414,7 +450,10 @@ class _MultiItemSummaryState extends State<_MultiItemSummary>
     duration: const Duration(milliseconds: 420),
   )..forward();
 
-  late final Animation<double> _fade = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
+  late final Animation<double> _fade = CurvedAnimation(
+    parent: _ctrl,
+    curve: Curves.easeOut,
+  );
   late final Animation<Offset> _slide = Tween<Offset>(
     begin: const Offset(0, 0.12),
     end: Offset.zero,
@@ -452,7 +491,11 @@ class _MultiItemSummaryState extends State<_MultiItemSummary>
                   color: c.success.withValues(alpha: 0.15),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(Icons.check_circle_outline, color: c.success, size: 36),
+                child: Icon(
+                  Icons.check_circle_outline,
+                  color: c.success,
+                  size: 36,
+                ),
               ),
               const SizedBox(height: AppSpacing.lg),
               Text(
@@ -472,7 +515,9 @@ class _MultiItemSummaryState extends State<_MultiItemSummary>
                 runSpacing: AppSpacing.sm,
                 alignment: WrapAlignment.center,
                 children: widget.items.map((ClothingItem item) {
-                  final ClothingType type = _UploadScreenState._typeFromString(item.type);
+                  final ClothingType type = _UploadScreenState._typeFromString(
+                    item.type,
+                  );
                   return Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: AppSpacing.md,
@@ -544,8 +589,7 @@ class _Bottom extends StatelessWidget {
         children: <Widget>[
           if (uploadedItems.length == 1)
             _TypeChip(type: detectedType, color: c.success),
-          if (uploadedItems.length == 1)
-            const SizedBox(height: AppSpacing.lg),
+          if (uploadedItems.length == 1) const SizedBox(height: AppSpacing.lg),
           PrimaryButton(
             label: uploadedItems.length > 1
                 ? 'View in Wardrobe'
@@ -591,7 +635,10 @@ class _TypeChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 4),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: 4,
+      ),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(AppRadius.chip),
@@ -754,7 +801,10 @@ class _ErrorBanner extends StatelessWidget {
             Text(message, textAlign: TextAlign.center),
             const SizedBox(height: AppSpacing.lg),
             PrimaryButton(
-                label: 'Try Again', onPressed: onRetry, fullWidth: false),
+              label: 'Try Again',
+              onPressed: onRetry,
+              fullWidth: false,
+            ),
           ],
         ),
       ),

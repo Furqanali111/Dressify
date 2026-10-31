@@ -42,10 +42,10 @@ class FitProfile {
   );
 
   static FitProfile forType(String type) => switch (type) {
-        'top' => top,
-        'jacket' => jacket,
-        'dress' => dress,
-        'bottom' => bottom,
-        _ => top,
-      };
+    'top' => top,
+    'jacket' => jacket,
+    'dress' => dress,
+    'bottom' => bottom,
+    _ => top,
+  };
 }

@@ -26,12 +26,12 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
       _error = null;
     });
 
-
-
     try {
-      final bool? hasProfile = await ref.read(authStateProvider.notifier).signInWithGoogle();
+      final bool? hasProfile = await ref
+          .read(authStateProvider.notifier)
+          .signInWithGoogle();
       if (!mounted) return;
-      
+
       if (hasProfile == null) {
         // User canceled sign in
         setState(() => _loading = false);
@@ -39,7 +39,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
       }
 
       setState(() => _loading = false);
-      
+
       if (hasProfile) {
         context.goNamed(AppRoute.home.name);
       } else {
@@ -68,30 +68,34 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
               const Spacer(flex: 2),
-              Center(
+              Align(
+                alignment: Alignment.centerLeft,
                 child: Container(
-                  width: 96,
-                  height: 96,
+                  width: 72,
+                  height: 72,
                   decoration: BoxDecoration(
-                    color: c.primary.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(28),
+                    color: c.primary,
+                    borderRadius: BorderRadius.circular(22),
+                    boxShadow: c.softShadow,
                   ),
-                  child: Icon(Icons.checkroom_outlined, size: 56, color: c.primary),
+                  child: Icon(
+                    Icons.checkroom_outlined,
+                    size: 36,
+                    color: c.onPrimary,
+                  ),
                 ),
               ),
+              const SizedBox(height: AppSpacing.xxl),
+              Text(
+                'Your wardrobe, tried on.',
+                style: text.displayLarge?.copyWith(fontSize: 44, height: 1.05),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                'Sign in to save your outfits and style profile.',
+                style: text.bodyLarge?.copyWith(color: c.textSecondary),
+              ),
               const Spacer(),
-              Text(
-                'Welcome to Dressify',
-                style: text.displayMedium,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                'Sign in to save your outfits and style profile',
-                style: text.bodyMedium?.copyWith(color: c.textSecondary),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: AppSpacing.xl),
               if (AppFlags.bypassAuth) ...<Widget>[
                 const _BypassHint(),
                 const SizedBox(height: AppSpacing.md),
@@ -100,7 +104,10 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                 _ErrorBanner(message: _error!),
                 const SizedBox(height: AppSpacing.md),
               ],
-              _GoogleSignInButton(loading: _loading, onPressed: _handleGoogleSignIn),
+              _GoogleSignInButton(
+                loading: _loading,
+                onPressed: _handleGoogleSignIn,
+              ),
               const SizedBox(height: AppSpacing.lg),
               Text.rich(
                 TextSpan(
@@ -120,7 +127,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                 ),
                 textAlign: TextAlign.center,
               ),
-              const Spacer(flex: 2),
+              const SizedBox(height: AppSpacing.xl),
             ],
           ),
         ),
@@ -145,7 +152,9 @@ class _GoogleSignInButton extends StatelessWidget {
         style: OutlinedButton.styleFrom(
           backgroundColor: Colors.white,
           side: const BorderSide(color: Color(0xFFDADCE0)),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.button),
+          ),
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
         ),
         child: loading
@@ -261,7 +270,11 @@ class _ErrorBanner extends StatelessWidget {
           Expanded(
             child: Text(
               message,
-              style: TextStyle(color: c.error, fontSize: 14, fontWeight: FontWeight.w500),
+              style: TextStyle(
+                color: c.error,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
         ],

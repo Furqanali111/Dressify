@@ -21,14 +21,17 @@ class UnitsNotifier extends StateNotifier<MeasurementUnit> {
     state = unit;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(
-        _kUnitsKey, unit == MeasurementUnit.imperial ? 'imperial' : 'metric');
+      _kUnitsKey,
+      unit == MeasurementUnit.imperial ? 'imperial' : 'metric',
+    );
   }
 
   String get label => state == MeasurementUnit.imperial ? 'Imperial' : 'Metric';
 }
 
-final unitsProvider =
-    StateNotifierProvider<UnitsNotifier, MeasurementUnit>((ref) {
+final unitsProvider = StateNotifierProvider<UnitsNotifier, MeasurementUnit>((
+  ref,
+) {
   return UnitsNotifier();
 });
 

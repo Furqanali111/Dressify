@@ -16,7 +16,8 @@ class TryOnPhoto {
 }
 
 class TryOnPhotoNotifier extends StateNotifier<AsyncValue<TryOnPhoto>> {
-  TryOnPhotoNotifier(this._dio) : super(const AsyncValue<TryOnPhoto>.loading()) {
+  TryOnPhotoNotifier(this._dio)
+    : super(const AsyncValue<TryOnPhoto>.loading()) {
     refresh();
   }
 
@@ -24,9 +25,11 @@ class TryOnPhotoNotifier extends StateNotifier<AsyncValue<TryOnPhoto>> {
 
   Future<void> refresh() async {
     try {
-      final Response<Map<String, dynamic>> r =
-          await _dio.get<Map<String, dynamic>>('tryon/photo');
-      state = AsyncValue<TryOnPhoto>.data(TryOnPhoto.fromJson(r.data ?? <String, dynamic>{}));
+      final Response<Map<String, dynamic>> r = await _dio
+          .get<Map<String, dynamic>>('tryon/photo');
+      state = AsyncValue<TryOnPhoto>.data(
+        TryOnPhoto.fromJson(r.data ?? <String, dynamic>{}),
+      );
     } catch (e, st) {
       state = AsyncValue<TryOnPhoto>.error(e, st);
     }
@@ -38,9 +41,11 @@ class TryOnPhotoNotifier extends StateNotifier<AsyncValue<TryOnPhoto>> {
     final FormData form = FormData.fromMap(<String, dynamic>{
       'photo': MultipartFile.fromBytes(jpegBytes, filename: 'photo.jpg'),
     });
-    final Response<Map<String, dynamic>> r =
-        await _dio.put<Map<String, dynamic>>('tryon/photo', data: form);
-    state = AsyncValue<TryOnPhoto>.data(TryOnPhoto.fromJson(r.data ?? <String, dynamic>{}));
+    final Response<Map<String, dynamic>> r = await _dio
+        .put<Map<String, dynamic>>('tryon/photo', data: form);
+    state = AsyncValue<TryOnPhoto>.data(
+      TryOnPhoto.fromJson(r.data ?? <String, dynamic>{}),
+    );
   }
 
   Future<void> remove() async {
@@ -49,7 +54,8 @@ class TryOnPhotoNotifier extends StateNotifier<AsyncValue<TryOnPhoto>> {
   }
 }
 
-final StateNotifierProvider<TryOnPhotoNotifier, AsyncValue<TryOnPhoto>> tryOnPhotoProvider =
+final StateNotifierProvider<TryOnPhotoNotifier, AsyncValue<TryOnPhoto>>
+tryOnPhotoProvider =
     StateNotifierProvider<TryOnPhotoNotifier, AsyncValue<TryOnPhoto>>(
-  (Ref ref) => TryOnPhotoNotifier(ref.watch(apiClientProvider)),
-);
+      (Ref ref) => TryOnPhotoNotifier(ref.watch(apiClientProvider)),
+    );

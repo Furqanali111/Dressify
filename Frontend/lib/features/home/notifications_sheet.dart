@@ -85,7 +85,9 @@ class _NotificationsSheetState extends ConsumerState<NotificationsSheet> {
                   const Spacer(),
                   if (state.unreadCount > 0)
                     TextButton(
-                      onPressed: () => ref.read(notificationsProvider.notifier).markAllRead(),
+                      onPressed: () => ref
+                          .read(notificationsProvider.notifier)
+                          .markAllRead(),
                       child: const Text('Mark all as read'),
                     ),
                   IconButton(
@@ -104,29 +106,37 @@ class _NotificationsSheetState extends ConsumerState<NotificationsSheet> {
                       child: CircularProgressIndicator(),
                     )
                   : state.items.isEmpty
-                      ? _EmptyState(c: c, text: text)
-                      : ListView.separated(
-                          shrinkWrap: true,
-                          padding: const EdgeInsets.fromLTRB(
-                            AppSpacing.xl, 0, AppSpacing.xl, AppSpacing.md,
-                          ),
-                          itemCount: state.items.length,
-                          separatorBuilder: (_, _) => Divider(
-                            height: 1,
-                            color: c.border.withValues(alpha: 0.5),
-                          ),
-                          itemBuilder: (_, int i) {
-                            final item = state.items[i];
-                            return _NotificationTile(
-                              item: item,
-                              onRead: () => ref.read(notificationsProvider.notifier).markAsRead(item.id),
-                            );
-                          },
-                        ),
+                  ? _EmptyState(c: c, text: text)
+                  : ListView.separated(
+                      shrinkWrap: true,
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.xl,
+                        0,
+                        AppSpacing.xl,
+                        AppSpacing.md,
+                      ),
+                      itemCount: state.items.length,
+                      separatorBuilder: (_, _) => Divider(
+                        height: 1,
+                        color: c.border.withValues(alpha: 0.5),
+                      ),
+                      itemBuilder: (_, int i) {
+                        final item = state.items[i];
+                        return _NotificationTile(
+                          item: item,
+                          onRead: () => ref
+                              .read(notificationsProvider.notifier)
+                              .markAsRead(item.id),
+                        );
+                      },
+                    ),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(
-                AppSpacing.xl, AppSpacing.xs, AppSpacing.xl, AppSpacing.lg,
+                AppSpacing.xl,
+                AppSpacing.xs,
+                AppSpacing.xl,
+                AppSpacing.lg,
               ),
               child: TextButton.icon(
                 onPressed: () {
@@ -153,7 +163,10 @@ class _EmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-        AppSpacing.xl, AppSpacing.xl, AppSpacing.xl, AppSpacing.xxl,
+        AppSpacing.xl,
+        AppSpacing.xl,
+        AppSpacing.xl,
+        AppSpacing.xxl,
       ),
       child: Column(
         children: <Widget>[
@@ -191,7 +204,10 @@ class _NotificationTile extends StatelessWidget {
       onTap: onRead,
       borderRadius: BorderRadius.circular(AppRadius.input),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm, horizontal: AppSpacing.xs),
+        padding: const EdgeInsets.symmetric(
+          vertical: AppSpacing.sm,
+          horizontal: AppSpacing.xs,
+        ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
@@ -222,9 +238,7 @@ class _NotificationTile extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     item.body,
-                    style: text.bodySmall?.copyWith(
-                      color: c.textSecondary,
-                    ),
+                    style: text.bodySmall?.copyWith(color: c.textSecondary),
                   ),
                   const SizedBox(height: 4),
                   Text(

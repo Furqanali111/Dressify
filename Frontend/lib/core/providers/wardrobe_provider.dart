@@ -7,7 +7,8 @@ import '../utils/dio_retry.dart';
 import '../utils/json_cache.dart';
 
 class WardrobeNotifier extends StateNotifier<AsyncValue<List<ClothingItem>>> {
-  WardrobeNotifier(this._ref) : super(const AsyncValue<List<ClothingItem>>.loading()) {
+  WardrobeNotifier(this._ref)
+    : super(const AsyncValue<List<ClothingItem>>.loading()) {
     fetch();
   }
 
@@ -35,19 +36,24 @@ class WardrobeNotifier extends StateNotifier<AsyncValue<List<ClothingItem>>> {
       if (raw != null) {
         try {
           cached = _parse(raw);
-        } catch (_) {/* stale/incompatible cache: ignore */}
+        } catch (_) {
+          /* stale/incompatible cache: ignore */
+        }
       }
     }
     state = cached != null
         ? AsyncValue<List<ClothingItem>>.data(cached)
         : (state.value != null
-            ? state
-            : const AsyncValue<List<ClothingItem>>.loading());
+              ? state
+              : const AsyncValue<List<ClothingItem>>.loading());
     _nextCursor = null;
     try {
       final Dio dio = _ref.read(apiClientProvider);
       final Response<dynamic> response = await dioFetchWithRetry(
-        () => dio.get<dynamic>('clothing', queryParameters: <String, dynamic>{'sort_by': _sortBy}),
+        () => dio.get<dynamic>(
+          'clothing',
+          queryParameters: <String, dynamic>{'sort_by': _sortBy},
+        ),
       );
       final dynamic data = response.data;
       if (data is Map<String, dynamic>) {
@@ -63,9 +69,11 @@ class WardrobeNotifier extends StateNotifier<AsyncValue<List<ClothingItem>>> {
         return;
       }
       // Offline/failed refresh: keep showing what we have instead of an error.
-      if (state.value == null) state = AsyncValue<List<ClothingItem>>.error(e, st);
+      if (state.value == null)
+        state = AsyncValue<List<ClothingItem>>.error(e, st);
     } catch (e, st) {
-      if (state.value == null) state = AsyncValue<List<ClothingItem>>.error(e, st);
+      if (state.value == null)
+        state = AsyncValue<List<ClothingItem>>.error(e, st);
     }
   }
 
@@ -89,7 +97,10 @@ class WardrobeNotifier extends StateNotifier<AsyncValue<List<ClothingItem>>> {
       }
       final List<ClothingItem> newItems = _parse(data);
       final List<ClothingItem> current = state.value ?? <ClothingItem>[];
-      state = AsyncValue<List<ClothingItem>>.data(<ClothingItem>[...current, ...newItems]);
+      state = AsyncValue<List<ClothingItem>>.data(<ClothingItem>[
+        ...current,
+        ...newItems,
+      ]);
       return true;
     } catch (_) {
       _nextCursor = null;
@@ -103,10 +114,13 @@ class WardrobeNotifier extends StateNotifier<AsyncValue<List<ClothingItem>>> {
 
   Future<void> update(String id, Map<String, dynamic> data) async {
     final Dio dio = _ref.read(apiClientProvider);
-    final Response<dynamic> resp =
-        await dio.patch<dynamic>('clothing/$id', data: data);
-    final ClothingItem updated =
-        ClothingItem.fromJson(resp.data as Map<String, dynamic>);
+    final Response<dynamic> resp = await dio.patch<dynamic>(
+      'clothing/$id',
+      data: data,
+    );
+    final ClothingItem updated = ClothingItem.fromJson(
+      resp.data as Map<String, dynamic>,
+    );
     final List<ClothingItem> current = state.value ?? <ClothingItem>[];
     state = AsyncValue<List<ClothingItem>>.data(
       current.map((ClothingItem it) => it.id == id ? updated : it).toList(),
@@ -151,22 +165,31 @@ class WardrobeNotifier extends StateNotifier<AsyncValue<List<ClothingItem>>> {
     final Set<String> pending = Set<String>.from(itemIds);
     final Map<String, int> failCount = <String, int>{};
 
-    for (int attempt = 0; attempt < maxAttempts && pending.isNotEmpty; attempt++) {
+    for (
+      int attempt = 0;
+      attempt < maxAttempts && pending.isNotEmpty;
+      attempt++
+    ) {
       await Future<void>.delayed(Duration(seconds: attempt < 5 ? 3 : 6));
       if (!mounted) return true;
       final Dio dio = _ref.read(apiClientProvider);
       await Future.wait<void>(
         List<String>.from(pending).map((String id) async {
           try {
-            final Response<dynamic> resp = await dio.get<dynamic>('clothing/$id');
-            final ClothingItem updated =
-                ClothingItem.fromJson(resp.data as Map<String, dynamic>);
+            final Response<dynamic> resp = await dio.get<dynamic>(
+              'clothing/$id',
+            );
+            final ClothingItem updated = ClothingItem.fromJson(
+              resp.data as Map<String, dynamic>,
+            );
             if (updated.processingStatus != 'processing') pending.remove(id);
             failCount.remove(id);
             if (!mounted) return;
             final List<ClothingItem> current = state.value ?? <ClothingItem>[];
             state = AsyncValue<List<ClothingItem>>.data(
-              current.map((ClothingItem it) => it.id == id ? updated : it).toList(),
+              current
+                  .map((ClothingItem it) => it.id == id ? updated : it)
+                  .toList(),
             );
           } catch (_) {
             failCount[id] = (failCount[id] ?? 0) + 1;
@@ -197,7 +220,7 @@ class WardrobeNotifier extends StateNotifier<AsyncValue<List<ClothingItem>>> {
 }
 
 final StateNotifierProvider<WardrobeNotifier, AsyncValue<List<ClothingItem>>>
-    wardrobeProvider =
+wardrobeProvider =
     StateNotifierProvider<WardrobeNotifier, AsyncValue<List<ClothingItem>>>(
-  WardrobeNotifier.new,
-);
+      WardrobeNotifier.new,
+    );

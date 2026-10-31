@@ -27,8 +27,10 @@ class UserAvatar extends ConsumerWidget {
         imageUrl: user!.profileUrl!,
         cacheKey: 'profile_photo_${user.id}',
         fit: BoxFit.cover,
-        placeholder: (_, _) => Icon(Icons.person, color: c.primary, size: size * 0.55),
-        errorWidget: (_, _, _) => Icon(Icons.person, color: c.primary, size: size * 0.55),
+        placeholder: (_, _) =>
+            Icon(Icons.person, color: c.primary, size: size * 0.55),
+        errorWidget: (_, _, _) =>
+            Icon(Icons.person, color: c.primary, size: size * 0.55),
       );
     } else if (avatarKind != null) {
       final AvatarKind? kind = AvatarKind.values

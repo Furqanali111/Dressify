@@ -17,7 +17,8 @@ class AvatarSelectionScreen extends ConsumerStatefulWidget {
   final String? gender;
 
   @override
-  ConsumerState<AvatarSelectionScreen> createState() => _AvatarSelectionScreenState();
+  ConsumerState<AvatarSelectionScreen> createState() =>
+      _AvatarSelectionScreenState();
 }
 
 class _AvatarSelectionScreenState extends ConsumerState<AvatarSelectionScreen> {
@@ -80,8 +81,9 @@ class _AvatarSelectionScreenState extends ConsumerState<AvatarSelectionScreen> {
             Expanded(
               child: Builder(
                 builder: (context) {
-                  List<AvatarKind> availableAvatars = AvatarKind.values.toList();
-                  
+                  List<AvatarKind> availableAvatars = AvatarKind.values
+                      .toList();
+
                   if (widget.gender == 'Female') {
                     availableAvatars = availableAvatars
                         .where((a) => a.name.startsWith('female'))
@@ -93,10 +95,13 @@ class _AvatarSelectionScreenState extends ConsumerState<AvatarSelectionScreen> {
                   }
 
                   return ListView.separated(
-                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.xl,
+                    ),
                     scrollDirection: Axis.horizontal,
                     itemCount: availableAvatars.length,
-                    separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.lg),
+                    separatorBuilder: (_, _) =>
+                        const SizedBox(width: AppSpacing.lg),
                     itemBuilder: (_, int i) {
                       final AvatarKind kind = availableAvatars[i];
                       return _AvatarCard(
@@ -106,7 +111,7 @@ class _AvatarSelectionScreenState extends ConsumerState<AvatarSelectionScreen> {
                       );
                     },
                   );
-                }
+                },
               ),
             ),
             const SizedBox(height: AppSpacing.lg),
@@ -145,7 +150,7 @@ class _AvatarCard extends StatelessWidget {
     final AppColors c = context.colors;
     final BorderRadius radius = BorderRadius.circular(AppRadius.card);
     final double screenW = MediaQuery.of(context).size.width;
-    
+
     // Scale widths/heights based on screen size
     final double cardWidth = (screenW * 0.4).clamp(140.0, 180.0);
     final double cardHeight = cardWidth * 1.6;
@@ -174,9 +179,7 @@ class _AvatarCard extends StatelessWidget {
           children: <Widget>[
             Column(
               children: <Widget>[
-                Expanded(
-                  child: _AvatarIllustration(kind: kind),
-                ),
+                Expanded(child: _AvatarIllustration(kind: kind)),
                 Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: AppSpacing.md,
@@ -216,16 +219,18 @@ class _AvatarCard extends StatelessWidget {
     return SizedBox(
       width: cardWidth,
       height: cardHeight,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: radius,
-          child: card,
-        ),
-      )
-          .animate(target: selected ? 1 : 0)
-          .scaleXY(begin: 1, end: 1.03, duration: 180.ms, curve: Curves.easeOut),
+      child:
+          Material(
+                color: Colors.transparent,
+                child: InkWell(onTap: onTap, borderRadius: radius, child: card),
+              )
+              .animate(target: selected ? 1 : 0)
+              .scaleXY(
+                begin: 1,
+                end: 1.03,
+                duration: 180.ms,
+                curve: Curves.easeOut,
+              ),
     );
   }
 }

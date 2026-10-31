@@ -66,7 +66,9 @@ class ClothingItem {
           ),
         );
       }(),
-      createdAt: DateTime.tryParse(json['created_at'] as String? ?? '') ?? DateTime.now(),
+      createdAt:
+          DateTime.tryParse(json['created_at'] as String? ?? '') ??
+          DateTime.now(),
     );
   }
 
@@ -113,22 +115,22 @@ class ClothingItem {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'type': type,
-        'raw_url': rawUrl,
-        'processed_url': processedUrl,
-        'anchor_points': anchorPoints,
-        'detection_confidence': detectionConfidence,
-        'color': color,
-        'pattern': pattern,
-        'style': style,
-        'sub_type': subType,
-        'size_label': sizeLabel,
-        'fit_notes': fitNotes,
-        'processing_status': processingStatus,
-        'glb_mesh_path': glbMeshUrl,
-        'mesh_status': meshStatus,
-        'created_at': createdAt.toIso8601String(),
-      };
+    'id': id,
+    'name': name,
+    'type': type,
+    'raw_url': rawUrl,
+    'processed_url': processedUrl,
+    'anchor_points': anchorPoints,
+    'detection_confidence': detectionConfidence,
+    'color': color,
+    'pattern': pattern,
+    'style': style,
+    'sub_type': subType,
+    'size_label': sizeLabel,
+    'fit_notes': fitNotes,
+    'processing_status': processingStatus,
+    'glb_mesh_path': glbMeshUrl,
+    'mesh_status': meshStatus,
+    'created_at': createdAt.toIso8601String(),
+  };
 }

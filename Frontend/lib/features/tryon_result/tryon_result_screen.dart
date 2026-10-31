@@ -39,10 +39,9 @@ class TryOnResultScreen extends ConsumerWidget {
   Future<void> _share(BuildContext context) async {
     final Uint8List? bytes = await _fetchBytes(context);
     if (bytes == null) return;
-    await Share.shareXFiles(
-      <XFile>[XFile.fromData(bytes, mimeType: 'image/jpeg', name: 'dressify_tryon.jpg')],
-      subject: 'My AI Try-On — Dressify',
-    );
+    await Share.shareXFiles(<XFile>[
+      XFile.fromData(bytes, mimeType: 'image/jpeg', name: 'dressify_tryon.jpg'),
+    ], subject: 'My AI Try-On — Dressify');
   }
 
   Future<void> _saveToGallery(BuildContext context) async {
@@ -99,7 +98,11 @@ class TryOnResultScreen extends ConsumerWidget {
             errorWidget: (_, _, _) => const Column(
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                Icon(Icons.broken_image_outlined, color: Colors.white38, size: 56),
+                Icon(
+                  Icons.broken_image_outlined,
+                  color: Colors.white38,
+                  size: 56,
+                ),
                 SizedBox(height: AppSpacing.md),
                 Text(
                   'Could not load result',

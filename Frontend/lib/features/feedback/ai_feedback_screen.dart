@@ -79,7 +79,10 @@ class _OutfitList extends StatelessWidget {
       children: <Widget>[
         Padding(
           padding: const EdgeInsets.fromLTRB(
-            AppSpacing.xl, AppSpacing.md, AppSpacing.xl, AppSpacing.lg,
+            AppSpacing.xl,
+            AppSpacing.md,
+            AppSpacing.xl,
+            AppSpacing.lg,
           ),
           child: Text(
             'Select an outfit to get personalised AI feedback on colour, balance, and occasion fit.',
@@ -89,7 +92,10 @@ class _OutfitList extends StatelessWidget {
         Expanded(
           child: ListView.separated(
             padding: const EdgeInsets.fromLTRB(
-              AppSpacing.xl, 0, AppSpacing.xl, AppSpacing.xxxl,
+              AppSpacing.xl,
+              0,
+              AppSpacing.xl,
+              AppSpacing.xxxl,
             ),
             itemCount: outfits.length,
             separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.md),
@@ -185,7 +191,10 @@ class _OutfitReportCard extends StatelessWidget {
               children: <Widget>[
                 Icon(Icons.auto_awesome, size: 14, color: c.primary),
                 const SizedBox(width: 4),
-                const Text('Report', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                const Text(
+                  'Report',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                ),
               ],
             ),
           ),

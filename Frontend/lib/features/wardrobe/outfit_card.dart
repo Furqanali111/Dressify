@@ -14,8 +14,18 @@ import 'wardrobe_action_sheet.dart';
 
 String _formatDate(DateTime d) {
   const List<String> months = <String>[
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
   return '${months[d.month - 1]} ${d.day}, ${d.year}';
 }
@@ -57,7 +67,9 @@ class OutfitCard extends ConsumerWidget {
       case WardrobeAction.tryOn:
         context.pushNamed(AppRoute.tryOn.name, extra: outfit);
       case WardrobeAction.rename:
-        final TextEditingController ctrl = TextEditingController(text: outfit.name);
+        final TextEditingController ctrl = TextEditingController(
+          text: outfit.name,
+        );
         final String? newName = await showDialog<String>(
           context: context,
           builder: (ctx) => AlertDialog(
@@ -108,7 +120,9 @@ class OutfitCard extends ConsumerWidget {
                 child: const Text('Cancel'),
               ),
               TextButton(
-                style: TextButton.styleFrom(foregroundColor: context.colors.error),
+                style: TextButton.styleFrom(
+                  foregroundColor: context.colors.error,
+                ),
                 onPressed: () => Navigator.of(ctx).pop(true),
                 child: const Text('Delete'),
               ),
@@ -133,7 +147,10 @@ class OutfitCard extends ConsumerWidget {
     final AppColors c = context.colors;
     final TextTheme text = Theme.of(context).textTheme;
     final BorderRadius radius = BorderRadius.circular(AppRadius.card);
-    final Color accent = AvatarKindX.accentForKind(outfit.avatarKind, fallback: c.primary);
+    final Color accent = AvatarKindX.accentForKind(
+      outfit.avatarKind,
+      fallback: c.primary,
+    );
 
     return Material(
       color: c.surface,
@@ -145,13 +162,7 @@ class OutfitCard extends ConsumerWidget {
         child: DecoratedBox(
           decoration: BoxDecoration(
             borderRadius: radius,
-            boxShadow: <BoxShadow>[
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.06),
-                blurRadius: 10,
-                offset: const Offset(0, 3),
-              ),
-            ],
+            boxShadow: c.softShadow,
           ),
           child: ClipRRect(
             borderRadius: radius,
@@ -173,7 +184,9 @@ class OutfitCard extends ConsumerWidget {
                             ],
                           ),
                         ),
-                        child: Center(child: Icon(Icons.person, size: 80, color: accent)),
+                        child: Center(
+                          child: Icon(Icons.person, size: 80, color: accent),
+                        ),
                       ),
                       Positioned(
                         top: 4,
@@ -181,7 +194,9 @@ class OutfitCard extends ConsumerWidget {
                         child: GestureDetector(
                           onTap: () {
                             HapticFeedback.lightImpact();
-                            ref.read(outfitsProvider.notifier).toggleStar(outfit.id);
+                            ref
+                                .read(outfitsProvider.notifier)
+                                .toggleStar(outfit.id);
                           },
                           child: Container(
                             padding: const EdgeInsets.all(4),
@@ -190,9 +205,13 @@ class OutfitCard extends ConsumerWidget {
                               shape: BoxShape.circle,
                             ),
                             child: Icon(
-                              outfit.isStarred ? Icons.star_rounded : Icons.star_border_rounded,
+                              outfit.isStarred
+                                  ? Icons.star_rounded
+                                  : Icons.star_border_rounded,
                               size: 18,
-                              color: outfit.isStarred ? Colors.amber : Colors.white,
+                              color: outfit.isStarred
+                                  ? c.primary
+                                  : Colors.white,
                             ),
                           ),
                         ),
@@ -209,7 +228,7 @@ class OutfitCard extends ConsumerWidget {
                         outfit.name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: text.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                        style: text.titleMedium?.copyWith(fontSize: 14),
                       ),
                       const SizedBox(height: 2),
                       Text(

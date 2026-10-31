@@ -27,11 +27,11 @@ class User {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'email': email,
-        'display_name': displayName,
-        'avatar_url': avatarUrl,
-        'profile_url': profileUrl,
-        'created_at': createdAt.toIso8601String(),
-      };
+    'id': id,
+    'email': email,
+    'display_name': displayName,
+    'avatar_url': avatarUrl,
+    'profile_url': profileUrl,
+    'created_at': createdAt.toIso8601String(),
+  };
 }

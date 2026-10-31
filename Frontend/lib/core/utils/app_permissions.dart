@@ -16,8 +16,9 @@ class AppPermissions {
     ].request();
 
     // If any permission is permanently denied, nudge the user
-    final bool hasPermanentlyDenied =
-        statuses.values.any((PermissionStatus s) => s.isPermanentlyDenied);
+    final bool hasPermanentlyDenied = statuses.values.any(
+      (PermissionStatus s) => s.isPermanentlyDenied,
+    );
 
     if (hasPermanentlyDenied && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -47,10 +48,7 @@ class AppPermissions {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Camera access needed. Please enable in Settings.'),
-          action: SnackBarAction(
-            label: 'Settings',
-            onPressed: openAppSettings,
-          ),
+          action: SnackBarAction(label: 'Settings', onPressed: openAppSettings),
         ),
       );
     }
@@ -68,11 +66,10 @@ class AppPermissions {
     if (status.isPermanentlyDenied && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Location access needed for weather. Enable in Settings.'),
-          action: SnackBarAction(
-            label: 'Settings',
-            onPressed: openAppSettings,
+          content: Text(
+            'Location access needed for weather. Enable in Settings.',
           ),
+          action: SnackBarAction(label: 'Settings', onPressed: openAppSettings),
         ),
       );
     }

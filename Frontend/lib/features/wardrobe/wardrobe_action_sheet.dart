@@ -76,7 +76,10 @@ class WardrobeActionSheet extends StatelessWidget {
         ),
       ),
       padding: const EdgeInsets.fromLTRB(
-        AppSpacing.xl, AppSpacing.md, AppSpacing.xl, AppSpacing.lg,
+        AppSpacing.xl,
+        AppSpacing.md,
+        AppSpacing.xl,
+        AppSpacing.lg,
       ),
       child: SafeArea(
         top: false,
@@ -92,7 +95,12 @@ class WardrobeActionSheet extends StatelessWidget {
               ),
             ),
             const SizedBox(height: AppSpacing.lg),
-            Text(title, style: text.titleMedium, maxLines: 1, overflow: TextOverflow.ellipsis),
+            Text(
+              title,
+              style: text.titleMedium,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
             const SizedBox(height: AppSpacing.md),
             ...actions.map((a) => _row(context, a)),
             const SizedBox(height: AppSpacing.sm),

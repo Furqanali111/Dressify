@@ -10,12 +10,15 @@ class FitResult {
 
   static FitResult fromJson(Map<String, dynamic> json) {
     final r = switch (json['fit_rating'] as String? ?? '') {
-      'perfect'     => FitRating.perfect,
+      'perfect' => FitRating.perfect,
       'may_be_snug' => FitRating.mayBeSnug,
-      'runs_large'  => FitRating.runsLarge,
-      _             => FitRating.unknown,
+      'runs_large' => FitRating.runsLarge,
+      _ => FitRating.unknown,
     };
-    return FitResult(rating: r, confidence: (json['confidence'] as num?)?.toDouble() ?? 0.0);
+    return FitResult(
+      rating: r,
+      confidence: (json['confidence'] as num?)?.toDouble() ?? 0.0,
+    );
   }
 }
 
@@ -23,7 +26,10 @@ class FitResult {
 /// Lazily fetches GET /clothing/{id}/fit on first watch; result is cached for
 /// the session so toggling the badge never fires a second request.
 /// Invalidated globally on profile change / sign-out (see auth_provider.dart).
-final fitRatingProvider = FutureProvider.family<FitResult, String>((ref, itemId) async {
+final fitRatingProvider = FutureProvider.family<FitResult, String>((
+  ref,
+  itemId,
+) async {
   ref.keepAlive();
   final dio = ref.read(apiClientProvider);
   final response = await dio.get<Map<String, dynamic>>('clothing/$itemId/fit');

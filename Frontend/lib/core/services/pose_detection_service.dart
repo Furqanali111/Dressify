@@ -17,12 +17,12 @@ import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
 /// to get pixel positions — no extra platform-specific math needed at the call site.
 class PoseDetectionService {
   PoseDetectionService()
-      : _detector = PoseDetector(
-          options: PoseDetectorOptions(
-            mode: PoseDetectionMode.stream,
-            model: PoseDetectionModel.base,
-          ),
-        );
+    : _detector = PoseDetector(
+        options: PoseDetectorOptions(
+          mode: PoseDetectionMode.stream,
+          model: PoseDetectionModel.base,
+        ),
+      );
 
   final PoseDetector _detector;
   bool _busy = false;
@@ -95,15 +95,18 @@ class PoseDetectionService {
     );
     if (rotation == null) return null;
 
-    final InputImageFormat format =
-        Platform.isAndroid ? InputImageFormat.nv21 : InputImageFormat.bgra8888;
+    final InputImageFormat format = Platform.isAndroid
+        ? InputImageFormat.nv21
+        : InputImageFormat.bgra8888;
 
     final Uint8List bytes;
     if (Platform.isAndroid) {
       // NV21: concatenate all planes into a reused buffer to avoid per-frame
       // GC pressure from temporary WriteBuffer allocations.
-      final int totalBytes =
-          image.planes.fold(0, (int s, Plane p) => s + p.bytes.length);
+      final int totalBytes = image.planes.fold(
+        0,
+        (int s, Plane p) => s + p.bytes.length,
+      );
       if (_nv21Buffer == null || _nv21Buffer!.length != totalBytes) {
         _nv21Buffer = Uint8List(totalBytes);
       }
@@ -163,10 +166,12 @@ class PoseDetectionService {
     // After applying rotation, the "effective" image size seen by ML Kit may
     // swap width and height (sensor is landscape, display is portrait).
     final bool swapAxes = sensorOrientation == 90 || sensorOrientation == 270;
-    final double imgW =
-        swapAxes ? image.height.toDouble() : image.width.toDouble();
-    final double imgH =
-        swapAxes ? image.width.toDouble() : image.height.toDouble();
+    final double imgW = swapAxes
+        ? image.height.toDouble()
+        : image.width.toDouble();
+    final double imgH = swapAxes
+        ? image.width.toDouble()
+        : image.height.toDouble();
 
     // Normalized landmark position with likelihood gate.
     NormAnchor? lm(PoseLandmarkType type) {
@@ -198,21 +203,21 @@ class PoseDetectionService {
     if (rs != null) anchors['rightShoulder'] = rs;
 
     // ── Arms + Nose (for arm/neck occlusion in overlay painter) ──────────────
-    final NormAnchor? le   = lm(PoseLandmarkType.leftElbow);
-    final NormAnchor? re   = lm(PoseLandmarkType.rightElbow);
-    final NormAnchor? lw   = lm(PoseLandmarkType.leftWrist);
-    final NormAnchor? rw   = lm(PoseLandmarkType.rightWrist);
+    final NormAnchor? le = lm(PoseLandmarkType.leftElbow);
+    final NormAnchor? re = lm(PoseLandmarkType.rightElbow);
+    final NormAnchor? lw = lm(PoseLandmarkType.leftWrist);
+    final NormAnchor? rw = lm(PoseLandmarkType.rightWrist);
     final NormAnchor? nose = lm(PoseLandmarkType.nose);
-    if (le != null)   anchors['leftElbow']  = le;
-    if (re != null)   anchors['rightElbow'] = re;
-    if (lw != null)   anchors['leftWrist']  = lw;
-    if (rw != null)   anchors['rightWrist'] = rw;
-    if (nose != null) anchors['nose']       = nose;
+    if (le != null) anchors['leftElbow'] = le;
+    if (re != null) anchors['rightElbow'] = re;
+    if (lw != null) anchors['leftWrist'] = lw;
+    if (rw != null) anchors['rightWrist'] = rw;
+    if (nose != null) anchors['nose'] = nose;
 
     // ── Hip ───────────────────────────────────────────────────────────────
     final NormAnchor? hip = _mid(lh, rh) ?? lh ?? rh;
     if (hip != null) anchors['hip'] = hip;
-    if (lh != null) anchors['leftHip']  = lh;
+    if (lh != null) anchors['leftHip'] = lh;
     if (rh != null) anchors['rightHip'] = rh;
 
     // ── Chest + Waist (interpolated between shoulder and hip) ─────────────
@@ -226,13 +231,13 @@ class PoseDetectionService {
     }
 
     // ── Knees ─────────────────────────────────────────────────────────────
-    if (lk != null) anchors['leftKnee']  = lk;
+    if (lk != null) anchors['leftKnee'] = lk;
     if (rk != null) anchors['rightKnee'] = rk;
 
     // ── Feet ──────────────────────────────────────────────────────────────
     final NormAnchor? feet = _mid(la, ra) ?? la ?? ra;
     if (feet != null) anchors['feet'] = feet;
-    if (la != null) anchors['leftAnkle']  = la;
+    if (la != null) anchors['leftAnkle'] = la;
     if (ra != null) anchors['rightAnkle'] = ra;
 
     return anchors.isEmpty ? null : anchors;

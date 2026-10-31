@@ -36,12 +36,15 @@ class TryOnNotifier extends StateNotifier<TryOnState> {
     try {
       final FormData form = FormData.fromMap(<String, dynamic>{
         if (personImageBytes != null)
-          'person_image': MultipartFile.fromBytes(personImageBytes, filename: 'person.jpg'),
-        'save_photo':       savePhoto,
+          'person_image': MultipartFile.fromBytes(
+            personImageBytes,
+            filename: 'person.jpg',
+          ),
+        'save_photo': savePhoto,
         'clothing_item_id': clothingItemId,
       });
-      final Response<Map<String, dynamic>> resp =
-          await _dio.post<Map<String, dynamic>>('tryon', data: form);
+      final Response<Map<String, dynamic>> resp = await _dio
+          .post<Map<String, dynamic>>('tryon', data: form);
       final String? url = resp.data?['result_url'] as String?;
       state = TryOnState(status: TryOnStatus.done, resultUrl: url);
     } on DioException catch (e) {

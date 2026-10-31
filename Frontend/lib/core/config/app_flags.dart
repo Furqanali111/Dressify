@@ -17,7 +17,8 @@ class AppFlags {
   /// Skip Google sign-in for local UI work. Splash routes directly to
   /// profile setup; sign-in screen auto-advances. Both surface a visible
   /// "AUTH BYPASSED" indicator so this can't ship.
-  static bool get bypassAuth => kDebugMode && _bool('BYPASS_AUTH', defaultValue: false);
+  static bool get bypassAuth =>
+      kDebugMode && _bool('BYPASS_AUTH', defaultValue: false);
 
   /// Backend base URL. Override per environment.
   static String get apiBaseUrl =>
@@ -44,9 +45,10 @@ class AppFlags {
   }
 
   static bool _bool(String key, {required bool defaultValue}) {
-    final String raw = _string(key, defaultValue: defaultValue.toString())
-        .trim()
-        .toLowerCase();
+    final String raw = _string(
+      key,
+      defaultValue: defaultValue.toString(),
+    ).trim().toLowerCase();
     if (raw == 'true' || raw == '1' || raw == 'yes') return true;
     if (raw == 'false' || raw == '0' || raw == 'no') return false;
     return defaultValue;

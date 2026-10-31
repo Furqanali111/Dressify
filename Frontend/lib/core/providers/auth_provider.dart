@@ -59,14 +59,15 @@ class AuthStateNotifier extends StateNotifier<User?> {
   Future<bool?> signInWithGoogle() async {
     try {
       String idToken;
-      
+
       if (AppFlags.bypassAuth) {
         idToken = 'BYPASS_AUTH_FURQAN_54321';
       } else {
         final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
         if (googleUser == null) return null; // User canceled
 
-        final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+        final GoogleSignInAuthentication googleAuth =
+            await googleUser.authentication;
         final String? googleIdToken = googleAuth.idToken;
 
         if (googleIdToken == null) throw Exception('Google ID token is null');
@@ -74,11 +75,13 @@ class AuthStateNotifier extends StateNotifier<User?> {
       }
 
       final dio = _ref.read(apiClientProvider);
-      final response = await dio.post<dynamic>('auth/google', data: {
-        'id_token': idToken,
-      });
+      final response = await dio.post<dynamic>(
+        'auth/google',
+        data: {'id_token': idToken},
+      );
 
-      final data = response.data as Map<String, dynamic>? ?? <String, dynamic>{};
+      final data =
+          response.data as Map<String, dynamic>? ?? <String, dynamic>{};
       final jwt = data['jwt'] as String? ?? '';
       if (jwt.isEmpty) throw Exception('No JWT in auth response');
       await _storage.write(key: 'auth_jwt', value: jwt);
@@ -115,7 +118,9 @@ class AuthStateNotifier extends StateNotifier<User?> {
   Future<void> signOut() async {
     await _googleSignIn.signOut();
     await _storage.delete(key: 'auth_jwt');
-    _ref.read(apiClientProvider).interceptors
+    _ref
+        .read(apiClientProvider)
+        .interceptors
         .whereType<AuthInterceptor>()
         .firstOrNull
         ?.updateCache(null);
@@ -132,6 +137,8 @@ class AuthStateNotifier extends StateNotifier<User?> {
   }
 }
 
-final authStateProvider = StateNotifierProvider<AuthStateNotifier, User?>((ref) {
+final authStateProvider = StateNotifierProvider<AuthStateNotifier, User?>((
+  ref,
+) {
   return AuthStateNotifier(ref);
 });
