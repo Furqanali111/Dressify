@@ -20,6 +20,7 @@ def generate_outfit(
     weather: str | None,
     seed_item: str | None,
     style_profile: str | None = None,
+    recent_item_ids: list[str] | None = None,
 ) -> list[str]:
     """Return a list of string UUIDs chosen by the AI stylist.
 
@@ -33,11 +34,17 @@ def generate_outfit(
     style_line = f"    - User Style Profile: {style_profile}\n" if style_profile else ""
     seed_line  = f"    - Must Include This Item: {seed_item}\n" if seed_item else ""
 
+    recent_line = (
+        f"    - Recently Worn Item IDs (avoid if possible): {', '.join(recent_item_ids)}\n"
+        if recent_item_ids else ""
+    )
+
     prompt = _PROMPT_TEMPLATE.format(
         occasion=occasion,
         weather=weather or "Unknown",
         seed_line=seed_line,
         style_line=style_line,
+        recent_line=recent_line,
         wardrobe=wardrobe_details,
     )
 

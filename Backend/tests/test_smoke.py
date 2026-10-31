@@ -20,3 +20,13 @@ def test_protected_routes_reject_anonymous():
 def test_oversized_body_rejected():
     r = client.post("/health", headers={"content-length": str(21 * 1024 * 1024)})
     assert r.status_code == 413
+
+
+def test_outfit_prompt_formats():
+    # Regression: unescaped braces in the example JSON made every generation fail.
+    from app.services.ai_outfit_generator import _PROMPT_TEMPLATE
+
+    out = _PROMPT_TEMPLATE.format(
+        occasion="work", weather="sunny", seed_line="", style_line="", recent_line="", wardrobe="w"
+    )
+    assert '{"item_ids"' in out

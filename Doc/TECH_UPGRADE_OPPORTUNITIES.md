@@ -1,5 +1,23 @@
 # Dressify — Technology Upgrade Opportunities
 
+## Upgrade progress (branch `upgrade`)
+
+**Done**
+- Removed unused Flutter deps: `flame`, `model_viewer_plus`, `flutter_svg`, `freezed_annotation`, `riverpod_annotation`.
+- User-friendly API errors (offline / timeout / 429 / 5xx) via `FriendlyErrorInterceptor`. Screens still need to display `e.message`.
+- Backend smoke tests (health, auth guard, body-size limit, prompt formatting); 4 passing.
+- CI workflow: `pytest` + `flutter analyze` on every push (`.github/workflows/ci.yml`; not yet run on GitHub).
+- **Bug fix:** outfit prompt had unescaped braces, so every `/outfits/generate` call failed with `KeyError`. Fixed with a regression test.
+- Wear-log-aware outfit generation: items worn in the last 7 days are passed to the stylist, which is told to avoid them.
+
+**Left** (see sections below; ordered by the suggested order at the bottom)
+- Device profiling (S6.1/S6.8) and crash monitoring (Sentry/Crashlytics)
+- Show friendly errors + retry in wardrobe/upload/try-on screens
+- Offline read-through cache, Realtime/push for upload status
+- pgvector embeddings, structured-output LLM calls, second try-on provider / self-hosted VTON
+- Split `camera_try_on_screen.dart` and `profile_screen.dart`; golden tests; more backend tests (needs `pytest-asyncio` + test DB)
+- Replace deprecated `gotrue` with `supabase_auth`; rotate secrets
+
 > Purpose: a shortlist of newer technologies/approaches that could improve Dressify's UX and core features.
 > **Caveat:** written from general knowledge, not live research. Before committing to any item,
 > verify current model names, licences, pricing and Flutter package versions.

@@ -2,7 +2,7 @@ import asyncio
 import logging
 import uuid
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
@@ -17,6 +17,7 @@ from app.models.style_preference import UserStylePreference
 from app.models.user import User
 from app.models.clothing_item import ClothingItem
 from app.models.notification import Notification
+from app.models.wear_log import WearLog
 from app.deps import get_current_user
 from app.schemas.outfit import OutfitCreate, OutfitUpdate, OutfitResponse, OutfitItemSchema, GenerateOutfitRequest, OutfitListResponse
 from app.services.weather import get_current_weather
@@ -277,13 +278,22 @@ async def auto_generate_outfit(
         style_profile_str = "; ".join(parts) if parts else None
     is_personalized = style_profile_str is not None
 
+    # Items worn in the last 7 days, so the stylist rotates the wardrobe.
+    recent_result = await db.execute(
+        select(WearLog.clothing_item_ids).where(
+            WearLog.user_id == current_user.id,
+            WearLog.logged_at >= datetime.now(timezone.utc) - timedelta(days=7),
+        )
+    )
+    recent_ids = sorted({str(i) for ids in recent_result.scalars() for i in (ids or []) if str(i) in valid_ids})
+
     weather_context = None
     if body.lat is not None and body.lon is not None:
         weather_context = await get_current_weather(body.lat, body.lon)
 
     try:
         chosen_ids = await asyncio.to_thread(
-            generate_outfit, wardrobe_details_str, body.occasion, weather_context, seed_item_details, style_profile_str
+            generate_outfit, wardrobe_details_str, body.occasion, weather_context, seed_item_details, style_profile_str, recent_ids
         )
     except RuntimeError as e:
         raise HTTPException(status_code=503, detail=str(e))
