@@ -23,28 +23,31 @@ class PrimaryButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final AppColors c = context.colors;
     final bool disabled = onPressed == null || loading;
+    final Color bg = c.textPrimary; // ink button
+    final Color fg = c.background;
 
     final Widget child = loading
-        ? const SizedBox(
+        ? SizedBox(
             width: 22,
             height: 22,
-            child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white),
+            child: CircularProgressIndicator(strokeWidth: 2.4, color: fg),
           )
         : Row(
             mainAxisAlignment: MainAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
               if (icon != null) ...<Widget>[
-                Icon(icon, size: 20, color: Colors.white),
+                Icon(icon, size: 20, color: fg),
                 const SizedBox(width: AppSpacing.sm),
               ],
               Flexible(
                 child: Text(
                   label,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
+                    letterSpacing: 0.3,
+                    fontWeight: FontWeight.w700,
+                    color: fg,
                   ),
                   overflow: TextOverflow.ellipsis,
                   maxLines: 1,
@@ -55,17 +58,17 @@ class PrimaryButton extends StatelessWidget {
 
     final ButtonStyle style = ButtonStyle(
       backgroundColor: WidgetStateProperty.resolveWith<Color>((Set<WidgetState> states) {
-        if (states.contains(WidgetState.disabled)) return c.primary.withValues(alpha: 0.4);
-        if (states.contains(WidgetState.pressed)) return c.primaryDark;
-        return c.primary;
+        if (states.contains(WidgetState.disabled)) return bg.withValues(alpha: 0.35);
+        if (states.contains(WidgetState.pressed)) return bg.withValues(alpha: 0.85);
+        return bg;
       }),
-      foregroundColor: const WidgetStatePropertyAll<Color>(Colors.white),
-      overlayColor: WidgetStatePropertyAll<Color>(Colors.white.withValues(alpha: 0.08)),
+      foregroundColor: WidgetStatePropertyAll<Color>(fg),
+      overlayColor: WidgetStatePropertyAll<Color>(fg.withValues(alpha: 0.08)),
       elevation: const WidgetStatePropertyAll<double>(0),
       padding: const WidgetStatePropertyAll<EdgeInsets>(
         EdgeInsets.symmetric(horizontal: AppSpacing.xl),
       ),
-      minimumSize: const WidgetStatePropertyAll<Size>(Size(0, 52)),
+      minimumSize: const WidgetStatePropertyAll<Size>(Size(0, 54)),
       shape: WidgetStatePropertyAll<RoundedRectangleBorder>(
         RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.button)),
       ),

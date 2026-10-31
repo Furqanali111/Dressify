@@ -26,30 +26,31 @@ class AppColors extends ThemeExtension<AppColors> {
   final Color overlay;
   final Color border;
 
+  // "Atelier" palette: warm bone paper, ink black, one vermilion accent.
   static const AppColors light = AppColors(
-    primary: Color(0xFF6C63FF),
-    primaryDark: Color(0xFF4B44CC),
-    surface: Color(0xFFFFFFFF),
-    background: Color(0xFFF5F4FF),
-    textPrimary: Color(0xFF1A1A2E),
-    textSecondary: Color(0xFF6B6B8A),
-    success: Color(0xFF22C97A),
-    error: Color(0xFFFF5C5C),
-    overlay: Color(0x8C000000),
-    border: Color(0xFFE8E6F0),
+    primary: Color(0xFFD6401F),
+    primaryDark: Color(0xFFA82E12),
+    surface: Color(0xFFFFFDF9),
+    background: Color(0xFFF5F0E8),
+    textPrimary: Color(0xFF17140F),
+    textSecondary: Color(0xFF675F54),
+    success: Color(0xFF2E7D52),
+    error: Color(0xFFC62828),
+    overlay: Color(0x8C17140F),
+    border: Color(0xFFE3DBCF),
   );
 
   static const AppColors dark = AppColors(
-    primary: Color(0xFFA89CFF),
-    primaryDark: Color(0xFF7B70EE),
-    surface: Color(0xFF1C1C2E),
-    background: Color(0xFF0D0D1A),
-    textPrimary: Color(0xFFF0EFFF),
-    textSecondary: Color(0xFF9999BB),
-    success: Color(0xFF1FA865),
-    error: Color(0xFFFF7070),
+    primary: Color(0xFFE8553A),
+    primaryDark: Color(0xFFC63F26),
+    surface: Color(0xFF211E1A),
+    background: Color(0xFF151310),
+    textPrimary: Color(0xFFF5F0E8),
+    textSecondary: Color(0xFFB0A89B),
+    success: Color(0xFF4CAF7A),
+    error: Color(0xFFFF7A70),
     overlay: Color(0x8C000000),
-    border: Color(0xFF2A2A40),
+    border: Color(0xFF332F29),
   );
 
   @override

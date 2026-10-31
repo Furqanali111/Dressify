@@ -32,18 +32,12 @@ class HomeShell extends StatelessWidget {
       bottomNavigationBar: DecoratedBox(
         decoration: BoxDecoration(
           color: c.surface,
-          boxShadow: <BoxShadow>[
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 12,
-              offset: const Offset(0, -2),
-            ),
-          ],
+          border: Border(top: BorderSide(color: c.border)),
         ),
         child: SafeArea(
           top: false,
           child: SizedBox(
-            height: 64,
+            height: 68,
             child: Row(
               children: <Widget>[
                 for (int i = 0; i < _tabs.length; i++)
@@ -85,32 +79,37 @@ class _NavItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final AppColors c = context.colors;
-    final Color color = active ? c.primary : c.textSecondary;
+    final Color color = active ? c.textPrimary : c.textSecondary;
 
     return InkWell(
       onTap: onTap,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: <Widget>[
-          Icon(active ? tab.activeIcon : tab.icon, color: color, size: 24),
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOut,
+            width: 56,
+            height: 30,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: active ? c.primary.withValues(alpha: 0.14) : Colors.transparent,
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: Icon(
+              active ? tab.activeIcon : tab.icon,
+              color: active ? c.primary : color,
+              size: 22,
+            ),
+          ),
           const SizedBox(height: AppSpacing.xs),
           Text(
             tab.label,
             style: TextStyle(
               fontSize: 11,
-              fontWeight: FontWeight.w600,
+              letterSpacing: 0.3,
+              fontWeight: active ? FontWeight.w700 : FontWeight.w500,
               color: color,
-            ),
-          ),
-          const SizedBox(height: 3),
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            curve: Curves.easeOut,
-            width: active ? 4 : 0,
-            height: 4,
-            decoration: BoxDecoration(
-              color: c.primary,
-              borderRadius: BorderRadius.circular(2),
             ),
           ),
         ],

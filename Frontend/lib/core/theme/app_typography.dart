@@ -5,13 +5,15 @@ class AppTypography {
   const AppTypography._();
 
   static TextTheme textTheme(Color textColor) {
-    final TextStyle base = GoogleFonts.dmSans(color: textColor);
+    final TextStyle base = GoogleFonts.manrope(color: textColor);
+    // Editorial serif for display/headline moments.
+    final TextStyle serif = GoogleFonts.fraunces(color: textColor);
 
     return TextTheme(
-      displayLarge: base.copyWith(fontSize: 28, fontWeight: FontWeight.w700, height: 1.2),
-      displayMedium: base.copyWith(fontSize: 24, fontWeight: FontWeight.w700, height: 1.25),
-      headlineLarge: base.copyWith(fontSize: 22, fontWeight: FontWeight.w700, height: 1.25),
-      headlineMedium: base.copyWith(fontSize: 20, fontWeight: FontWeight.w600, height: 1.3),
+      displayLarge: serif.copyWith(fontSize: 32, fontWeight: FontWeight.w600, height: 1.15, letterSpacing: -0.4),
+      displayMedium: serif.copyWith(fontSize: 28, fontWeight: FontWeight.w600, height: 1.18, letterSpacing: -0.4),
+      headlineLarge: serif.copyWith(fontSize: 24, fontWeight: FontWeight.w600, height: 1.2, letterSpacing: -0.4),
+      headlineMedium: serif.copyWith(fontSize: 20, fontWeight: FontWeight.w600, height: 1.25, letterSpacing: -0.4),
       titleLarge: base.copyWith(fontSize: 18, fontWeight: FontWeight.w600, height: 1.35),
       titleMedium: base.copyWith(fontSize: 16, fontWeight: FontWeight.w600, height: 1.4),
       bodyLarge: base.copyWith(fontSize: 16, fontWeight: FontWeight.w400, height: 1.45),

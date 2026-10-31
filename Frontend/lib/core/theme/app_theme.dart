@@ -72,6 +72,16 @@ class AppTheme {
           borderSide: BorderSide(color: c.error, width: 1.5),
         ),
       ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: c.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.card)),
+      ),
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: c.surface,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.sheetTop)),
+        ),
+      ),
       dividerTheme: DividerThemeData(color: c.border, thickness: 1, space: 1),
     );
   }

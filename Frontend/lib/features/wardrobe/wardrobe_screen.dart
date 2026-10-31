@@ -101,9 +101,11 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen>
               ),
               TabBar(
                 controller: _tabController,
-                labelColor: c.primary,
+                labelColor: c.textPrimary,
                 unselectedLabelColor: c.textSecondary,
                 indicatorColor: c.primary,
+                indicatorWeight: 3,
+                dividerColor: c.border,
                 indicatorSize: TabBarIndicatorSize.label,
                 labelStyle: text.labelLarge,
                 tabs: const <Widget>[
@@ -176,8 +178,9 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen>
                 const SizedBox(height: AppSpacing.md),
                 FloatingActionButton.extended(
                   heroTag: 'style_me',
-                  backgroundColor: c.primary,
-                  foregroundColor: Colors.white,
+                  backgroundColor: c.textPrimary,
+                  foregroundColor: c.background,
+                  shape: const StadiumBorder(),
                   onPressed: () {
                     showModalBottomSheet<void>(
                       context: context,
@@ -190,7 +193,7 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen>
                     'assets/icons/05_icon_magic_wand.png',
                     width: 24,
                     height: 24,
-                    color: Colors.white,
+                    color: c.background,
                   ),
                   label: const Text('Style Me'),
                 ),

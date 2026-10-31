@@ -141,11 +141,12 @@ class ClothingCard extends ConsumerWidget {
         child: DecoratedBox(
           decoration: BoxDecoration(
             borderRadius: radius,
+            border: Border.all(color: c.border),
             boxShadow: <BoxShadow>[
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.06),
-                blurRadius: 10,
-                offset: const Offset(0, 3),
+                color: const Color(0xFF17140F).withValues(alpha: 0.05),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
               ),
             ],
           ),
@@ -204,7 +205,7 @@ class ClothingCard extends ConsumerWidget {
                         item.name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: text.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                        style: text.bodyMedium?.copyWith(fontWeight: FontWeight.w700, letterSpacing: -0.1),
                       ),
                       const SizedBox(height: 2),
                       Text(
@@ -311,7 +312,7 @@ class _ClothingImage extends StatelessWidget {
         width: 64,
         height: 64,
         decoration: BoxDecoration(
-          color: c.primary.withValues(alpha: 0.18),
+          color: c.primary.withValues(alpha: 0.10),
           borderRadius: BorderRadius.circular(AppRadius.thumbnail),
         ),
         child: Icon(type.icon, color: c.primary, size: 28),

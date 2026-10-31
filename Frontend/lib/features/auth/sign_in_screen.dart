@@ -68,29 +68,43 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
               const Spacer(flex: 2),
-              Center(
+              Align(
+                alignment: Alignment.centerLeft,
                 child: Container(
-                  width: 96,
-                  height: 96,
+                  width: 72,
+                  height: 72,
                   decoration: BoxDecoration(
-                    color: c.primary.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(28),
+                    color: c.textPrimary,
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(36),
+                      topRight: Radius.circular(36),
+                      bottomRight: Radius.circular(36),
+                      bottomLeft: Radius.circular(8),
+                    ),
                   ),
-                  child: Icon(Icons.checkroom_outlined, size: 56, color: c.primary),
+                  child: Icon(Icons.checkroom_outlined, size: 36, color: c.background),
                 ),
               ),
-              const Spacer(),
+              const SizedBox(height: AppSpacing.xl),
               Text(
-                'Welcome to Dressify',
-                style: text.displayMedium,
-                textAlign: TextAlign.center,
+                'DRESSIFY',
+                style: text.labelMedium?.copyWith(
+                  color: c.primary,
+                  letterSpacing: 3,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
               const SizedBox(height: AppSpacing.sm),
               Text(
-                'Sign in to save your outfits and style profile',
-                style: text.bodyMedium?.copyWith(color: c.textSecondary),
-                textAlign: TextAlign.center,
+                'Your closet,\nstyled by AI.',
+                style: text.displayLarge?.copyWith(fontSize: 44, height: 1.05),
               ),
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                'Sign in to save your outfits and style profile',
+                style: text.bodyLarge?.copyWith(color: c.textSecondary),
+              ),
+              const Spacer(),
               const SizedBox(height: AppSpacing.xl),
               if (AppFlags.bypassAuth) ...<Widget>[
                 const _BypassHint(),
@@ -120,7 +134,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                 ),
                 textAlign: TextAlign.center,
               ),
-              const Spacer(flex: 2),
+              const SizedBox(height: AppSpacing.xl),
             ],
           ),
         ),
@@ -145,7 +159,7 @@ class _GoogleSignInButton extends StatelessWidget {
         style: OutlinedButton.styleFrom(
           backgroundColor: Colors.white,
           side: const BorderSide(color: Color(0xFFDADCE0)),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          shape: const StadiumBorder(),
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
         ),
         child: loading
