@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../api/api_client.dart';
 import '../models/outfit.dart';
 import '../utils/dio_retry.dart';
+import '../utils/json_cache.dart';
 
 class OutfitsNotifier extends StateNotifier<AsyncValue<List<Outfit>>> {
   OutfitsNotifier(this._ref) : super(const AsyncValue<List<Outfit>>.loading()) {
@@ -17,7 +18,18 @@ class OutfitsNotifier extends StateNotifier<AsyncValue<List<Outfit>>> {
   bool get hasMore => _nextCursor != null;
 
   Future<void> fetch() async {
-    state = const AsyncValue<List<Outfit>>.loading();
+    List<Outfit>? cached;
+    if (state.value == null) {
+      final dynamic raw = await JsonCache.get('outfits');
+      if (raw != null) {
+        try {
+          cached = _parse(raw);
+        } catch (_) {/* stale/incompatible cache: ignore */}
+      }
+    }
+    state = cached != null
+        ? AsyncValue<List<Outfit>>.data(cached)
+        : (state.value != null ? state : const AsyncValue<List<Outfit>>.loading());
     _nextCursor = null;
     try {
       final Dio dio = _ref.read(apiClientProvider);
@@ -29,14 +41,15 @@ class OutfitsNotifier extends StateNotifier<AsyncValue<List<Outfit>>> {
         _nextCursor = data['next_cursor'] as String?;
       }
       state = AsyncValue<List<Outfit>>.data(_parse(data));
+      JsonCache.put('outfits', data).ignore();
     } on DioException catch (e, st) {
       if (e.response?.statusCode == 404) {
         state = const AsyncValue<List<Outfit>>.data(<Outfit>[]);
         return;
       }
-      state = AsyncValue<List<Outfit>>.error(e, st);
+      if (state.value == null) state = AsyncValue<List<Outfit>>.error(e, st);
     } catch (e, st) {
-      state = AsyncValue<List<Outfit>>.error(e, st);
+      if (state.value == null) state = AsyncValue<List<Outfit>>.error(e, st);
     }
   }
 

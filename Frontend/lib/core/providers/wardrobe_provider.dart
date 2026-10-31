@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../api/api_client.dart';
 import '../models/clothing_item.dart';
 import '../utils/dio_retry.dart';
+import '../utils/json_cache.dart';
 
 class WardrobeNotifier extends StateNotifier<AsyncValue<List<ClothingItem>>> {
   WardrobeNotifier(this._ref) : super(const AsyncValue<List<ClothingItem>>.loading()) {
@@ -25,7 +26,22 @@ class WardrobeNotifier extends StateNotifier<AsyncValue<List<ClothingItem>>> {
   }
 
   Future<void> fetch() async {
-    state = const AsyncValue<List<ClothingItem>>.loading();
+    final String cacheKey = 'wardrobe_$_sortBy';
+    // Show the last known list immediately while the network call runs.
+    List<ClothingItem>? cached;
+    if (state.value == null) {
+      final dynamic raw = await JsonCache.get(cacheKey);
+      if (raw != null) {
+        try {
+          cached = _parse(raw);
+        } catch (_) {/* stale/incompatible cache: ignore */}
+      }
+    }
+    state = cached != null
+        ? AsyncValue<List<ClothingItem>>.data(cached)
+        : (state.value != null
+            ? state
+            : const AsyncValue<List<ClothingItem>>.loading());
     _nextCursor = null;
     try {
       final Dio dio = _ref.read(apiClientProvider);
@@ -37,15 +53,17 @@ class WardrobeNotifier extends StateNotifier<AsyncValue<List<ClothingItem>>> {
         _nextCursor = data['next_cursor'] as String?;
       }
       state = AsyncValue<List<ClothingItem>>.data(_parse(data));
+      JsonCache.put(cacheKey, data).ignore();
     } on DioException catch (e, st) {
       // Treat 404 ("no resource yet") as an empty list rather than an error.
       if (e.response?.statusCode == 404) {
         state = const AsyncValue<List<ClothingItem>>.data(<ClothingItem>[]);
         return;
       }
-      state = AsyncValue<List<ClothingItem>>.error(e, st);
+      // Offline/failed refresh: keep showing what we have instead of an error.
+      if (state.value == null) state = AsyncValue<List<ClothingItem>>.error(e, st);
     } catch (e, st) {
-      state = AsyncValue<List<ClothingItem>>.error(e, st);
+      if (state.value == null) state = AsyncValue<List<ClothingItem>>.error(e, st);
     }
   }
 

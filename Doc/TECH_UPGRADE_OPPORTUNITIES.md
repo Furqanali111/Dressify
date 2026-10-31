@@ -10,10 +10,12 @@
 - **Bug fix:** outfit prompt had unescaped braces, so every `/outfits/generate` call failed with `KeyError`. Fixed with a regression test.
 - Wear-log-aware outfit generation: items worn in the last 7 days are passed to the stylist, which is told to avoid them.
 
+- Offline read-through cache for wardrobe (per sort order) and outfits: last good response stored in `shared_preferences` (`JsonCache`), shown instantly on open and when offline; cleared on sign-out/session expiry. First page only; images still load via `cached_network_image`.
+
 **Left** (see sections below; ordered by the suggested order at the bottom)
 - Device profiling (S6.1/S6.8) and crash monitoring (Sentry/Crashlytics)
 - Friendly errors still missing in: camera try-on, AI feedback sheet, sign-in, analytics screen, background polling failures
-- Offline read-through cache, Realtime/push for upload status
+- Realtime/push for upload status; offline queue for writes (edits made offline are not supported)
 - pgvector embeddings, structured-output LLM calls, second try-on provider / self-hosted VTON
 - Split `camera_try_on_screen.dart` and `profile_screen.dart`; golden tests; more backend tests (needs `pytest-asyncio` + test DB)
 - Replace deprecated `gotrue` with `supabase_auth`; rotate secrets

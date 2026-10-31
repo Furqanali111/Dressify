@@ -9,6 +9,7 @@ import '../models/user.dart';
 import '../api/api_client.dart';
 import '../api/auth_interceptor.dart';
 import '../config/app_flags.dart';
+import '../utils/json_cache.dart';
 import 'fit_rating_provider.dart';
 import 'fit_scale_provider.dart';
 import 'outfits_provider.dart';
@@ -105,7 +106,10 @@ class AuthStateNotifier extends StateNotifier<User?> {
     if (data != null) state = User.fromJson(data);
   }
 
-  void clearSession() => state = null;
+  void clearSession() {
+    JsonCache.clearAll().ignore();
+    state = null;
+  }
 
   Future<void> signOut() async {
     await _googleSignIn.signOut();
@@ -114,6 +118,7 @@ class AuthStateNotifier extends StateNotifier<User?> {
         .whereType<AuthInterceptor>()
         .firstOrNull
         ?.updateCache(null);
+    await JsonCache.clearAll();
     state = null;
     _ref.invalidate(profileProvider);
     _ref.invalidate(wardrobeProvider);
