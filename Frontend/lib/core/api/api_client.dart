@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../config/app_flags.dart';
 import '../providers/auth_provider.dart';
 import 'auth_interceptor.dart';
+import 'friendly_error_interceptor.dart';
 
 final Provider<Dio> apiClientProvider = Provider<Dio>((Ref ref) {
   final Dio dio = Dio(
@@ -18,6 +19,8 @@ final Provider<Dio> apiClientProvider = Provider<Dio>((Ref ref) {
   dio.interceptors.add(AuthInterceptor(
     onUnauthorized: () => ref.read(authStateProvider.notifier).clearSession(),
   ));
+
+  dio.interceptors.add(FriendlyErrorInterceptor());
 
   if (kDebugMode) {
     dio.interceptors.add(LogInterceptor(
