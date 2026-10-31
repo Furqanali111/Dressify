@@ -16,9 +16,9 @@ class AppTheme {
     final ColorScheme colorScheme = ColorScheme(
       brightness: brightness,
       primary: c.primary,
-      onPrimary: Colors.white,
+      onPrimary: c.onPrimary,
       secondary: c.primaryDark,
-      onSecondary: Colors.white,
+      onSecondary: c.onPrimary,
       error: c.error,
       onError: Colors.white,
       surface: c.surface,
@@ -72,6 +72,19 @@ class AppTheme {
           borderSide: BorderSide(color: c.error, width: 1.5),
         ),
       ),
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: c.surface,
+        surfaceTintColor: Colors.transparent,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.sheetTop)),
+        ),
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: c.surface,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.card)),
+      ),
+      progressIndicatorTheme: ProgressIndicatorThemeData(color: c.primary),
       dividerTheme: DividerThemeData(color: c.border, thickness: 1, space: 1),
     );
   }

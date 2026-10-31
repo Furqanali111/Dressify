@@ -70,24 +70,25 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
               const Spacer(flex: 2),
               Center(
                 child: Container(
-                  width: 96,
-                  height: 96,
+                  width: 104,
+                  height: 104,
                   decoration: BoxDecoration(
-                    color: c.primary.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(28),
+                    color: c.primary,
+                    borderRadius: BorderRadius.circular(52),
+                    boxShadow: c.softShadow,
                   ),
-                  child: Icon(Icons.checkroom_outlined, size: 56, color: c.primary),
+                  child: Icon(Icons.checkroom_outlined, size: 52, color: c.onPrimary),
                 ),
               ),
               const Spacer(),
               Text(
-                'Welcome to Dressify',
+                'Wear it before\nyou own it.',
                 style: text.displayMedium,
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: AppSpacing.sm),
               Text(
-                'Sign in to save your outfits and style profile',
+                'Your wardrobe, styled by AI. Sign in to save outfits and try them on.',
                 style: text.bodyMedium?.copyWith(color: c.textSecondary),
                 textAlign: TextAlign.center,
               ),
@@ -145,7 +146,7 @@ class _GoogleSignInButton extends StatelessWidget {
         style: OutlinedButton.styleFrom(
           backgroundColor: Colors.white,
           side: const BorderSide(color: Color(0xFFDADCE0)),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          shape: const StadiumBorder(),
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
         ),
         child: loading

@@ -29,21 +29,19 @@ class HomeShell extends StatelessWidget {
     return Scaffold(
       backgroundColor: c.background,
       body: navigationShell,
-      bottomNavigationBar: DecoratedBox(
-        decoration: BoxDecoration(
-          color: c.surface,
-          boxShadow: <BoxShadow>[
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 12,
-              offset: const Offset(0, -2),
-            ),
-          ],
-        ),
-        child: SafeArea(
-          top: false,
-          child: SizedBox(
-            height: 64,
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Container(
+          height: 68,
+          margin: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.md),
+          decoration: BoxDecoration(
+            color: c.surface,
+            borderRadius: BorderRadius.circular(34),
+            border: Border.all(color: c.border),
+            boxShadow: c.softShadow,
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(34),
             child: Row(
               children: <Widget>[
                 for (int i = 0; i < _tabs.length; i++)
@@ -85,7 +83,7 @@ class _NavItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final AppColors c = context.colors;
-    final Color color = active ? c.primary : c.textSecondary;
+    final Color color = active ? c.textPrimary : c.textSecondary;
 
     return InkWell(
       onTap: onTap,
@@ -98,7 +96,7 @@ class _NavItem extends StatelessWidget {
             tab.label,
             style: TextStyle(
               fontSize: 11,
-              fontWeight: FontWeight.w600,
+              fontWeight: active ? FontWeight.w700 : FontWeight.w500,
               color: color,
             ),
           ),
@@ -109,7 +107,7 @@ class _NavItem extends StatelessWidget {
             width: active ? 4 : 0,
             height: 4,
             decoration: BoxDecoration(
-              color: c.primary,
+              color: c.accent,
               borderRadius: BorderRadius.circular(2),
             ),
           ),

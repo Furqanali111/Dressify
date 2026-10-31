@@ -26,30 +26,32 @@ class AppColors extends ThemeExtension<AppColors> {
   final Color overlay;
   final Color border;
 
+  // Editorial "ink & bone": warm paper neutrals, ink-black primary in light,
+  // electric lime primary in dark. Coral/lime accent via [AppColorsX.accent].
   static const AppColors light = AppColors(
-    primary: Color(0xFF6C63FF),
-    primaryDark: Color(0xFF4B44CC),
+    primary: Color(0xFF16120F),
+    primaryDark: Color(0xFF3A332C),
     surface: Color(0xFFFFFFFF),
-    background: Color(0xFFF5F4FF),
-    textPrimary: Color(0xFF1A1A2E),
-    textSecondary: Color(0xFF6B6B8A),
-    success: Color(0xFF22C97A),
-    error: Color(0xFFFF5C5C),
+    background: Color(0xFFF6F3EE),
+    textPrimary: Color(0xFF16120F),
+    textSecondary: Color(0xFF675F55),
+    success: Color(0xFF14804A),
+    error: Color(0xFFC8321F),
     overlay: Color(0x8C000000),
-    border: Color(0xFFE8E6F0),
+    border: Color(0xFFE4DED5),
   );
 
   static const AppColors dark = AppColors(
-    primary: Color(0xFFA89CFF),
-    primaryDark: Color(0xFF7B70EE),
-    surface: Color(0xFF1C1C2E),
-    background: Color(0xFF0D0D1A),
-    textPrimary: Color(0xFFF0EFFF),
-    textSecondary: Color(0xFF9999BB),
-    success: Color(0xFF1FA865),
-    error: Color(0xFFFF7070),
+    primary: Color(0xFFD2FF45),
+    primaryDark: Color(0xFFB4E02E),
+    surface: Color(0xFF1B1917),
+    background: Color(0xFF0F0E0D),
+    textPrimary: Color(0xFFF5F1EA),
+    textSecondary: Color(0xFFA59D91),
+    success: Color(0xFF4ADE80),
+    error: Color(0xFFFF7A6B),
     overlay: Color(0x8C000000),
-    border: Color(0xFF2A2A40),
+    border: Color(0xFF2E2B27),
   );
 
   @override
@@ -99,4 +101,23 @@ class AppColors extends ThemeExtension<AppColors> {
 
 extension AppColorsX on BuildContext {
   AppColors get colors => Theme.of(this).extension<AppColors>()!;
+}
+
+extension AppColorsDerived on AppColors {
+  bool get isDark => background.computeLuminance() < 0.5;
+
+  /// Readable foreground for content drawn on [primary].
+  Color get onPrimary => primary.computeLuminance() > 0.5 ? const Color(0xFF16120F) : Colors.white;
+
+  /// Pop colour for small highlights (nav dot, badges): coral on light, lime on dark.
+  Color get accent => isDark ? primary : const Color(0xFFFF5A36);
+
+  /// Soft shadow that works on both themes.
+  List<BoxShadow> get softShadow => <BoxShadow>[
+        BoxShadow(
+          color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.07),
+          blurRadius: 18,
+          offset: const Offset(0, 6),
+        ),
+      ];
 }

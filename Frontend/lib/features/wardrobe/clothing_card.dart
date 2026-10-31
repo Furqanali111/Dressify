@@ -125,7 +125,7 @@ class ClothingCard extends ConsumerWidget {
       subtitleColor = c.error;
     } else if (isProcessing) {
       subtitle = 'Analyzing with AI…';
-      subtitleColor = c.primary;
+      subtitleColor = c.accent;
     } else {
       subtitle = uiType.label;
       subtitleColor = c.textSecondary;
@@ -141,13 +141,8 @@ class ClothingCard extends ConsumerWidget {
         child: DecoratedBox(
           decoration: BoxDecoration(
             borderRadius: radius,
-            boxShadow: <BoxShadow>[
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.06),
-                blurRadius: 10,
-                offset: const Offset(0, 3),
-              ),
-            ],
+            border: Border.all(color: c.border),
+            boxShadow: c.softShadow,
           ),
           child: ClipRRect(
             borderRadius: radius,
@@ -171,7 +166,7 @@ class ClothingCard extends ConsumerWidget {
                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
                                 color: Colors.black.withValues(alpha: 0.55),
-                                borderRadius: BorderRadius.circular(4),
+                                borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
                                 item.sizeLabel!,
@@ -311,10 +306,10 @@ class _ClothingImage extends StatelessWidget {
         width: 64,
         height: 64,
         decoration: BoxDecoration(
-          color: c.primary.withValues(alpha: 0.18),
+          color: c.textPrimary.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(AppRadius.thumbnail),
         ),
-        child: Icon(type.icon, color: c.primary, size: 28),
+        child: Icon(type.icon, color: c.textPrimary, size: 28),
       ),
     );
   }

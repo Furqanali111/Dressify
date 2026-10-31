@@ -145,13 +145,8 @@ class OutfitCard extends ConsumerWidget {
         child: DecoratedBox(
           decoration: BoxDecoration(
             borderRadius: radius,
-            boxShadow: <BoxShadow>[
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.06),
-                blurRadius: 10,
-                offset: const Offset(0, 3),
-              ),
-            ],
+            border: Border.all(color: c.border),
+            boxShadow: c.softShadow,
           ),
           child: ClipRRect(
             borderRadius: radius,
