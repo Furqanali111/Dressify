@@ -65,3 +65,14 @@ def get_signed_url(bucket_name: str, file_path: str, expires_in: int = 3600) -> 
     except Exception as e:
         logger.error(f"Failed to get signed url for {bucket_name}/{file_path}: {e}", exc_info=True)
         return None
+
+
+def file_exists(bucket_name: str, file_path: str) -> bool:
+    """True if an object exists at file_path (checked via a folder listing, no download)."""
+    folder, _, name = file_path.rpartition("/")
+    try:
+        entries = supabase.storage.from_(bucket_name).list(folder, {"search": name})
+        return any(e.get("name") == name for e in entries or [])
+    except Exception as e:
+        logger.error("Failed to check %s/%s: %s", bucket_name, file_path, e)
+        return False

@@ -14,6 +14,7 @@ import '../../core/router/app_routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/widgets/app_toast.dart';
+import '../try_on/tryon_flow.dart';
 import 'edit_clothing_sheet.dart';
 import 'wardrobe_action_sheet.dart';
 
@@ -40,6 +41,7 @@ class ClothingCard extends ConsumerWidget {
         actions: isFailed
             ? const <WardrobeAction>[WardrobeAction.delete]
             : const <WardrobeAction>[
+                WardrobeAction.aiTryOn,
                 WardrobeAction.seeOnMe,
                 WardrobeAction.edit,
                 WardrobeAction.delete,
@@ -51,6 +53,8 @@ class ClothingCard extends ConsumerWidget {
       case WardrobeAction.seeOnMe:
         ref.read(cameraGarmentsProvider.notifier).state = <ClothingItem>[item];
         context.goNamed(AppRoute.camera.name);
+      case WardrobeAction.aiTryOn:
+        await runAiTryOn(context, ref, item.id);
       case WardrobeAction.tryOn:
         context.pushNamed(AppRoute.tryOn.name);
       case WardrobeAction.edit:

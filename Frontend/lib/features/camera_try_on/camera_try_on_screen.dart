@@ -18,6 +18,7 @@ import '../../core/models/outfit.dart';
 import '../../core/providers/camera_garments_provider.dart';
 import '../../core/providers/fit_rating_provider.dart';
 import '../../core/providers/fit_scale_provider.dart';
+import '../../core/providers/tryon_photo_provider.dart';
 import '../../core/providers/tryon_provider.dart';
 import '../../core/providers/wardrobe_provider.dart';
 import '../../core/router/app_routes.dart';
@@ -498,6 +499,13 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
         if (mounted) AppToast.error(context, 'Capture failed — try again');
         return;
       }
+      // Clean frame (no garment overlay) for the AI; the composited screenshot
+      // below is only for preview/share. Falls back to the screenshot if the
+      // camera can't take a still.
+      Uint8List? cleanBytes;
+      try {
+        cleanBytes = await (await _controller!.takePicture()).readAsBytes();
+      } catch (_) {}
       final ui.Image image = await boundary.toImage(pixelRatio: 2.0);
       final ByteData? byteData =
           await image.toByteData(format: ui.ImageByteFormat.png);
@@ -511,6 +519,7 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
         context: context,
         builder: (_) => _CapturePreviewDialog(
           pngBytes: byteData.buffer.asUint8List(),
+          cleanBytes: cleanBytes,
           garments: _garments.values.toList(),
           onTryOnResult: (String url) =>
               context.pushNamed(AppRoute.tryOnResult.name, extra: url),
@@ -1149,9 +1158,11 @@ class _CapturePreviewDialog extends ConsumerStatefulWidget {
     required this.pngBytes,
     required this.garments,
     required this.onTryOnResult,
+    this.cleanBytes,
   });
 
   final Uint8List pngBytes;
+  final Uint8List? cleanBytes;
   final List<_GarmentData> garments;
   final void Function(String resultUrl) onTryOnResult;
 
@@ -1166,8 +1177,12 @@ class _CapturePreviewDialogState extends ConsumerState<_CapturePreviewDialog> {
   @override
   Widget build(BuildContext context) {
     final TryOnState tryOnState = ref.watch(tryOnProvider);
+    final bool savedPhoto = ref.watch(tryOnPhotoProvider).value?.hasPhoto ?? false;
 
     ref.listen<TryOnState>(tryOnProvider, (_, TryOnState next) {
+      if (next.status == TryOnStatus.done) {
+        ref.read(tryOnPhotoProvider.notifier).refresh();
+      }
       if (next.status == TryOnStatus.done && next.resultUrl != null) {
         final String url = next.resultUrl!;
         ref.read(tryOnProvider.notifier).reset();
@@ -1294,6 +1309,14 @@ class _CapturePreviewDialogState extends ConsumerState<_CapturePreviewDialog> {
                   ),
                   // AI Try-On button
                   if (selected != null) ...<Widget>[
+                    if (savedPhoto) ...<Widget>[
+                      const SizedBox(height: AppSpacing.sm),
+                      Text(
+                        'Using your saved try-on photo',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
                     const SizedBox(height: AppSpacing.sm),
                     ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
@@ -1315,10 +1338,24 @@ class _CapturePreviewDialogState extends ConsumerState<_CapturePreviewDialog> {
                       onPressed: tryOnState.isLoading
                           ? null
                           : () => ref.read(tryOnProvider.notifier).generate(
-                                personImageBytes: widget.pngBytes,
                                 clothingItemId: selected.item.id,
+                                // Saved photo → nothing to upload. Otherwise send the
+                                // clean frame and keep it for next time.
+                                personImageBytes: savedPhoto ? null : (widget.cleanBytes ?? widget.pngBytes),
+                                savePhoto: !savedPhoto && widget.cleanBytes != null,
                               ),
                     ),
+                    if (savedPhoto && widget.cleanBytes != null)
+                      TextButton(
+                        onPressed: tryOnState.isLoading
+                            ? null
+                            : () => ref.read(tryOnProvider.notifier).generate(
+                                  clothingItemId: selected.item.id,
+                                  personImageBytes: widget.cleanBytes,
+                                  savePhoto: true,
+                                ),
+                        child: const Text('Use this photo instead (and save it)'),
+                      ),
                   ],
                 ],
               ),
