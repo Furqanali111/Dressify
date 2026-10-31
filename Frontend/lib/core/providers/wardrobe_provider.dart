@@ -15,6 +15,7 @@ class WardrobeNotifier extends StateNotifier<AsyncValue<List<ClothingItem>>> {
   String? _nextCursor;
   bool _isLoadingMore = false;
   String _sortBy = 'newest';
+  bool _polling = false;
 
   bool get hasMore => _nextCursor != null;
   String get sortBy => _sortBy;
@@ -54,6 +55,7 @@ class WardrobeNotifier extends StateNotifier<AsyncValue<List<ClothingItem>>> {
       }
       state = AsyncValue<List<ClothingItem>>.data(_parse(data));
       JsonCache.put(cacheKey, data).ignore();
+      _resumePolling();
     } on DioException catch (e, st) {
       // Treat 404 ("no resource yet") as an empty list rather than an error.
       if (e.response?.statusCode == 404) {
@@ -120,17 +122,38 @@ class WardrobeNotifier extends StateNotifier<AsyncValue<List<ClothingItem>>> {
     );
   }
 
-  /// Polls each item in [itemIds] every 3 s until its processing_status
-  /// leaves "processing", or until 30 s have elapsed (10 attempts).
-  /// Returns false if more than half the items could not be polled (network issue).
+  /// Items still processing after a (re)load — e.g. the app was reopened or the
+  /// earlier poll gave up — keep updating on their own, no manual refresh.
+  void _resumePolling() {
+    final List<String> pending = (state.value ?? <ClothingItem>[])
+        .where((ClothingItem it) => it.processingStatus == 'processing')
+        .map((ClothingItem it) => it.id)
+        .toList();
+    if (pending.isNotEmpty) pollUntilComplete(pending).ignore();
+  }
+
+  /// Polls each item in [itemIds] until its processing_status leaves
+  /// "processing": every 3 s for the first 15 s, then every 6 s, for about
+  /// 2.5 minutes in total. Only one poll loop runs at a time.
+  /// Returns false if the items could not be polled (network issue).
   Future<bool> pollUntilComplete(List<String> itemIds) async {
-    const Duration interval = Duration(seconds: 3);
-    const int maxAttempts = 10;
+    if (_polling) return true;
+    _polling = true;
+    try {
+      return await _poll(itemIds);
+    } finally {
+      _polling = false;
+    }
+  }
+
+  Future<bool> _poll(List<String> itemIds) async {
+    const int maxAttempts = 25;
     final Set<String> pending = Set<String>.from(itemIds);
     final Map<String, int> failCount = <String, int>{};
 
     for (int attempt = 0; attempt < maxAttempts && pending.isNotEmpty; attempt++) {
-      await Future<void>.delayed(interval);
+      await Future<void>.delayed(Duration(seconds: attempt < 5 ? 3 : 6));
+      if (!mounted) return true;
       final Dio dio = _ref.read(apiClientProvider);
       await Future.wait<void>(
         List<String>.from(pending).map((String id) async {
@@ -140,6 +163,7 @@ class WardrobeNotifier extends StateNotifier<AsyncValue<List<ClothingItem>>> {
                 ClothingItem.fromJson(resp.data as Map<String, dynamic>);
             if (updated.processingStatus != 'processing') pending.remove(id);
             failCount.remove(id);
+            if (!mounted) return;
             final List<ClothingItem> current = state.value ?? <ClothingItem>[];
             state = AsyncValue<List<ClothingItem>>.data(
               current.map((ClothingItem it) => it.id == id ? updated : it).toList(),

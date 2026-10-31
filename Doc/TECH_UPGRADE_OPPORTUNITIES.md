@@ -11,11 +11,12 @@
 - Wear-log-aware outfit generation: items worn in the last 7 days are passed to the stylist, which is told to avoid them.
 
 - Offline read-through cache for wardrobe (per sort order) and outfits: last good response stored in `shared_preferences` (`JsonCache`), shown instantly on open and when offline; cleared on sign-out/session expiry. First page only; images still load via `cached_network_image`.
+- Upload status without push: polling now lasts ~2.5 min (3 s then 6 s steps), restarts automatically whenever the wardrobe loads with items still `processing`, and stops safely if the screen is gone. One loop at a time, so an item uploaded mid-loop is picked up on the next wardrobe refresh.
 
 **Left** (see sections below; ordered by the suggested order at the bottom)
 - Device profiling (S6.1/S6.8) and crash monitoring (Sentry/Crashlytics)
 - Friendly errors still missing in: camera try-on, AI feedback sheet, sign-in, analytics screen, background polling failures
-- Realtime/push for upload status; offline queue for writes (edits made offline are not supported)
+- True push (FCM) for upload status — needs a Firebase project, `google-services.json` and a backend service account; Supabase Realtime would break the thin-frontend rule. Offline queue for writes (edits made offline are not supported)
 - pgvector embeddings, structured-output LLM calls, second try-on provider / self-hosted VTON
 - Split `camera_try_on_screen.dart` and `profile_screen.dart`; golden tests; more backend tests (needs `pytest-asyncio` + test DB)
 - Replace deprecated `gotrue` with `supabase_auth`; rotate secrets
