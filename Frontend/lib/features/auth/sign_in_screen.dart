@@ -1,3 +1,4 @@
+import '../../core/api/friendly_error_interceptor.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -48,7 +49,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = 'Sign in failed. Please try again.';
+        _error = errorMessage(e, 'Sign in failed. Please try again.');
       });
     }
   }

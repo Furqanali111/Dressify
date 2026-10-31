@@ -3,7 +3,10 @@ import logging
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from gotrue.errors import AuthApiError
+try:
+    from supabase_auth.errors import AuthApiError
+except ImportError:  # older supabase releases still ship gotrue
+    from gotrue.errors import AuthApiError
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select

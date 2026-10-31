@@ -1,3 +1,4 @@
+import '../../core/api/friendly_error_interceptor.dart';
 import 'dart:math' as math;
 
 import 'package:cached_network_image/cached_network_image.dart';
@@ -55,7 +56,7 @@ class WardrobeAnalyticsScreen extends ConsumerWidget {
                   Text(
                     isRateLimit
                         ? 'You\u2019ve reached the request limit.\nPlease wait a moment and try again.'
-                        : 'Could not load analytics',
+                        : errorMessage(err, 'Could not load analytics'),
                     style: text.bodyMedium,
                     textAlign: TextAlign.center,
                   ),

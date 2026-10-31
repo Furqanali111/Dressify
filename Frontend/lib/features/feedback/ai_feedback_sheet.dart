@@ -1,3 +1,4 @@
+import '../../core/api/friendly_error_interceptor.dart';
 import 'dart:math' as math;
 
 import 'package:dio/dio.dart';
@@ -105,7 +106,7 @@ class _AiFeedbackSheetState extends ConsumerState<AiFeedbackSheet>
         _isLoading = false;
         _regenerating = false;
         _hasError = true;
-        _verdict = e.response?.data?['detail']?.toString() ?? 'AI Service is currently unavailable.';
+        _verdict = friendlyMessage(e);
       });
     } catch (e) {
       if (!mounted) return;

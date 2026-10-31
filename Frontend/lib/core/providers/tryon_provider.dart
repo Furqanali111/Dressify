@@ -1,3 +1,4 @@
+import '../api/friendly_error_interceptor.dart';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
@@ -41,8 +42,7 @@ class TryOnNotifier extends StateNotifier<TryOnState> {
       final String? url = resp.data?['result_url'] as String?;
       state = TryOnState(status: TryOnStatus.done, resultUrl: url);
     } on DioException catch (e) {
-      final String msg = (e.response?.data as Map?)?['detail'] as String? ??
-          'Try-on failed. Please try again.';
+      final String msg = friendlyMessage(e);
       state = TryOnState(status: TryOnStatus.error, errorMessage: msg);
     } catch (_) {
       state = const TryOnState(
