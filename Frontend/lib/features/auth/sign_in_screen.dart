@@ -1,5 +1,6 @@
 import '../../core/api/friendly_error_interceptor.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -69,29 +70,53 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
             children: <Widget>[
               const Spacer(flex: 2),
               Center(
-                child: Container(
-                  width: 96,
-                  height: 96,
+                child: DecoratedBox(
                   decoration: BoxDecoration(
-                    color: c.primary.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(28),
+                    color: c.border.withValues(alpha: 0.4),
+                    borderRadius: BorderRadius.circular(36),
+                    boxShadow: c.softShadow,
                   ),
-                  child: Icon(Icons.checkroom_outlined, size: 56, color: c.primary),
+                  child: Padding(
+                    padding: const EdgeInsets.all(6),
+                    child: Container(
+                      width: 96,
+                      height: 96,
+                      decoration: BoxDecoration(
+                        color: c.textPrimary,
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                      child: Icon(Icons.checkroom_outlined, size: 44, color: c.background),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xl),
+              Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: c.border),
+                  ),
+                  child: Text(
+                    'VIRTUAL WARDROBE',
+                    style: text.labelSmall?.copyWith(fontSize: 10, color: c.textSecondary),
+                  ),
                 ),
               ),
               const Spacer(),
               Text(
-                'Welcome to Dressify',
-                style: text.displayMedium,
+                'Dress the\nbest of you.',
+                style: text.displayLarge?.copyWith(fontSize: 44, height: 1.04),
                 textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: AppSpacing.sm),
+              ).animate().fadeIn(duration: 700.ms, curve: const Cubic(0.32, 0.72, 0, 1)).slideY(begin: 0.15, end: 0),
+              const SizedBox(height: AppSpacing.md),
               Text(
                 'Sign in to save your outfits and style profile',
                 style: text.bodyMedium?.copyWith(color: c.textSecondary),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: AppSpacing.xl),
+              const SizedBox(height: AppSpacing.xxl),
               if (AppFlags.bypassAuth) ...<Widget>[
                 const _BypassHint(),
                 const SizedBox(height: AppSpacing.md),
@@ -139,13 +164,13 @@ class _GoogleSignInButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: double.infinity,
-      height: 52,
+      height: 56,
       child: OutlinedButton(
         onPressed: loading ? null : onPressed,
         style: OutlinedButton.styleFrom(
           backgroundColor: Colors.white,
-          side: const BorderSide(color: Color(0xFFDADCE0)),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          side: BorderSide(color: context.colors.border),
+          shape: const StadiumBorder(),
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
         ),
         child: loading

@@ -29,32 +29,31 @@ class HomeShell extends StatelessWidget {
     return Scaffold(
       backgroundColor: c.background,
       body: navigationShell,
-      bottomNavigationBar: DecoratedBox(
-        decoration: BoxDecoration(
-          color: c.surface,
-          boxShadow: <BoxShadow>[
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 12,
-              offset: const Offset(0, -2),
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(AppSpacing.xl, 0, AppSpacing.xl, AppSpacing.md),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: c.surface.withValues(alpha: 0.96),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: c.border),
+              boxShadow: c.softShadow,
             ),
-          ],
-        ),
-        child: SafeArea(
-          top: false,
-          child: SizedBox(
-            height: 64,
-            child: Row(
-              children: <Widget>[
-                for (int i = 0; i < _tabs.length; i++)
-                  Expanded(
-                    child: _NavItem(
-                      tab: _tabs[i],
-                      active: i == navigationShell.currentIndex,
-                      onTap: () => _goBranch(i),
+            child: SizedBox(
+              height: 64,
+              child: Row(
+                children: <Widget>[
+                  for (int i = 0; i < _tabs.length; i++)
+                    Expanded(
+                      child: _NavItem(
+                        tab: _tabs[i],
+                        active: i == navigationShell.currentIndex,
+                        onTap: () => _goBranch(i),
+                      ),
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -85,35 +84,46 @@ class _NavItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final AppColors c = context.colors;
-    final Color color = active ? c.primary : c.textSecondary;
+    const Cubic curve = Cubic(0.32, 0.72, 0, 1);
+    final Color color = active ? c.background : c.textSecondary;
 
-    return InkWell(
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: onTap,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: <Widget>[
-          Icon(active ? tab.activeIcon : tab.icon, color: color, size: 24),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            tab.label,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: color,
-            ),
+      child: Center(
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 450),
+          curve: curve,
+          height: 48,
+          padding: EdgeInsets.symmetric(horizontal: active ? 18 : 12),
+          decoration: BoxDecoration(
+            color: active ? c.textPrimary : Colors.transparent,
+            borderRadius: BorderRadius.circular(999),
           ),
-          const SizedBox(height: 3),
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            curve: Curves.easeOut,
-            width: active ? 4 : 0,
-            height: 4,
-            decoration: BoxDecoration(
-              color: c.primary,
-              borderRadius: BorderRadius.circular(2),
-            ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Icon(active ? tab.activeIcon : tab.icon, color: color, size: 22),
+              AnimatedSize(
+                duration: const Duration(milliseconds: 450),
+                curve: curve,
+                child: active
+                    ? Padding(
+                        padding: const EdgeInsets.only(left: AppSpacing.sm),
+                        child: Text(
+                          tab.label,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: color,
+                          ),
+                        ),
+                      )
+                    : const SizedBox.shrink(),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

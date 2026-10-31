@@ -25,26 +25,27 @@ class PrimaryButton extends StatelessWidget {
     final bool disabled = onPressed == null || loading;
 
     final Widget child = loading
-        ? const SizedBox(
+        ? SizedBox(
             width: 22,
             height: 22,
-            child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white),
+            child: CircularProgressIndicator(strokeWidth: 2.4, color: c.background),
           )
         : Row(
             mainAxisAlignment: MainAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
               if (icon != null) ...<Widget>[
-                Icon(icon, size: 20, color: Colors.white),
+                Icon(icon, size: 20, color: c.background),
                 const SizedBox(width: AppSpacing.sm),
               ],
               Flexible(
                 child: Text(
                   label,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
-                    color: Colors.white,
+                    letterSpacing: 0.1,
+                    color: c.background,
                   ),
                   overflow: TextOverflow.ellipsis,
                   maxLines: 1,
@@ -55,17 +56,18 @@ class PrimaryButton extends StatelessWidget {
 
     final ButtonStyle style = ButtonStyle(
       backgroundColor: WidgetStateProperty.resolveWith<Color>((Set<WidgetState> states) {
-        if (states.contains(WidgetState.disabled)) return c.primary.withValues(alpha: 0.4);
+        if (states.contains(WidgetState.disabled)) return c.textPrimary.withValues(alpha: 0.35);
         if (states.contains(WidgetState.pressed)) return c.primaryDark;
-        return c.primary;
+        return c.textPrimary;
       }),
-      foregroundColor: const WidgetStatePropertyAll<Color>(Colors.white),
-      overlayColor: WidgetStatePropertyAll<Color>(Colors.white.withValues(alpha: 0.08)),
+      foregroundColor: WidgetStatePropertyAll<Color>(c.background),
+      animationDuration: const Duration(milliseconds: 400),
+      overlayColor: WidgetStatePropertyAll<Color>(c.background.withValues(alpha: 0.1)),
       elevation: const WidgetStatePropertyAll<double>(0),
       padding: const WidgetStatePropertyAll<EdgeInsets>(
         EdgeInsets.symmetric(horizontal: AppSpacing.xl),
       ),
-      minimumSize: const WidgetStatePropertyAll<Size>(Size(0, 52)),
+      minimumSize: const WidgetStatePropertyAll<Size>(Size(0, 56)),
       shape: WidgetStatePropertyAll<RoundedRectangleBorder>(
         RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.button)),
       ),

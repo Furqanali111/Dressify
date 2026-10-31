@@ -131,72 +131,77 @@ class ClothingCard extends ConsumerWidget {
       subtitleColor = c.textSecondary;
     }
 
-    final Widget card = Material(
-      color: c.surface,
-      borderRadius: radius,
-      child: InkWell(
-        onTap: isProcessing ? null : () => _showContextMenu(context, ref),
-        onLongPress: isProcessing ? null : () => _showContextMenu(context, ref),
+    final BorderRadius inner = BorderRadius.circular(AppRadius.card - 5);
+    final Widget card = DecoratedBox(
+      decoration: BoxDecoration(
+        color: c.border.withValues(alpha: 0.35),
         borderRadius: radius,
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            borderRadius: radius,
-            boxShadow: <BoxShadow>[
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.06),
-                blurRadius: 10,
-                offset: const Offset(0, 3),
-              ),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: radius,
+        boxShadow: c.softShadow,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(5),
+        child: Material(
+          color: c.surface,
+          borderRadius: inner,
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: isProcessing ? null : () => _showContextMenu(context, ref),
+            onLongPress: isProcessing ? null : () => _showContextMenu(context, ref),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
                 Expanded(
-                  child: ColoredBox(
-                    color: c.background,
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: <Widget>[
-                        isFailed
-                            ? _FailedPlaceholder(c: c)
-                            : _ClothingImage(item: item, fallbackType: uiType),
-                        if (!isFailed && !isProcessing && item.sizeLabel != null && item.sizeLabel != 'Unknown')
-                          Positioned(
-                            top: AppSpacing.xs,
-                            right: AppSpacing.xs,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: Colors.black.withValues(alpha: 0.55),
-                                borderRadius: BorderRadius.circular(4),
+                  child: Padding(
+                    padding: const EdgeInsets.all(5),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(AppRadius.card - 10),
+                      child: ColoredBox(
+                        color: c.background,
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: <Widget>[
+                            isFailed
+                                ? _FailedPlaceholder(c: c)
+                                : _ClothingImage(item: item, fallbackType: uiType),
+                            if (!isFailed && !isProcessing && item.sizeLabel != null && item.sizeLabel != 'Unknown')
+                              Positioned(
+                                top: AppSpacing.sm,
+                                left: AppSpacing.sm,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: c.surface.withValues(alpha: 0.9),
+                                    borderRadius: BorderRadius.circular(999),
+                                  ),
+                                  child: Text(
+                                    item.sizeLabel!,
+                                    style: TextStyle(
+                                        color: c.textPrimary,
+                                        fontSize: 10,
+                                        letterSpacing: 0.6,
+                                        fontWeight: FontWeight.w700),
+                                  ),
+                                ),
                               ),
-                              child: Text(
-                                item.sizeLabel!,
-                                style: const TextStyle(
-                                    color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700),
+                            if (!isFailed && !isProcessing)
+                              Positioned(
+                                right: AppSpacing.sm,
+                                bottom: AppSpacing.sm,
+                                child: _SeeOnMeButton(
+                                  onTap: () {
+                                    ref.read(cameraGarmentsProvider.notifier).state = <ClothingItem>[item];
+                                    context.goNamed(AppRoute.camera.name);
+                                  },
+                                ),
                               ),
-                            ),
-                          ),
-                        if (!isFailed && !isProcessing)
-                          Positioned(
-                            right: AppSpacing.xs,
-                            bottom: AppSpacing.xs,
-                            child: _SeeOnMeButton(
-                              onTap: () {
-                                ref.read(cameraGarmentsProvider.notifier).state = <ClothingItem>[item];
-                                context.goNamed(AppRoute.camera.name);
-                              },
-                            ),
-                          ),
-                      ],
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.all(AppSpacing.md),
+                  padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.xs, AppSpacing.md, AppSpacing.md),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
@@ -204,7 +209,7 @@ class ClothingCard extends ConsumerWidget {
                         item.name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: text.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                        style: text.bodyMedium?.copyWith(fontWeight: FontWeight.w600, letterSpacing: -0.1),
                       ),
                       const SizedBox(height: 2),
                       Text(
@@ -247,10 +252,10 @@ class _SeeOnMeButton extends StatelessWidget {
         width: 32,
         height: 32,
         decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.55),
+          color: context.colors.textPrimary,
           shape: BoxShape.circle,
         ),
-        child: const Icon(Icons.camera_alt_outlined, color: Colors.white, size: 16),
+        child: Icon(Icons.camera_alt_outlined, color: context.colors.background, size: 16),
       ),
     );
   }
@@ -311,7 +316,7 @@ class _ClothingImage extends StatelessWidget {
         width: 64,
         height: 64,
         decoration: BoxDecoration(
-          color: c.primary.withValues(alpha: 0.18),
+          color: c.primary.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(AppRadius.thumbnail),
         ),
         child: Icon(type.icon, color: c.primary, size: 28),

@@ -135,73 +135,75 @@ class OutfitCard extends ConsumerWidget {
     final BorderRadius radius = BorderRadius.circular(AppRadius.card);
     final Color accent = AvatarKindX.accentForKind(outfit.avatarKind, fallback: c.primary);
 
-    return Material(
-      color: c.surface,
-      borderRadius: radius,
-      child: InkWell(
-        onTap: () => context.pushNamed(AppRoute.tryOn.name, extra: outfit),
-        onLongPress: () => _showContextMenu(context, ref),
+    final BorderRadius inner = BorderRadius.circular(AppRadius.card - 5);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: c.border.withValues(alpha: 0.35),
         borderRadius: radius,
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            borderRadius: radius,
-            boxShadow: <BoxShadow>[
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.06),
-                blurRadius: 10,
-                offset: const Offset(0, 3),
-              ),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: radius,
+        boxShadow: c.softShadow,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(5),
+        child: Material(
+          color: c.surface,
+          borderRadius: inner,
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: () => context.pushNamed(AppRoute.tryOn.name, extra: outfit),
+            onLongPress: () => _showContextMenu(context, ref),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
                 Expanded(
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: <Widget>[
-                      DecoratedBox(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: <Color>[
-                              accent.withValues(alpha: 0.22),
-                              accent.withValues(alpha: 0.06),
-                            ],
-                          ),
-                        ),
-                        child: Center(child: Icon(Icons.person, size: 80, color: accent)),
-                      ),
-                      Positioned(
-                        top: 4,
-                        right: 4,
-                        child: GestureDetector(
-                          onTap: () {
-                            HapticFeedback.lightImpact();
-                            ref.read(outfitsProvider.notifier).toggleStar(outfit.id);
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.all(4),
+                  child: Padding(
+                    padding: const EdgeInsets.all(5),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(AppRadius.card - 10),
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: <Widget>[
+                          DecoratedBox(
                             decoration: BoxDecoration(
-                              color: Colors.black.withValues(alpha: 0.25),
-                              shape: BoxShape.circle,
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: <Color>[
+                                  accent.withValues(alpha: 0.22),
+                                  accent.withValues(alpha: 0.06),
+                                ],
+                              ),
                             ),
-                            child: Icon(
-                              outfit.isStarred ? Icons.star_rounded : Icons.star_border_rounded,
-                              size: 18,
-                              color: outfit.isStarred ? Colors.amber : Colors.white,
+                            child: Center(child: Icon(Icons.person, size: 80, color: accent)),
+                          ),
+                          Positioned(
+                            top: AppSpacing.sm,
+                            right: AppSpacing.sm,
+                            child: GestureDetector(
+                              onTap: () {
+                                HapticFeedback.lightImpact();
+                                ref.read(outfitsProvider.notifier).toggleStar(outfit.id);
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: c.surface.withValues(alpha: 0.9),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  outfit.isStarred ? Icons.star_rounded : Icons.star_border_rounded,
+                                  size: 18,
+                                  color: outfit.isStarred ? c.primary : c.textSecondary,
+                                ),
+                              ),
                             ),
                           ),
-                        ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.all(AppSpacing.md),
+                  padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.xs, AppSpacing.md, AppSpacing.md),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
@@ -209,7 +211,7 @@ class OutfitCard extends ConsumerWidget {
                         outfit.name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: text.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                        style: text.bodyMedium?.copyWith(fontWeight: FontWeight.w600, letterSpacing: -0.1),
                       ),
                       const SizedBox(height: 2),
                       Text(

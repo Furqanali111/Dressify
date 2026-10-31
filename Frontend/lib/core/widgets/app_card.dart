@@ -20,25 +20,23 @@ class AppCard extends StatelessWidget {
     final AppColors c = context.colors;
     final BorderRadius radius = BorderRadius.circular(AppRadius.card);
 
-    return Material(
-      color: c.surface,
-      borderRadius: radius,
-      elevation: 0,
-      child: InkWell(
+    // Double-bezel: hairline outer tray + inner core with concentric radii.
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: c.border.withValues(alpha: 0.35),
         borderRadius: radius,
-        onTap: onTap,
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            borderRadius: radius,
-            boxShadow: <BoxShadow>[
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.08),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
+        boxShadow: c.softShadow,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(5),
+        child: Material(
+          color: c.surface,
+          borderRadius: BorderRadius.circular(AppRadius.card - 5),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            child: Padding(padding: padding, child: child),
           ),
-          child: Padding(padding: padding, child: child),
         ),
       ),
     );

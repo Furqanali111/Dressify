@@ -89,7 +89,19 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen>
                 ),
                 child: Row(
                   children: <Widget>[
-                    Expanded(child: Text('My Wardrobe', style: text.displayMedium)),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text(
+                            'YOUR CLOSET',
+                            style: text.labelSmall?.copyWith(color: c.primary),
+                          ),
+                          const SizedBox(height: 6),
+                          Text('My Wardrobe', style: text.displayLarge),
+                        ],
+                      ),
+                    ),
                     if (_tabController.index == 0)
                       _SortButton(
                         current: ref.read(wardrobeProvider.notifier).sortBy,
@@ -101,9 +113,14 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen>
               ),
               TabBar(
                 controller: _tabController,
-                labelColor: c.primary,
+                labelColor: c.textPrimary,
                 unselectedLabelColor: c.textSecondary,
-                indicatorColor: c.primary,
+                indicatorColor: c.textPrimary,
+                indicatorWeight: 2,
+                dividerColor: c.border,
+                tabAlignment: TabAlignment.start,
+                isScrollable: true,
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                 indicatorSize: TabBarIndicatorSize.label,
                 labelStyle: text.labelLarge,
                 tabs: const <Widget>[
@@ -169,7 +186,10 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen>
                 FloatingActionButton.small(
                   heroTag: 'upload',
                   backgroundColor: c.surface,
-                  foregroundColor: c.primary,
+                  foregroundColor: c.textPrimary,
+                  elevation: 0,
+                  highlightElevation: 0,
+                  shape: CircleBorder(side: BorderSide(color: c.border)),
                   onPressed: () => context.pushNamed(AppRoute.upload.name),
                   child: const Icon(Icons.add),
                 ),
@@ -178,6 +198,9 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen>
                   heroTag: 'style_me',
                   backgroundColor: c.primary,
                   foregroundColor: Colors.white,
+                  elevation: 0,
+                  highlightElevation: 0,
+                  shape: const StadiumBorder(),
                   onPressed: () {
                     showModalBottomSheet<void>(
                       context: context,
@@ -265,7 +288,7 @@ class _SortButton extends StatelessWidget {
                     ),
                     decoration: BoxDecoration(
                       color: current == opt.value
-                          ? c.primary.withValues(alpha: 0.1)
+                          ? c.textPrimary.withValues(alpha: 0.05)
                           : Colors.transparent,
                       borderRadius: BorderRadius.circular(AppRadius.card),
                       border: Border.all(
