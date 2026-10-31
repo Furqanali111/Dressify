@@ -177,7 +177,7 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen>
                 FloatingActionButton.extended(
                   heroTag: 'style_me',
                   backgroundColor: c.primary,
-                  foregroundColor: Colors.white,
+                  foregroundColor: c.onPrimary,
                   onPressed: () {
                     showModalBottomSheet<void>(
                       context: context,
@@ -190,7 +190,7 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen>
                     'assets/icons/05_icon_magic_wand.png',
                     width: 24,
                     height: 24,
-                    color: Colors.white,
+                    color: c.onPrimary,
                   ),
                   label: const Text('Style Me'),
                 ),
@@ -420,7 +420,7 @@ class _ClothingTabState extends ConsumerState<_ClothingTab> {
             AppSpacing.xl,
             AppSpacing.lg,
             AppSpacing.xl,
-            AppSpacing.xxxxl + AppSpacing.lg,
+            AppSpacing.xxxxl * 2, // clear the two stacked FABs
           ),
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 2,

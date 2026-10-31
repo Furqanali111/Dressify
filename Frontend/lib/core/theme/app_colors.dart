@@ -5,6 +5,7 @@ class AppColors extends ThemeExtension<AppColors> {
   const AppColors({
     required this.primary,
     required this.primaryDark,
+    required this.onPrimary,
     required this.surface,
     required this.background,
     required this.textPrimary,
@@ -17,6 +18,7 @@ class AppColors extends ThemeExtension<AppColors> {
 
   final Color primary;
   final Color primaryDark;
+  final Color onPrimary; // text/icons on a primary fill
   final Color surface;
   final Color background;
   final Color textPrimary;
@@ -27,8 +29,9 @@ class AppColors extends ThemeExtension<AppColors> {
   final Color border;
 
   static const AppColors light = AppColors(
-    primary: Color(0xFF6C63FF),
+    primary: Color(0xFF5B52F0), // white on it = 5.4:1 (was 4.3:1)
     primaryDark: Color(0xFF4B44CC),
+    onPrimary: Color(0xFFFFFFFF),
     surface: Color(0xFFFFFFFF),
     background: Color(0xFFF5F4FF),
     textPrimary: Color(0xFF1A1A2E),
@@ -42,6 +45,7 @@ class AppColors extends ThemeExtension<AppColors> {
   static const AppColors dark = AppColors(
     primary: Color(0xFFA89CFF),
     primaryDark: Color(0xFF7B70EE),
+    onPrimary: Color(0xFF14102E), // white on the light lilac was 2.3:1
     surface: Color(0xFF1C1C2E),
     background: Color(0xFF0D0D1A),
     textPrimary: Color(0xFFF0EFFF),
@@ -56,6 +60,7 @@ class AppColors extends ThemeExtension<AppColors> {
   AppColors copyWith({
     Color? primary,
     Color? primaryDark,
+    Color? onPrimary,
     Color? surface,
     Color? background,
     Color? textPrimary,
@@ -68,6 +73,7 @@ class AppColors extends ThemeExtension<AppColors> {
     return AppColors(
       primary: primary ?? this.primary,
       primaryDark: primaryDark ?? this.primaryDark,
+      onPrimary: onPrimary ?? this.onPrimary,
       surface: surface ?? this.surface,
       background: background ?? this.background,
       textPrimary: textPrimary ?? this.textPrimary,
@@ -85,6 +91,7 @@ class AppColors extends ThemeExtension<AppColors> {
     return AppColors(
       primary: Color.lerp(primary, other.primary, t)!,
       primaryDark: Color.lerp(primaryDark, other.primaryDark, t)!,
+      onPrimary: Color.lerp(onPrimary, other.onPrimary, t)!,
       surface: Color.lerp(surface, other.surface, t)!,
       background: Color.lerp(background, other.background, t)!,
       textPrimary: Color.lerp(textPrimary, other.textPrimary, t)!,

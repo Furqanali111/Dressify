@@ -176,14 +176,14 @@ class ClothingCard extends ConsumerWidget {
                               child: Text(
                                 item.sizeLabel!,
                                 style: const TextStyle(
-                                    color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700),
+                                    color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700),
                               ),
                             ),
                           ),
                         if (!isFailed && !isProcessing)
                           Positioned(
-                            right: AppSpacing.xs,
-                            bottom: AppSpacing.xs,
+                            right: 0,
+                            bottom: 0,
                             child: _SeeOnMeButton(
                               onTap: () {
                                 ref.read(cameraGarmentsProvider.notifier).state = <ClothingItem>[item];
@@ -241,16 +241,28 @@ class _SeeOnMeButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 32,
-        height: 32,
-        decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.55),
-          shape: BoxShape.circle,
+    // 44px hit area around the 32px visual circle.
+    return Semantics(
+      button: true,
+      label: 'See on me',
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: SizedBox(
+          width: 44,
+          height: 44,
+          child: Center(
+            child: Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.55),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.camera_alt_outlined, color: Colors.white, size: 16),
+            ),
+          ),
         ),
-        child: const Icon(Icons.camera_alt_outlined, color: Colors.white, size: 16),
       ),
     );
   }

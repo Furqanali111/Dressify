@@ -16,7 +16,7 @@ class AppTheme {
     final ColorScheme colorScheme = ColorScheme(
       brightness: brightness,
       primary: c.primary,
-      onPrimary: Colors.white,
+      onPrimary: c.onPrimary,
       secondary: c.primaryDark,
       onSecondary: Colors.white,
       error: c.error,
@@ -71,6 +71,31 @@ class AppTheme {
           borderRadius: BorderRadius.circular(AppRadius.input),
           borderSide: BorderSide(color: c.error, width: 1.5),
         ),
+      ),
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: c.surface,
+        showDragHandle: true,
+        dragHandleColor: c.border,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.sheetTop)),
+        ),
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: c.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.card)),
+        titleTextStyle: textTheme.titleLarge,
+        contentTextStyle: textTheme.bodyMedium?.copyWith(color: c.textSecondary),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: c.primary,
+          minimumSize: const Size(48, 48),
+          textStyle: textTheme.labelLarge,
+        ),
+      ),
+      tabBarTheme: TabBarThemeData(
+        dividerColor: c.border,
+        overlayColor: WidgetStatePropertyAll<Color>(c.primary.withValues(alpha: 0.08)),
       ),
       dividerTheme: DividerThemeData(color: c.border, thickness: 1, space: 1),
     );

@@ -73,10 +73,17 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                   width: 96,
                   height: 96,
                   decoration: BoxDecoration(
-                    color: c.primary.withValues(alpha: 0.12),
+                    color: c.primary,
                     borderRadius: BorderRadius.circular(28),
+                    boxShadow: <BoxShadow>[
+                      BoxShadow(
+                        color: c.primary.withValues(alpha: 0.32),
+                        blurRadius: 24,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
                   ),
-                  child: Icon(Icons.checkroom_outlined, size: 56, color: c.primary),
+                  child: Icon(Icons.checkroom_outlined, size: 52, color: c.onPrimary),
                 ),
               ),
               const Spacer(),
@@ -145,7 +152,7 @@ class _GoogleSignInButton extends StatelessWidget {
         style: OutlinedButton.styleFrom(
           backgroundColor: Colors.white,
           side: const BorderSide(color: Color(0xFFDADCE0)),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.button)),
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
         ),
         child: loading

@@ -10,9 +10,21 @@ class HomeShell extends StatelessWidget {
   final StatefulNavigationShell navigationShell;
 
   static const List<_Tab> _tabs = <_Tab>[
-    _Tab(icon: Icons.home_outlined, activeIcon: Icons.home_rounded, label: 'Home'),
-    _Tab(icon: Icons.camera_alt_outlined, activeIcon: Icons.camera_alt, label: 'Try On'),
-    _Tab(icon: Icons.person_outline, activeIcon: Icons.person, label: 'Profile'),
+    _Tab(
+      icon: Icons.home_outlined,
+      activeIcon: Icons.home_rounded,
+      label: 'Home',
+    ),
+    _Tab(
+      icon: Icons.camera_alt_outlined,
+      activeIcon: Icons.camera_alt,
+      label: 'Try On',
+    ),
+    _Tab(
+      icon: Icons.person_outline,
+      activeIcon: Icons.person,
+      label: 'Profile',
+    ),
   ];
 
   void _goBranch(int index) {
@@ -64,7 +76,11 @@ class HomeShell extends StatelessWidget {
 }
 
 class _Tab {
-  const _Tab({required this.icon, required this.activeIcon, required this.label});
+  const _Tab({
+    required this.icon,
+    required this.activeIcon,
+    required this.label,
+  });
 
   final IconData icon;
   final IconData activeIcon;
@@ -87,33 +103,39 @@ class _NavItem extends StatelessWidget {
     final AppColors c = context.colors;
     final Color color = active ? c.primary : c.textSecondary;
 
-    return InkWell(
-      onTap: onTap,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: <Widget>[
-          Icon(active ? tab.activeIcon : tab.icon, color: color, size: 24),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            tab.label,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: color,
+    return Semantics(
+      button: true,
+      selected: active,
+      label: tab.label,
+      excludeSemantics: true,
+      child: InkWell(
+        onTap: onTap,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: <Widget>[
+            Icon(active ? tab.activeIcon : tab.icon, color: color, size: 24),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              tab.label,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: color,
+              ),
             ),
-          ),
-          const SizedBox(height: 3),
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            curve: Curves.easeOut,
-            width: active ? 4 : 0,
-            height: 4,
-            decoration: BoxDecoration(
-              color: c.primary,
-              borderRadius: BorderRadius.circular(2),
+            const SizedBox(height: 3),
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOut,
+              width: active ? 4 : 0,
+              height: 4,
+              decoration: BoxDecoration(
+                color: c.primary,
+                borderRadius: BorderRadius.circular(2),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
