@@ -8,5 +8,9 @@ void main() {
     await tester.pump();
 
     expect(find.text('Dressify'), findsOneWidget);
+
+    // Let flutter_animate's zero-duration timers and splash timers fire
+    // before the test ends, otherwise it fails with "pending timers".
+    await tester.pump(const Duration(seconds: 10));
   });
 }

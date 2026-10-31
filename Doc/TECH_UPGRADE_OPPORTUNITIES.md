@@ -6,7 +6,7 @@
 - Removed unused Flutter deps: `flame`, `model_viewer_plus`, `flutter_svg`, `freezed_annotation`, `riverpod_annotation`.
 - User-friendly API errors (offline / timeout / 429 / 5xx) via `FriendlyErrorInterceptor`. Wired into wardrobe/outfits load errors, upload, measurements & Style DNA save, profile photo/delete account, outfit save (`errorMessage()` helper).
 - Backend smoke tests (health, auth guard, body-size limit, prompt formatting); 4 passing.
-- CI workflow: `pytest` + `flutter analyze` on every push (`.github/workflows/ci.yml`; not yet run on GitHub).
+- CI workflow: `pytest` + `flutter analyze` + `flutter test` on every push (`.github/workflows/ci.yml`; not yet run on GitHub).
 - **Bug fix:** outfit prompt had unescaped braces, so every `/outfits/generate` call failed with `KeyError`. Fixed with a regression test.
 - Wear-log-aware outfit generation: items worn in the last 7 days are passed to the stylist, which is told to avoid them.
 
