@@ -17,6 +17,7 @@
 - **Try-on photo, saved once in Supabase Storage** (`tryon/{user}/person.jpg`, no migration needed): `GET/PUT/DELETE /tryon/photo`; `POST /tryon` now uses the saved photo when none is sent, or saves a new one with `save_photo=true`. Photos are validated (valid image, ≥400 px, portrait) and normalised to 768x1024. Result cache is now keyed by photo content, so a new photo never returns a stale result.
 - **Cleaner capture:** the camera screen now sends a clean camera frame to the AI instead of a screenshot that already had the 2D garment drawn on it (better try-on quality).
 - **One-tap try-on:** wardrobe long-press → "AI Try-On (my photo)" with guidance on first use, progress dialog, then the result. The camera dialog shows "Using your saved try-on photo" and lets you replace it.
+- Profile "Try-on photo" tile: preview, add/replace (with pose guidance) and remove the saved photo.
 
 **Left** (see sections below; ordered by the suggested order at the bottom)
 - Device profiling (S6.1/S6.8) and crash monitoring (Sentry/Crashlytics)
@@ -24,7 +25,7 @@
 - True push (FCM) for upload status — needs a Firebase project, `google-services.json` and a backend service account; Supabase Realtime would break the thin-frontend rule. Offline queue for writes (edits made offline are not supported)
 - pgvector embeddings, structured-output LLM calls, second try-on provider / self-hosted VTON
 - Split `camera_try_on_screen.dart` and `profile_screen.dart`; golden tests; more backend tests (needs `pytest-asyncio` + test DB)
-- Try-on photo: management tile in Profile (view/replace/delete), outfit-level AI try-on, face/body-framing check on device; migrate storage path to a private bucket if desired
+- Try-on photo: outfit-level AI try-on, face/body-framing check on device; migrate storage path to a private bucket if desired
 - Rotate secrets (manual); Sentry/Crashlytics needs an account DSN; pgvector needs a DB migration and an embedding model choice
 
 > Purpose: a shortlist of newer technologies/approaches that could improve Dressify's UX and core features.

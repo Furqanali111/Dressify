@@ -20,6 +20,8 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/widgets/app_toast.dart';
 import '../../core/widgets/user_avatar.dart';
+import '../../core/providers/tryon_photo_provider.dart';
+import '../try_on/tryon_flow.dart';
 import 'measurements_sheet.dart';
 import 'style_dna_sheet.dart';
 
@@ -239,6 +241,8 @@ class ProfileScreen extends ConsumerWidget {
           const _BodyStatsCard(),
           const SizedBox(height: AppSpacing.md),
           const _MeasurementsCard(),
+          const SizedBox(height: AppSpacing.md),
+          const _TryOnPhotoCard(),
           const SizedBox(height: AppSpacing.md),
           const _StyleDnaCard(),
           const SizedBox(height: AppSpacing.xl),
@@ -726,6 +730,105 @@ class _MeasurementsCard extends ConsumerWidget {
 // ---------------------------------------------------------------------------
 // Style DNA card
 // ---------------------------------------------------------------------------
+
+class _TryOnPhotoCard extends ConsumerWidget {
+  const _TryOnPhotoCard();
+
+  Future<void> _remove(BuildContext context, WidgetRef ref) async {
+    final bool ok = await showDialog<bool>(
+          context: context,
+          builder: (BuildContext ctx) => AlertDialog(
+            title: const Text('Remove try-on photo?'),
+            content: const Text('AI try-on will ask for a new photo next time.'),
+            actions: <Widget>[
+              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+              TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Remove')),
+            ],
+          ),
+        ) ??
+        false;
+    if (!ok) return;
+    try {
+      await ref.read(tryOnPhotoProvider.notifier).remove();
+      if (context.mounted) AppToast.info(context, 'Try-on photo removed');
+    } catch (e) {
+      if (context.mounted) AppToast.error(context, errorMessage(e, 'Could not remove photo'));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final AppColors c = context.colors;
+    final TextTheme text = Theme.of(context).textTheme;
+    final AsyncValue<TryOnPhoto> async = ref.watch(tryOnPhotoProvider);
+    final TryOnPhoto? photo = async.valueOrNull;
+    final bool has = photo?.hasPhoto == true;
+
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: c.surface,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        boxShadow: <BoxShadow>[
+          BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 10, offset: const Offset(0, 3)),
+        ],
+      ),
+      child: Row(
+        children: <Widget>[
+          ClipRRect(
+            borderRadius: BorderRadius.circular(AppRadius.card / 2),
+            child: SizedBox(
+              width: 60,
+              height: 80,
+              child: has && photo?.url != null
+                  ? Image.network(
+                      photo!.url!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) => Icon(Icons.person_outline, color: c.textSecondary),
+                    )
+                  : ColoredBox(
+                      color: c.primary.withValues(alpha: 0.08),
+                      child: Icon(Icons.add_a_photo_outlined, color: c.primary),
+                    ),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text('Try-on photo', style: text.titleMedium),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  async.hasError && !has
+                      ? 'Could not check your photo. Pull to refresh or try again.'
+                      : has
+                          ? 'Saved. AI try-on uses it, so no camera needed.'
+                          : 'Add one full-body photo and try on any item in one tap.',
+                  style: text.bodySmall?.copyWith(color: c.textSecondary),
+                ),
+                Row(
+                  children: <Widget>[
+                    TextButton(
+                      onPressed: () => captureTryOnPhoto(context, ref),
+                      child: Text(has ? 'Replace' : 'Add photo'),
+                    ),
+                    if (has)
+                      TextButton(
+                        onPressed: () => _remove(context, ref),
+                        style: TextButton.styleFrom(foregroundColor: c.error),
+                        child: const Text('Remove'),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class _StyleDnaCard extends ConsumerWidget {
   const _StyleDnaCard();
