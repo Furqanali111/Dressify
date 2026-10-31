@@ -16,22 +16,18 @@ final Provider<Dio> apiClientProvider = Provider<Dio>((Ref ref) {
     ),
   );
 
-  dio.interceptors.add(
-    AuthInterceptor(
-      onUnauthorized: () => ref.read(authStateProvider.notifier).clearSession(),
-    ),
-  );
+  dio.interceptors.add(AuthInterceptor(
+    onUnauthorized: () => ref.read(authStateProvider.notifier).clearSession(),
+  ));
 
   dio.interceptors.add(FriendlyErrorInterceptor());
 
   if (kDebugMode) {
-    dio.interceptors.add(
-      LogInterceptor(
-        requestBody: true,
-        responseBody: true,
-        logPrint: (Object obj) => debugPrint('[DIO] $obj'),
-      ),
-    );
+    dio.interceptors.add(LogInterceptor(
+      requestBody: true,
+      responseBody: true,
+      logPrint: (Object obj) => debugPrint('[DIO] $obj'),
+    ));
   }
 
   return dio;

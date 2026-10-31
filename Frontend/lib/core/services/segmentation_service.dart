@@ -24,10 +24,10 @@ class SegmentationMaskResult {
 /// Call [dispose] when the owning screen is torn down.
 class SegmentationService {
   SegmentationService()
-    : _segmenter = SelfieSegmenter(
-        mode: SegmenterMode.stream,
-        enableRawSizeMask: true,
-      );
+      : _segmenter = SelfieSegmenter(
+          mode: SegmenterMode.stream,
+          enableRawSizeMask: true,
+        );
 
   final SelfieSegmenter _segmenter;
   bool _busy = false;
@@ -89,16 +89,13 @@ class SegmentationService {
     );
     if (rotation == null) return null;
 
-    final InputImageFormat format = Platform.isAndroid
-        ? InputImageFormat.nv21
-        : InputImageFormat.bgra8888;
+    final InputImageFormat format =
+        Platform.isAndroid ? InputImageFormat.nv21 : InputImageFormat.bgra8888;
 
     final Uint8List bytes;
     if (Platform.isAndroid) {
-      final int totalBytes = image.planes.fold(
-        0,
-        (int s, Plane p) => s + p.bytes.length,
-      );
+      final int totalBytes =
+          image.planes.fold(0, (int s, Plane p) => s + p.bytes.length);
       if (_nv21Buffer == null || _nv21Buffer!.length != totalBytes) {
         _nv21Buffer = Uint8List(totalBytes);
       }

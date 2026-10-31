@@ -44,8 +44,8 @@ class AiFeedbackResponse {
       suggestions: (json['suggestions'] as List<dynamic>)
           .map((e) => AiSuggestion.fromJson(e as Map<String, dynamic>))
           .toList(),
-      createdAt: json['created_at'] != null
-          ? DateTime.parse(json['created_at'] as String)
+      createdAt: json['created_at'] != null 
+          ? DateTime.parse(json['created_at'] as String) 
           : null,
     );
   }

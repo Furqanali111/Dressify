@@ -26,12 +26,7 @@ class _AiFeedbackSheetState extends ConsumerState<AiFeedbackSheet>
   late final AnimationController _arcController;
 
   static const List<String> _occasions = <String>[
-    'Casual',
-    'Work',
-    'Party',
-    'Date Night',
-    'Workout',
-    'Loungewear',
+    'Casual', 'Work', 'Party', 'Date Night', 'Workout', 'Loungewear',
   ];
 
   String _selectedOccasion = 'Casual';
@@ -81,10 +76,10 @@ class _AiFeedbackSheetState extends ConsumerState<AiFeedbackSheet>
 
     try {
       final aiService = ref.read(aiProvider);
-
+      
       final String? outfitId = widget.outfit?.id;
-      final List<String>? itemIds =
-          outfitId == null && (widget.outfit?.items.isNotEmpty ?? false)
+      final List<String>? itemIds = outfitId == null &&
+              (widget.outfit?.items.isNotEmpty ?? false)
           ? widget.outfit!.items.map((i) => i.clothingItemId).toList()
           : null;
 
@@ -170,9 +165,7 @@ class _AiFeedbackSheetState extends ConsumerState<AiFeedbackSheet>
                         Text('Your Style Report', style: text.titleLarge),
                         Text(
                           '${widget.outfit?.name ?? "Custom Outfit"} · $_selectedOccasion',
-                          style: text.bodySmall?.copyWith(
-                            color: c.textSecondary,
-                          ),
+                          style: text.bodySmall?.copyWith(color: c.textSecondary),
                         ),
                       ],
                     ),
@@ -197,10 +190,7 @@ class _AiFeedbackSheetState extends ConsumerState<AiFeedbackSheet>
                 ),
                 children: <Widget>[
                   const SizedBox(height: AppSpacing.sm),
-                  Text(
-                    'Occasion Context:',
-                    style: text.labelSmall?.copyWith(color: c.textSecondary),
-                  ),
+                  Text('Occasion Context:', style: text.labelSmall?.copyWith(color: c.textSecondary)),
                   const SizedBox(height: 8),
                   SizedBox(
                     height: 34,
@@ -212,32 +202,23 @@ class _AiFeedbackSheetState extends ConsumerState<AiFeedbackSheet>
                         final occ = _occasions[i];
                         final active = _selectedOccasion == occ;
                         return GestureDetector(
-                          onTap: _regenerating || _isLoading
-                              ? null
-                              : () {
-                                  setState(() => _selectedOccasion = occ);
-                                  _regenerate();
-                                },
+                          onTap: _regenerating || _isLoading ? null : () {
+                            setState(() => _selectedOccasion = occ);
+                            _regenerate();
+                          },
                           child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 6,
-                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                             decoration: BoxDecoration(
                               color: active ? c.primary : c.surface,
                               borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: active ? c.primary : c.border,
-                              ),
+                              border: Border.all(color: active ? c.primary : c.border),
                             ),
                             child: Text(
                               occ,
                               style: TextStyle(
                                 fontSize: 12,
                                 color: active ? Colors.white : c.textPrimary,
-                                fontWeight: active
-                                    ? FontWeight.w700
-                                    : FontWeight.w400,
+                                fontWeight: active ? FontWeight.w700 : FontWeight.w400,
                               ),
                             ),
                           ),
@@ -253,24 +234,15 @@ class _AiFeedbackSheetState extends ConsumerState<AiFeedbackSheet>
                     )
                   else if (_hasError) ...[
                     Padding(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 40,
-                        horizontal: 20,
-                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(
-                            Icons.cloud_off,
-                            size: 64,
-                            color: c.textSecondary,
-                          ),
+                          Icon(Icons.cloud_off, size: 64, color: c.textSecondary),
                           const SizedBox(height: AppSpacing.md),
                           Text(
                             _verdict,
-                            style: text.titleMedium?.copyWith(
-                              color: c.textSecondary,
-                            ),
+                            style: text.titleMedium?.copyWith(color: c.textSecondary),
                             textAlign: TextAlign.center,
                           ),
                           const SizedBox(height: AppSpacing.lg),
@@ -294,11 +266,7 @@ class _AiFeedbackSheetState extends ConsumerState<AiFeedbackSheet>
                     ),
                     const SizedBox(height: AppSpacing.md),
                     Center(
-                      child: Text(
-                        _verdict,
-                        style: text.titleMedium,
-                        textAlign: TextAlign.center,
-                      ),
+                      child: Text(_verdict, style: text.titleMedium, textAlign: TextAlign.center),
                     ),
                     const SizedBox(height: AppSpacing.xl),
                     for (final AiSuggestion s in _suggestions) ...<Widget>[
@@ -382,10 +350,10 @@ class _SuggestionCardState extends State<_SuggestionCard> {
                     Text(
                       widget.suggestion.detail,
                       maxLines: _expanded ? null : 2,
-                      overflow: _expanded
-                          ? TextOverflow.visible
-                          : TextOverflow.ellipsis,
-                      style: text.bodyMedium?.copyWith(color: c.textSecondary),
+                      overflow:
+                          _expanded ? TextOverflow.visible : TextOverflow.ellipsis,
+                      style:
+                          text.bodyMedium?.copyWith(color: c.textSecondary),
                     ),
                     if (_expanded) ...<Widget>[
                       const SizedBox(height: AppSpacing.sm),

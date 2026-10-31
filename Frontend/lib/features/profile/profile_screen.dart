@@ -47,62 +47,32 @@ class ProfileScreen extends ConsumerWidget {
         return Container(
           decoration: BoxDecoration(
             color: c.surface,
-            borderRadius: const BorderRadius.vertical(
-              top: Radius.circular(AppRadius.sheetTop),
-            ),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.sheetTop)),
           ),
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.xl,
-            AppSpacing.lg,
-            AppSpacing.xl,
-            AppSpacing.xxxxl,
-          ),
-          child: Consumer(
-            builder: (ctx, ref, _) => Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: c.border,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
+          padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.lg, AppSpacing.xl, AppSpacing.xxxxl),
+          child: Consumer(builder: (ctx, ref, _) => Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: c.border, borderRadius: BorderRadius.circular(2)))),
+              const SizedBox(height: AppSpacing.lg),
+              Text('App Theme', style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+              const SizedBox(height: AppSpacing.md),
+              for (final entry in [
+                (ThemeMode.system, 'System default', Icons.brightness_auto_outlined),
+                (ThemeMode.light, 'Light', Icons.light_mode_outlined),
+                (ThemeMode.dark, 'Dark', Icons.dark_mode_outlined),
+              ])
+                ListTile(
+                  leading: Icon(entry.$3, color: c.primary),
+                  title: Text(entry.$2),
+                  trailing: ref.watch(themeModeProvider) == entry.$1
+                      ? Icon(Icons.check_rounded, color: c.primary)
+                      : null,
+                  onTap: () { notifier.setMode(entry.$1); Navigator.of(ctx).pop(); },
                 ),
-                const SizedBox(height: AppSpacing.lg),
-                Text(
-                  'App Theme',
-                  style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                for (final entry in [
-                  (
-                    ThemeMode.system,
-                    'System default',
-                    Icons.brightness_auto_outlined,
-                  ),
-                  (ThemeMode.light, 'Light', Icons.light_mode_outlined),
-                  (ThemeMode.dark, 'Dark', Icons.dark_mode_outlined),
-                ])
-                  ListTile(
-                    leading: Icon(entry.$3, color: c.primary),
-                    title: Text(entry.$2),
-                    trailing: ref.watch(themeModeProvider) == entry.$1
-                        ? Icon(Icons.check_rounded, color: c.primary)
-                        : null,
-                    onTap: () {
-                      notifier.setMode(entry.$1);
-                      Navigator.of(ctx).pop();
-                    },
-                  ),
-              ],
-            ),
-          ),
+            ],
+          )),
         );
       },
     );
@@ -118,61 +88,31 @@ class ProfileScreen extends ConsumerWidget {
         return Container(
           decoration: BoxDecoration(
             color: c.surface,
-            borderRadius: const BorderRadius.vertical(
-              top: Radius.circular(AppRadius.sheetTop),
-            ),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.sheetTop)),
           ),
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.xl,
-            AppSpacing.lg,
-            AppSpacing.xl,
-            AppSpacing.xxxxl,
-          ),
-          child: Consumer(
-            builder: (ctx, ref, _) => Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: c.border,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
+          padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.lg, AppSpacing.xl, AppSpacing.xxxxl),
+          child: Consumer(builder: (ctx, ref, _) => Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: c.border, borderRadius: BorderRadius.circular(2)))),
+              const SizedBox(height: AppSpacing.lg),
+              Text('Measurement Units', style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+              const SizedBox(height: AppSpacing.md),
+              for (final entry in [
+                (MeasurementUnit.metric,   'Metric (cm, kg)',   Icons.straighten),
+                (MeasurementUnit.imperial, 'Imperial (ft, lbs)', Icons.square_foot),
+              ])
+                ListTile(
+                  leading: Icon(entry.$3, color: c.primary),
+                  title: Text(entry.$2),
+                  trailing: ref.watch(unitsProvider) == entry.$1
+                      ? Icon(Icons.check_rounded, color: c.primary)
+                      : null,
+                  onTap: () { notifier.setUnit(entry.$1); Navigator.of(ctx).pop(); },
                 ),
-                const SizedBox(height: AppSpacing.lg),
-                Text(
-                  'Measurement Units',
-                  style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                for (final entry in [
-                  (MeasurementUnit.metric, 'Metric (cm, kg)', Icons.straighten),
-                  (
-                    MeasurementUnit.imperial,
-                    'Imperial (ft, lbs)',
-                    Icons.square_foot,
-                  ),
-                ])
-                  ListTile(
-                    leading: Icon(entry.$3, color: c.primary),
-                    title: Text(entry.$2),
-                    trailing: ref.watch(unitsProvider) == entry.$1
-                        ? Icon(Icons.check_rounded, color: c.primary)
-                        : null,
-                    onTap: () {
-                      notifier.setUnit(entry.$1);
-                      Navigator.of(ctx).pop();
-                    },
-                  ),
-              ],
-            ),
-          ),
+            ],
+          )),
         );
       },
     );
@@ -187,44 +127,19 @@ class ProfileScreen extends ConsumerWidget {
         return Container(
           decoration: BoxDecoration(
             color: c.surface,
-            borderRadius: const BorderRadius.vertical(
-              top: Radius.circular(AppRadius.sheetTop),
-            ),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.sheetTop)),
           ),
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.xl,
-            AppSpacing.lg,
-            AppSpacing.xl,
-            AppSpacing.xxxxl,
-          ),
+          padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.lg, AppSpacing.xl, AppSpacing.xxxxl),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: c.border,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
+              Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: c.border, borderRadius: BorderRadius.circular(2)))),
               const SizedBox(height: AppSpacing.lg),
-              Text(
-                'Notifications',
-                style: Theme.of(
-                  ctx,
-                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-              ),
+              Text('Notifications', style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
               const SizedBox(height: AppSpacing.sm),
-              Text(
-                'Push notifications are coming in a future update.',
-                style: Theme.of(
-                  ctx,
-                ).textTheme.bodySmall?.copyWith(color: c.textSecondary),
-              ),
+              Text('Push notifications are coming in a future update.',
+                  style: Theme.of(ctx).textTheme.bodySmall?.copyWith(color: c.textSecondary)),
             ],
           ),
         );
@@ -264,10 +179,7 @@ class ProfileScreen extends ConsumerWidget {
     }
   }
 
-  Future<void> _confirmDeleteAccount(
-    BuildContext context,
-    WidgetRef ref,
-  ) async {
+  Future<void> _confirmDeleteAccount(BuildContext context, WidgetRef ref) async {
     final bool? ok = await showDialog<bool>(
       context: context,
       builder: (BuildContext ctx) => AlertDialog(
@@ -305,10 +217,7 @@ class ProfileScreen extends ConsumerWidget {
         context.goNamed(AppRoute.signIn.name);
       } catch (e) {
         if (!context.mounted) return;
-        AppToast.error(
-          context,
-          errorMessage(e, 'Could not delete account. Please try again.'),
-        );
+        AppToast.error(context, errorMessage(e, 'Could not delete account. Please try again.'));
       }
     }
   }
@@ -449,13 +358,10 @@ class _ProfileHeaderState extends ConsumerState<_ProfileHeader> {
     if (picked == null || !mounted) return;
     setState(() => _uploading = true);
     try {
-      await ref
-          .read(authStateProvider.notifier)
-          .uploadAvatar(File(picked.path));
+      await ref.read(authStateProvider.notifier).uploadAvatar(File(picked.path));
       if (mounted) AppToast.success(context, 'Profile photo updated');
     } catch (e) {
-      if (mounted)
-        AppToast.error(context, errorMessage(e, 'Failed to update photo'));
+      if (mounted) AppToast.error(context, errorMessage(e, 'Failed to update photo'));
     } finally {
       if (mounted) setState(() => _uploading = false);
     }
@@ -474,10 +380,7 @@ class _ProfileHeaderState extends ConsumerState<_ProfileHeader> {
           ),
         ),
         padding: const EdgeInsets.fromLTRB(
-          AppSpacing.xl,
-          AppSpacing.md,
-          AppSpacing.xl,
-          AppSpacing.xxxxl,
+          AppSpacing.xl, AppSpacing.md, AppSpacing.xl, AppSpacing.xxxxl,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -542,10 +445,7 @@ class _ProfileHeaderState extends ConsumerState<_ProfileHeader> {
                     shape: BoxShape.circle,
                   ),
                   child: Center(
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: c.primary,
-                    ),
+                    child: CircularProgressIndicator(strokeWidth: 2, color: c.primary),
                   ),
                 )
               else
@@ -660,17 +560,11 @@ class _BodyStatsCard extends ConsumerWidget {
                 )
               : Row(
                   children: <Widget>[
-                    Expanded(
-                      child: _StatPill(label: 'Height', value: heightLabel),
-                    ),
+                    Expanded(child: _StatPill(label: 'Height', value: heightLabel)),
                     const SizedBox(width: AppSpacing.md),
-                    Expanded(
-                      child: _StatPill(label: 'Weight', value: weightLabel),
-                    ),
+                    Expanded(child: _StatPill(label: 'Weight', value: weightLabel)),
                     const SizedBox(width: AppSpacing.md),
-                    Expanded(
-                      child: _StatPill(label: 'Body', value: bodyLabel),
-                    ),
+                    Expanded(child: _StatPill(label: 'Body', value: bodyLabel)),
                   ],
                 ),
         ],
@@ -804,30 +698,13 @@ class _MeasurementsCard extends ConsumerWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
-                Expanded(
-                  child: _StatPill(
-                    label: 'Chest',
-                    value: fmtCm(profile?.chestCm),
-                  ),
-                ),
+                Expanded(child: _StatPill(label: 'Chest',    value: fmtCm(profile?.chestCm))),
                 const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: _StatPill(
-                    label: 'Waist',
-                    value: fmtCm(profile?.waistCm),
-                  ),
-                ),
+                Expanded(child: _StatPill(label: 'Waist',    value: fmtCm(profile?.waistCm))),
                 const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: _StatPill(label: 'Hip', value: fmtCm(profile?.hipCm)),
-                ),
+                Expanded(child: _StatPill(label: 'Hip',      value: fmtCm(profile?.hipCm))),
                 const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: _StatPill(
-                    label: 'Shoulder',
-                    value: fmtCm(profile?.shoulderCm),
-                  ),
-                ),
+                Expanded(child: _StatPill(label: 'Shoulder', value: fmtCm(profile?.shoulderCm))),
               ],
             ),
           ),
@@ -839,11 +716,7 @@ class _MeasurementsCard extends ConsumerWidget {
                 const SizedBox(width: 4),
                 Text(
                   'Fit personalised',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: c.primary,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: TextStyle(fontSize: 12, color: c.primary, fontWeight: FontWeight.w600),
                 ),
               ],
             ),
@@ -862,23 +735,14 @@ class _TryOnPhotoCard extends ConsumerWidget {
   const _TryOnPhotoCard();
 
   Future<void> _remove(BuildContext context, WidgetRef ref) async {
-    final bool ok =
-        await showDialog<bool>(
+    final bool ok = await showDialog<bool>(
           context: context,
           builder: (BuildContext ctx) => AlertDialog(
             title: const Text('Remove try-on photo?'),
-            content: const Text(
-              'AI try-on will ask for a new photo next time.',
-            ),
+            content: const Text('AI try-on will ask for a new photo next time.'),
             actions: <Widget>[
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: const Text('Remove'),
-              ),
+              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+              TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Remove')),
             ],
           ),
         ) ??
@@ -888,8 +752,7 @@ class _TryOnPhotoCard extends ConsumerWidget {
       await ref.read(tryOnPhotoProvider.notifier).remove();
       if (context.mounted) AppToast.info(context, 'Try-on photo removed');
     } catch (e) {
-      if (context.mounted)
-        AppToast.error(context, errorMessage(e, 'Could not remove photo'));
+      if (context.mounted) AppToast.error(context, errorMessage(e, 'Could not remove photo'));
     }
   }
 
@@ -907,11 +770,7 @@ class _TryOnPhotoCard extends ConsumerWidget {
         color: c.surface,
         borderRadius: BorderRadius.circular(AppRadius.card),
         boxShadow: <BoxShadow>[
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 10, offset: const Offset(0, 3)),
         ],
       ),
       child: Row(
@@ -925,8 +784,7 @@ class _TryOnPhotoCard extends ConsumerWidget {
                   ? Image.network(
                       photo!.url!,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) =>
-                          Icon(Icons.person_outline, color: c.textSecondary),
+                      errorBuilder: (_, _, _) => Icon(Icons.person_outline, color: c.textSecondary),
                     )
                   : ColoredBox(
                       color: c.primary.withValues(alpha: 0.08),
@@ -945,8 +803,8 @@ class _TryOnPhotoCard extends ConsumerWidget {
                   async.hasError && !has
                       ? 'Could not check your photo. Pull to refresh or try again.'
                       : has
-                      ? 'Saved. AI try-on uses it, so no camera needed.'
-                      : 'Add one full-body photo and try on any item in one tap.',
+                          ? 'Saved. AI try-on uses it, so no camera needed.'
+                          : 'Add one full-body photo and try on any item in one tap.',
                   style: text.bodySmall?.copyWith(color: c.textSecondary),
                 ),
                 Row(
@@ -996,11 +854,7 @@ class _StyleDnaCard extends ConsumerWidget {
         color: c.surface,
         borderRadius: BorderRadius.circular(AppRadius.card),
         boxShadow: <BoxShadow>[
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 10, offset: const Offset(0, 3)),
         ],
       ),
       child: Column(
@@ -1035,29 +889,13 @@ class _StyleDnaCard extends ConsumerWidget {
           else ...<Widget>[
             const SizedBox(height: AppSpacing.sm),
             if (profile.likedColors.isNotEmpty)
-              _DnaRow(
-                label: 'Colors',
-                items: profile.likedColors,
-                color: c.primary,
-              ),
+              _DnaRow(label: 'Colors', items: profile.likedColors, color: c.primary),
             if (profile.likedStyles.isNotEmpty)
-              _DnaRow(
-                label: 'Styles',
-                items: profile.likedStyles,
-                color: c.primary,
-              ),
+              _DnaRow(label: 'Styles', items: profile.likedStyles, color: c.primary),
             if (profile.likedPatterns.isNotEmpty)
-              _DnaRow(
-                label: 'Patterns',
-                items: profile.likedPatterns,
-                color: c.primary,
-              ),
+              _DnaRow(label: 'Patterns', items: profile.likedPatterns, color: c.primary),
             if (profile.dislikedStyles.isNotEmpty)
-              _DnaRow(
-                label: 'Avoid',
-                items: profile.dislikedStyles,
-                color: c.error,
-              ),
+              _DnaRow(label: 'Avoid', items: profile.dislikedStyles, color: c.error),
           ],
         ],
       ),
@@ -1066,11 +904,7 @@ class _StyleDnaCard extends ConsumerWidget {
 }
 
 class _DnaRow extends StatelessWidget {
-  const _DnaRow({
-    required this.label,
-    required this.items,
-    required this.color,
-  });
+  const _DnaRow({required this.label, required this.items, required this.color});
   final String label;
   final List<String> items;
   final Color color;
@@ -1084,41 +918,21 @@ class _DnaRow extends StatelessWidget {
         children: <Widget>[
           SizedBox(
             width: 60,
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: context.colors.textSecondary,
-              ),
-            ),
+            child: Text(label,
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: context.colors.textSecondary)),
           ),
           Expanded(
             child: Wrap(
               spacing: 4,
               runSpacing: 4,
-              children: items
-                  .map(
-                    (s) => Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: color.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        s,
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: color,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  )
-                  .toList(),
+              children: items.map((s) => Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(s, style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w600)),
+              )).toList(),
             ),
           ),
         ],
@@ -1213,7 +1027,10 @@ class _SettingsRow extends StatelessWidget {
 
     if (onTap == null) return content;
 
-    return InkWell(onTap: onTap, child: content);
+    return InkWell(
+      onTap: onTap,
+      child: content,
+    );
   }
 }
 
@@ -1246,7 +1063,10 @@ class _LegalSheet extends StatelessWidget {
       'Your Rights',
       'You may request access to, correction of, or deletion of your data at any time by contacting us. Deleting your account removes all associated data within 30 days.',
     ),
-    ('Contact', 'Questions about privacy? Email us at support@dressify.app.'),
+    (
+      'Contact',
+      'Questions about privacy? Email us at support@dressify.app.',
+    ),
   ];
 
   static const List<(String, String)> _terms = <(String, String)>[
@@ -1299,10 +1119,7 @@ class _LegalSheet extends StatelessWidget {
         children: <Widget>[
           Padding(
             padding: const EdgeInsets.fromLTRB(
-              AppSpacing.xl,
-              AppSpacing.md,
-              AppSpacing.md,
-              0,
+              AppSpacing.xl, AppSpacing.md, AppSpacing.md, 0,
             ),
             child: Row(
               children: <Widget>[
@@ -1325,20 +1142,14 @@ class _LegalSheet extends StatelessWidget {
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(
-              AppSpacing.xl,
-              AppSpacing.xs,
-              AppSpacing.xl,
-              AppSpacing.md,
+              AppSpacing.xl, AppSpacing.xs, AppSpacing.xl, AppSpacing.md,
             ),
             child: Text(title, style: text.titleLarge),
           ),
           Flexible(
             child: ListView.separated(
               padding: const EdgeInsets.fromLTRB(
-                AppSpacing.xl,
-                0,
-                AppSpacing.xl,
-                AppSpacing.xxxxl,
+                AppSpacing.xl, 0, AppSpacing.xl, AppSpacing.xxxxl,
               ),
               itemCount: sections.length,
               separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.lg),

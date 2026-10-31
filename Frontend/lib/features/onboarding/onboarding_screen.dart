@@ -111,9 +111,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       onPressed: _finish,
                       child: Text(
                         'Skip',
-                        style: text.labelLarge?.copyWith(
-                          color: c.textSecondary,
-                        ),
+                        style: text.labelLarge?.copyWith(color: c.textSecondary),
                       ),
                     ),
                 ],
@@ -196,11 +194,7 @@ class _SlideView extends StatelessWidget {
             child: Icon(slide.icon, size: 96, color: slide.tint),
           ),
           const SizedBox(height: AppSpacing.xxl),
-          Text(
-            slide.title,
-            style: text.displayMedium,
-            textAlign: TextAlign.center,
-          ),
+          Text(slide.title, style: text.displayMedium, textAlign: TextAlign.center),
           const SizedBox(height: AppSpacing.md),
           Text(
             slide.body,

@@ -3,11 +3,11 @@ import '../models/clothing_item.dart';
 
 /// Which avatar anchor point a garment type snaps to.
 String garmentAnchorKey(String type) => switch (type) {
-  'top' || 'jacket' || 'dress' => 'shoulder',
-  'bottom' => 'waist',
-  'shoes' => 'feet',
-  _ => 'chest',
-};
+      'top' || 'jacket' || 'dress' => 'shoulder',
+      'bottom' => 'waist',
+      'shoes' => 'feet',
+      _ => 'chest',
+    };
 
 /// Normalized (0..1) position of the snap anchor within the garment image.
 /// Uses backend-supplied anchorPoints when present; falls back to sensible defaults.
@@ -32,26 +32,26 @@ Offset garmentAnchorNorm(ClothingItem item) {
 
 /// Depth ordering — lower value paints first (behind higher values).
 int garmentDepth(String type) => switch (type) {
-  'shoes' => 0,
-  'bottom' => 1,
-  'dress' => 2,
-  'top' || 'jacket' => 3,
-  _ => 4,
-};
+      'shoes' => 0,
+      'bottom' => 1,
+      'dress' => 2,
+      'top' || 'jacket' => 3,
+      _ => 4,
+    };
 
 /// Width of garment as fraction of avatar canvas width (used in 2-D try-on).
 double garmentWidthFactor(String type) => switch (type) {
-  'top' || 'jacket' || 'dress' => 0.72,
-  'bottom' => 0.66,
-  'shoes' => 0.52,
-  _ => 0.42,
-};
+      'top' || 'jacket' || 'dress' => 0.72,
+      'bottom' => 0.66,
+      'shoes' => 0.52,
+      _ => 0.42,
+    };
 
 /// Width multiplier relative to shoulder span (used in camera overlay).
 double garmentShoulderMultiplier(String type) => switch (type) {
-  'top' || 'jacket' => 1.35,
-  'dress' => 1.25,
-  'bottom' => 1.20,
-  'shoes' => 0.55,
-  _ => 0.90,
-};
+      'top' || 'jacket' => 1.35,
+      'dress' => 1.25,
+      'bottom' => 1.20,
+      'shoes' => 0.55,
+      _ => 0.90,
+    };

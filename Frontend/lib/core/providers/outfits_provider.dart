@@ -24,16 +24,12 @@ class OutfitsNotifier extends StateNotifier<AsyncValue<List<Outfit>>> {
       if (raw != null) {
         try {
           cached = _parse(raw);
-        } catch (_) {
-          /* stale/incompatible cache: ignore */
-        }
+        } catch (_) {/* stale/incompatible cache: ignore */}
       }
     }
     state = cached != null
         ? AsyncValue<List<Outfit>>.data(cached)
-        : (state.value != null
-              ? state
-              : const AsyncValue<List<Outfit>>.loading());
+        : (state.value != null ? state : const AsyncValue<List<Outfit>>.loading());
     _nextCursor = null;
     try {
       final Dio dio = _ref.read(apiClientProvider);
@@ -88,38 +84,28 @@ class OutfitsNotifier extends StateNotifier<AsyncValue<List<Outfit>>> {
 
   Future<void> rename(String id, String name) async {
     final Dio dio = _ref.read(apiClientProvider);
-    await dio.patch<dynamic>(
-      '/outfits/$id',
-      data: <String, dynamic>{'name': name},
-    );
+    await dio.patch<dynamic>('/outfits/$id', data: <String, dynamic>{'name': name});
     final List<Outfit> current = state.value ?? <Outfit>[];
     state = AsyncValue<List<Outfit>>.data(
-      current
-          .map((Outfit o) => o.id == id ? o.copyWith(name: name) : o)
-          .toList(),
+      current.map((Outfit o) => o.id == id ? o.copyWith(name: name) : o).toList(),
     );
   }
 
   Future<void> toggleStar(String id) async {
     final List<Outfit> current = state.value ?? <Outfit>[];
     final Outfit? target = current.cast<Outfit?>().firstWhere(
-      (Outfit? o) => o?.id == id,
-      orElse: () => null,
-    );
+          (Outfit? o) => o?.id == id,
+          orElse: () => null,
+        );
     if (target == null) return;
     final bool next = !target.isStarred;
     // Optimistic update
     state = AsyncValue<List<Outfit>>.data(
-      current
-          .map((Outfit o) => o.id == id ? o.copyWith(isStarred: next) : o)
-          .toList(),
+      current.map((Outfit o) => o.id == id ? o.copyWith(isStarred: next) : o).toList(),
     );
     try {
       final Dio dio = _ref.read(apiClientProvider);
-      await dio.patch<dynamic>(
-        '/outfits/$id',
-        data: <String, dynamic>{'is_starred': next},
-      );
+      await dio.patch<dynamic>('/outfits/$id', data: <String, dynamic>{'is_starred': next});
     } catch (_) {
       // Roll back on failure
       state = AsyncValue<List<Outfit>>.data(
@@ -140,10 +126,7 @@ class OutfitsNotifier extends StateNotifier<AsyncValue<List<Outfit>>> {
   }
 
   /// Log a wear for the given outfit or individual clothing items.
-  Future<void> logWear({
-    String? outfitId,
-    List<String>? clothingItemIds,
-  }) async {
+  Future<void> logWear({String? outfitId, List<String>? clothingItemIds}) async {
     final Dio dio = _ref.read(apiClientProvider);
     await dio.post<dynamic>(
       '/wear-logs',
@@ -167,7 +150,7 @@ class OutfitsNotifier extends StateNotifier<AsyncValue<List<Outfit>>> {
 }
 
 final StateNotifierProvider<OutfitsNotifier, AsyncValue<List<Outfit>>>
-outfitsProvider =
+    outfitsProvider =
     StateNotifierProvider<OutfitsNotifier, AsyncValue<List<Outfit>>>(
-      OutfitsNotifier.new,
-    );
+  OutfitsNotifier.new,
+);

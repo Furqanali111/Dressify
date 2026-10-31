@@ -77,9 +77,10 @@ class _TryOnScreenState extends ConsumerState<TryOnScreen> {
     super.initState();
     _loadGarments();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref
-          .read(styleProfileProvider.notifier)
-          .logInteraction(action: 'tried', outfitId: widget.outfit?.id);
+      ref.read(styleProfileProvider.notifier).logInteraction(
+        action: 'tried',
+        outfitId: widget.outfit?.id,
+      );
       _logWearEvent();
     });
   }
@@ -141,15 +142,13 @@ class _TryOnScreenState extends ConsumerState<TryOnScreen> {
         if (_garments.containsKey(oi.clothingItemId)) return;
 
         ClothingItem? ci = cached.cast<ClothingItem?>().firstWhere(
-          (it) => it?.id == oi.clothingItemId,
-          orElse: () => null,
-        );
+            (it) => it?.id == oi.clothingItemId,
+            orElse: () => null);
 
         if (ci == null) {
           try {
-            final Response<dynamic> resp = await dio.get<dynamic>(
-              '/clothing/${oi.clothingItemId}',
-            );
+            final Response<dynamic> resp =
+                await dio.get<dynamic>('/clothing/${oi.clothingItemId}');
             ci = ClothingItem.fromJson(resp.data as Map<String, dynamic>);
           } on DioException {
             currentFailed.add(oi.clothingItemId);
@@ -162,10 +161,7 @@ class _TryOnScreenState extends ConsumerState<TryOnScreen> {
 
         try {
           final ui.Image img = await _decodeNetworkImage(ci.processedUrl);
-          if (!mounted) {
-            img.dispose();
-            return;
-          }
+          if (!mounted) { img.dispose(); return; }
           final _GarmentData gd = _GarmentData(item: ci, uiImage: img);
           final Map<String, dynamic>? pos = oi.position;
           if (pos != null) {
@@ -200,9 +196,10 @@ class _TryOnScreenState extends ConsumerState<TryOnScreen> {
   );
 
   static Future<ui.Image> _decodeNetworkImage(String url) async {
-    final Response<List<int>> resp = await _imageDio
-        .get<List<int>>(url, options: Options(responseType: ResponseType.bytes))
-        .timeout(const Duration(seconds: 15));
+    final Response<List<int>> resp = await _imageDio.get<List<int>>(
+      url,
+      options: Options(responseType: ResponseType.bytes),
+    ).timeout(const Duration(seconds: 15));
     final Uint8List bytes = Uint8List.fromList(resp.data ?? <int>[]);
     if (bytes.isEmpty) throw Exception('Empty image response for $url');
     final Completer<ui.Image> completer = Completer<ui.Image>();
@@ -213,21 +210,19 @@ class _TryOnScreenState extends ConsumerState<TryOnScreen> {
   // ---- Actions ---------------------------------------------------------------
 
   void _resetView() => setState(() {
-    _scale = 1.0;
-    _offset = Offset.zero;
-  });
+        _scale = 1.0;
+        _offset = Offset.zero;
+      });
 
   Map<String, dynamic> _buildSavePayload() {
     final DateTime now = DateTime.now();
     final String name =
         'Outfit ${now.month}/${now.day} ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
     final List<Map<String, dynamic>> items = _garments.values
-        .map(
-          (g) => <String, dynamic>{
-            'clothing_item_id': g.item.id,
-            'position': <String, dynamic>{'dx': g.offset.dx, 'dy': g.offset.dy},
-          },
-        )
+        .map((g) => <String, dynamic>{
+              'clothing_item_id': g.item.id,
+              'position': <String, dynamic>{'dx': g.offset.dx, 'dy': g.offset.dy},
+            })
         .toList();
     return <String, dynamic>{
       'name': name,
@@ -255,20 +250,21 @@ class _TryOnScreenState extends ConsumerState<TryOnScreen> {
       });
       HapticFeedback.lightImpact();
       AppToast.success(context, 'Outfit saved');
-      ref
-          .read(styleProfileProvider.notifier)
-          .logInteraction(
-            action: 'saved',
-            outfitId: widget.outfit?.id,
-            clothingItemIds: _garments.keys.toList(),
-          );
+      ref.read(styleProfileProvider.notifier).logInteraction(
+        action: 'saved',
+        outfitId: widget.outfit?.id,
+        clothingItemIds: _garments.keys.toList(),
+      );
       Future<void>.delayed(AppConstants.saveFeedbackDuration, () {
         if (mounted) setState(() => _saved = false);
       });
     } on DioException catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
-      AppToast.error(context, friendlyMessage(e));
+      AppToast.error(
+        context,
+        friendlyMessage(e),
+      );
     }
   }
 
@@ -300,22 +296,20 @@ class _TryOnScreenState extends ConsumerState<TryOnScreen> {
       backgroundColor: AppConstants.tryOnCanvasColor,
       body: SafeArea(
         child: Column(
-          children: <Widget>[
+            children: <Widget>[
             _TopBar(
               onBack: () => context.pop(),
               onCamera: _garments.isNotEmpty
                   ? () => context.pushNamed(
-                      AppRoute.cameraTryOn.name,
-                      extra: widget.outfit,
-                    )
+                        AppRoute.cameraTryOn.name,
+                        extra: widget.outfit,
+                      )
                   : null,
               onCheckFit: _garments.isNotEmpty
                   ? () => setState(() => _showFitBadges = !_showFitBadges)
                   : null,
               onRefresh: () async {
-                for (final g in _garments.values) {
-                  g.dispose();
-                }
+                for (final g in _garments.values) { g.dispose(); }
                 _garments.clear();
                 _resetView();
                 await _loadGarments();
@@ -337,14 +331,8 @@ class _TryOnScreenState extends ConsumerState<TryOnScreen> {
                       }),
                       child: ColoredBox(
                         color: AppConstants.tryOnCanvasColor,
-                        child:
-                            widget.outfit == null &&
-                                _garments.isEmpty &&
-                                !_loadingGarments
-                            ? _TryOnEmptyState(
-                                onBrowse: () =>
-                                    context.pushNamed(AppRoute.wardrobe.name),
-                              )
+                        child: widget.outfit == null && _garments.isEmpty && !_loadingGarments
+                            ? _TryOnEmptyState(onBrowse: () => context.pushNamed(AppRoute.wardrobe.name))
                             : Center(
                                 child: AnimatedOpacity(
                                   duration: const Duration(milliseconds: 180),
@@ -382,27 +370,20 @@ class _TryOnScreenState extends ConsumerState<TryOnScreen> {
                               ),
                               decoration: BoxDecoration(
                                 color: Colors.amber.withValues(alpha: 0.88),
-                                borderRadius: BorderRadius.circular(
-                                  AppRadius.thumbnail,
-                                ),
+                                borderRadius: BorderRadius.circular(AppRadius.thumbnail),
                               ),
                               child: const Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: <Widget>[
-                                  Icon(
-                                    Icons.warning_amber_rounded,
-                                    size: 16,
-                                    color: Colors.black87,
-                                  ),
+                                  Icon(Icons.warning_amber_rounded, size: 16, color: Colors.black87),
                                   SizedBox(width: 6),
                                   Expanded(
                                     child: Text(
                                       'Auto-fit confidence is low. Drag items to adjust.',
                                       style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.black87,
-                                      ),
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.black87),
                                     ),
                                   ),
                                 ],
@@ -419,30 +400,21 @@ class _TryOnScreenState extends ConsumerState<TryOnScreen> {
                                   vertical: AppSpacing.xs,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: Colors.redAccent.withValues(
-                                    alpha: 0.88,
-                                  ),
-                                  borderRadius: BorderRadius.circular(
-                                    AppRadius.thumbnail,
-                                  ),
+                                  color: Colors.redAccent.withValues(alpha: 0.88),
+                                  borderRadius: BorderRadius.circular(AppRadius.thumbnail),
                                 ),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: <Widget>[
-                                    const Icon(
-                                      Icons.error_outline,
-                                      size: 16,
-                                      color: Colors.white,
-                                    ),
+                                    const Icon(Icons.error_outline, size: 16, color: Colors.white),
                                     const SizedBox(width: 6),
                                     Expanded(
                                       child: Text(
                                         '${_failedIds.length} item(s) couldn\'t load — tap to retry.',
                                         style: const TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600,
-                                          color: Colors.white,
-                                        ),
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.white),
                                       ),
                                     ),
                                   ],
@@ -464,18 +436,12 @@ class _TryOnScreenState extends ConsumerState<TryOnScreen> {
                         ),
                         decoration: BoxDecoration(
                           color: c.primary.withValues(alpha: 0.88),
-                          borderRadius: BorderRadius.circular(
-                            AppRadius.thumbnail,
-                          ),
+                          borderRadius: BorderRadius.circular(AppRadius.thumbnail),
                         ),
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: <Widget>[
-                            Icon(
-                              Icons.check_circle_outline,
-                              size: 14,
-                              color: Colors.white,
-                            ),
+                            Icon(Icons.check_circle_outline, size: 14, color: Colors.white),
                             SizedBox(width: 4),
                             Text(
                               'Fit personalised',
@@ -497,14 +463,11 @@ class _TryOnScreenState extends ConsumerState<TryOnScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: _garments.values.map((g) {
-                          final fitAsync = ref.watch(
-                            fitRatingProvider(g.item.id),
-                          );
+                          final fitAsync = ref.watch(fitRatingProvider(g.item.id));
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 4),
                             child: fitAsync.when(
-                              data: (fit) =>
-                                  _FitBadge(name: g.item.name, fit: fit),
+                              data: (fit) => _FitBadge(name: g.item.name, fit: fit),
                               loading: () => const SizedBox.shrink(),
                               error: (_, _) => const SizedBox.shrink(),
                             ),
@@ -576,8 +539,8 @@ class _TryOnScreenState extends ConsumerState<TryOnScreen> {
               ),
             ),
           ],
+          ),
         ),
-      ),
     );
   }
 }
@@ -587,13 +550,7 @@ class _TryOnScreenState extends ConsumerState<TryOnScreen> {
 // ---------------------------------------------------------------------------
 
 class _TopBar extends StatelessWidget {
-  const _TopBar({
-    required this.onBack,
-    this.onCamera,
-    this.onCheckFit,
-    this.onRefresh,
-    this.fitActive = false,
-  });
+  const _TopBar({required this.onBack, this.onCamera, this.onCheckFit, this.onRefresh, this.fitActive = false});
   final VoidCallback onBack;
   final VoidCallback? onCamera;
   final VoidCallback? onCheckFit;
@@ -723,10 +680,7 @@ class _AvatarPreview extends ConsumerWidget {
             ClipRRect(
               borderRadius: BorderRadius.circular(AppRadius.card),
               child: CustomPaint(
-                painter: _ClothingPainter(
-                  garments: garments,
-                  fitScales: fitScales,
-                ),
+                painter: _ClothingPainter(garments: garments, fitScales: fitScales),
               ),
             ),
           // Loading indicator while garments are being fetched/decoded
@@ -765,16 +719,9 @@ class _TryOnEmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            Icon(
-              Icons.checkroom_outlined,
-              size: 64,
-              color: c.textSecondary.withValues(alpha: 0.4),
-            ),
+            Icon(Icons.checkroom_outlined, size: 64, color: c.textSecondary.withValues(alpha: 0.4)),
             const SizedBox(height: AppSpacing.md),
-            Text(
-              'No outfit loaded',
-              style: text.titleMedium?.copyWith(color: c.textSecondary),
-            ),
+            Text('No outfit loaded', style: text.titleMedium?.copyWith(color: c.textSecondary)),
             const SizedBox(height: AppSpacing.xs),
             Text(
               'Open an outfit from your wardrobe\nto preview it here.',
@@ -787,10 +734,7 @@ class _TryOnEmptyState extends StatelessWidget {
               icon: const Icon(Icons.checkroom, size: 18),
               label: const Text('Browse Wardrobe'),
               style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.xl,
-                  vertical: 12,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl, vertical: 12),
               ),
             ),
           ],
@@ -822,10 +766,7 @@ class _ClothingPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final List<_GarmentData> sorted = List<_GarmentData>.from(garments)
-      ..sort(
-        (a, b) =>
-            garmentDepth(a.item.type).compareTo(garmentDepth(b.item.type)),
-      );
+      ..sort((a, b) => garmentDepth(a.item.type).compareTo(garmentDepth(b.item.type)));
 
     for (final _GarmentData garment in sorted) {
       _paintOne(canvas, size, garment);
@@ -836,15 +777,11 @@ class _ClothingPainter extends CustomPainter {
     final ui.Image img = garment.uiImage;
 
     // 1. Display size: fixed width scaled by user body measurements, aspect-ratio height
-    final double dispW =
-        size.width *
-        garmentWidthFactor(garment.item.type) *
-        fitScales.forType(garment.item.type);
+    final double dispW = size.width * garmentWidthFactor(garment.item.type) * fitScales.forType(garment.item.type);
     final double dispH = dispW / (img.width / img.height);
 
     // 2. Avatar anchor in canvas pixels
-    final Offset avatarNorm =
-        _avatarAnchors[garmentAnchorKey(garment.item.type)]!;
+    final Offset avatarNorm = _avatarAnchors[garmentAnchorKey(garment.item.type)]!;
     final double avatarX = avatarNorm.dx * size.width;
     final double avatarY = avatarNorm.dy * size.height;
 
@@ -883,26 +820,10 @@ class _FitBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (Color bg, IconData icon, String label) = switch (fit.rating) {
-      FitRating.perfect => (
-        Colors.green.shade700,
-        Icons.check_circle_outline,
-        'Perfect fit',
-      ),
-      FitRating.mayBeSnug => (
-        Colors.orange.shade700,
-        Icons.warning_amber_rounded,
-        'May be snug',
-      ),
-      FitRating.runsLarge => (
-        Colors.blue.shade700,
-        Icons.info_outline,
-        'Runs large',
-      ),
-      FitRating.unknown => (
-        Colors.grey.shade700,
-        Icons.help_outline,
-        'Unknown fit',
-      ),
+      FitRating.perfect    => (Colors.green.shade700,  Icons.check_circle_outline, 'Perfect fit'),
+      FitRating.mayBeSnug  => (Colors.orange.shade700, Icons.warning_amber_rounded, 'May be snug'),
+      FitRating.runsLarge  => (Colors.blue.shade700,   Icons.info_outline,          'Runs large'),
+      FitRating.unknown    => (Colors.grey.shade700,   Icons.help_outline,          'Unknown fit'),
     };
 
     return Container(
@@ -918,11 +839,7 @@ class _FitBadge extends StatelessWidget {
           const SizedBox(width: 4),
           Text(
             '$name · $label',
-            style: const TextStyle(
-              fontSize: 11,
-              color: Colors.white,
-              fontWeight: FontWeight.w600,
-            ),
+            style: const TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.w600),
           ),
         ],
       ),
@@ -967,8 +884,8 @@ class _DetailsPanel extends StatelessWidget {
     final String itemSubtitle = outfitItemCount != null
         ? '$outfitItemCount item${outfitItemCount == 1 ? '' : 's'}'
         : garments.isNotEmpty
-        ? garments.first.item.type
-        : '';
+            ? garments.first.item.type
+            : '';
 
     // Thumbnail: use processed image of first garment, or a colour swatch
     Widget thumbnail;
@@ -1063,12 +980,12 @@ class _DetailsPanel extends StatelessWidget {
   }
 
   Widget _swatchFallback(AppColors c) => Container(
-    width: 40,
-    height: 40,
-    decoration: BoxDecoration(
-      color: c.primary.withValues(alpha: 0.15),
-      borderRadius: BorderRadius.circular(AppRadius.thumbnail),
-    ),
-    child: Icon(Icons.checkroom, size: 20, color: c.primary),
-  );
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: c.primary.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(AppRadius.thumbnail),
+        ),
+        child: Icon(Icons.checkroom, size: 20, color: c.primary),
+      );
 }

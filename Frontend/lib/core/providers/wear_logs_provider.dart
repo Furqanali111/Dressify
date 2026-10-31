@@ -19,11 +19,12 @@ class WearLogsState {
     List<WearLog>? items,
     bool? loading,
     String? nextCursor,
-  }) => WearLogsState(
-    items: items ?? this.items,
-    loading: loading ?? this.loading,
-    nextCursor: nextCursor ?? this.nextCursor,
-  );
+  }) =>
+      WearLogsState(
+        items: items ?? this.items,
+        loading: loading ?? this.loading,
+        nextCursor: nextCursor ?? this.nextCursor,
+      );
 }
 
 class WearLogsNotifier extends StateNotifier<WearLogsState> {
@@ -39,11 +40,10 @@ class WearLogsNotifier extends StateNotifier<WearLogsState> {
       final Dio dio = _ref.read(apiClientProvider);
       final Response<dynamic> res = await dio.get<dynamic>('/wear-logs');
       final dynamic data = res.data;
-
-      final List<dynamic> raw =
-          (data as Map<String, dynamic>)['items'] as List<dynamic>;
+      
+      final List<dynamic> raw = (data as Map<String, dynamic>)['items'] as List<dynamic>;
       final String? cursor = data['next_cursor'] as String?;
-
+      
       final List<WearLog> items = raw
           .map((e) => WearLog.fromJson(e as Map<String, dynamic>))
           .toList();
@@ -63,11 +63,10 @@ class WearLogsNotifier extends StateNotifier<WearLogsState> {
         queryParameters: <String, dynamic>{'cursor': state.nextCursor},
       );
       final dynamic data = res.data;
-
-      final List<dynamic> raw =
-          (data as Map<String, dynamic>)['items'] as List<dynamic>;
+      
+      final List<dynamic> raw = (data as Map<String, dynamic>)['items'] as List<dynamic>;
       final String? cursor = data['next_cursor'] as String?;
-
+      
       final List<WearLog> newItems = raw
           .map((e) => WearLog.fromJson(e as Map<String, dynamic>))
           .toList();
@@ -84,5 +83,5 @@ class WearLogsNotifier extends StateNotifier<WearLogsState> {
 
 final StateNotifierProvider<WearLogsNotifier, WearLogsState> wearLogsProvider =
     StateNotifierProvider<WearLogsNotifier, WearLogsState>(
-      WearLogsNotifier.new,
-    );
+  WearLogsNotifier.new,
+);

@@ -63,12 +63,12 @@ class GarmentControlPoints {
   ]);
 
   static GarmentControlPoints forType(String type) => switch (type) {
-    'top' => _top,
-    'jacket' => _jacket,
-    'dress' => _dress,
-    'bottom' => _bottom,
-    _ => _top,
-  };
+        'top' => _top,
+        'jacket' => _jacket,
+        'dress' => _dress,
+        'bottom' => _bottom,
+        _ => _top,
+      };
 
   // ── Target point computation ──────────────────────────────────────────────
 
@@ -82,20 +82,10 @@ class GarmentControlPoints {
   ) {
     return switch (type) {
       'top' || 'jacket' || 'dress' => _targetsUpperBody(
-        type,
-        anchors,
-        size,
-        shoulderSpan,
-        FitProfile.forType(type),
-      ),
+          type, anchors, size, shoulderSpan, FitProfile.forType(type)),
       'bottom' => _targetsBottom(anchors, size),
       _ => _targetsUpperBody(
-        type,
-        anchors,
-        size,
-        shoulderSpan,
-        FitProfile.forType(type),
-      ),
+          type, anchors, size, shoulderSpan, FitProfile.forType(type)),
     };
   }
 
@@ -120,10 +110,7 @@ class GarmentControlPoints {
     final double midY = (lsY + rsY) / 2;
 
     // Collar: rises above shoulder midpoint
-    final Offset collar = Offset(
-      midX,
-      midY - shoulderSpan * profile.collarRiseRatio,
-    );
+    final Offset collar = Offset(midX, midY - shoulderSpan * profile.collarRiseRatio);
 
     // Shoulder seam landmarks
     final Offset leftShoulder = Offset(lsX, lsY);
@@ -141,27 +128,21 @@ class GarmentControlPoints {
     final double drop = shoulderSpan * profile.sleeveDropRatio;
 
     // Left sleeve: in the dirX direction (away from right shoulder)
-    final Offset leftSleeve = Offset(
-      lsX + dirX * extend,
-      lsY + dirY * extend + drop,
-    );
+    final Offset leftSleeve = Offset(lsX + dirX * extend, lsY + dirY * extend + drop);
     // Right sleeve: opposite direction
-    final Offset rightSleeve = Offset(
-      rsX - dirX * extend,
-      rsY - dirY * extend + drop,
-    );
+    final Offset rightSleeve = Offset(rsX - dirX * extend, rsY - dirY * extend + drop);
 
     // Hip landmarks (or estimated from torso height)
     final NormAnchor? lh = anchors['leftHip'];
     final NormAnchor? rh = anchors['rightHip'];
     final double torsoEst = shoulderSpan * 1.1;
 
-    final double lhX = lh != null ? lh.x * size.width : lsX;
+    final double lhX = lh != null ? lh.x * size.width  : lsX;
     final double lhY = lh != null ? lh.y * size.height : lsY + torsoEst;
-    final double rhX = rh != null ? rh.x * size.width : rsX;
+    final double rhX = rh != null ? rh.x * size.width  : rsX;
     final double rhY = rh != null ? rh.y * size.height : rsY + torsoEst;
 
-    final Offset leftWaist = Offset(lhX, lhY);
+    final Offset leftWaist  = Offset(lhX, lhY);
     final Offset rightWaist = Offset(rhX, rhY);
 
     // Hem: below the hip midpoint
@@ -170,16 +151,7 @@ class GarmentControlPoints {
     final double hemY = hipMidY + torsoActual * 0.15;
     final Offset hem = Offset(midX, hemY);
 
-    return <Offset>[
-      collar,
-      leftShoulder,
-      rightShoulder,
-      leftSleeve,
-      rightSleeve,
-      leftWaist,
-      rightWaist,
-      hem,
-    ];
+    return <Offset>[collar, leftShoulder, rightShoulder, leftSleeve, rightSleeve, leftWaist, rightWaist, hem];
   }
 
   List<Offset>? _targetsBottom(Map<String, NormAnchor> anchors, Size size) {
@@ -197,21 +169,21 @@ class GarmentControlPoints {
     // Knee: estimate 1.4× hip-span below the hips, or use landmark
     final NormAnchor? lk = anchors['leftKnee'];
     final NormAnchor? rk = anchors['rightKnee'];
-    final double lkX = lk != null ? lk.x * size.width : lhX;
+    final double lkX = lk != null ? lk.x * size.width  : lhX;
     final double lkY = lk != null ? lk.y * size.height : lhY + hipSpan * 1.4;
-    final double rkX = rk != null ? rk.x * size.width : rhX;
+    final double rkX = rk != null ? rk.x * size.width  : rhX;
     final double rkY = rk != null ? rk.y * size.height : rhY + hipSpan * 1.4;
 
     // Ankle/hem: estimate 2.6× hip-span below hips, or use landmark
     final NormAnchor? la = anchors['leftAnkle'];
     final NormAnchor? ra = anchors['rightAnkle'];
-    final double laX = la != null ? la.x * size.width : lhX;
+    final double laX = la != null ? la.x * size.width  : lhX;
     final double laY = la != null ? la.y * size.height : lhY + hipSpan * 2.6;
-    final double raX = ra != null ? ra.x * size.width : rhX;
+    final double raX = ra != null ? ra.x * size.width  : rhX;
     final double raY = ra != null ? ra.y * size.height : rhY + hipSpan * 2.6;
 
     // Mid-thigh: halfway between hip and knee
-    final Offset leftMidThigh = Offset((lhX + lkX) / 2, (lhY + lkY) / 2);
+    final Offset leftMidThigh  = Offset((lhX + lkX) / 2, (lhY + lkY) / 2);
     final Offset rightMidThigh = Offset((rhX + rkX) / 2, (rhY + rkY) / 2);
 
     return <Offset>[

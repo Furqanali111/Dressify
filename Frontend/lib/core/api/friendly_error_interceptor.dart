@@ -19,19 +19,14 @@ String friendlyMessage(DioException e) {
       return 'This is taking too long. Please try again.';
     default:
       final int? code = e.response?.statusCode;
-      if (code == 429)
-        return "You're doing that too fast. Wait a moment and retry.";
-      if (code != null && code >= 500)
-        return 'Something went wrong on our side. Try again shortly.';
+      if (code == 429) return "You're doing that too fast. Wait a moment and retry.";
+      if (code != null && code >= 500) return 'Something went wrong on our side. Try again shortly.';
       final Object? data = e.response?.data;
-      if (data is Map && data['detail'] is String)
-        return data['detail'] as String;
+      if (data is Map && data['detail'] is String) return data['detail'] as String;
       return 'Something went wrong. Please try again.';
   }
 }
 
 /// Message for any caught error: friendly text for network errors, else [fallback].
-String errorMessage(
-  Object e, [
-  String fallback = 'Something went wrong. Please try again.',
-]) => e is DioException ? friendlyMessage(e) : fallback;
+String errorMessage(Object e, [String fallback = 'Something went wrong. Please try again.']) =>
+    e is DioException ? friendlyMessage(e) : fallback;

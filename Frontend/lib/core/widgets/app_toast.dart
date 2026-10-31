@@ -24,8 +24,8 @@ class AppToast {
 
     final (IconData icon, Color accent) = switch (variant) {
       ToastVariant.success => (Icons.check_circle_outline, c.success),
-      ToastVariant.error => (Icons.error_outline, c.error),
-      ToastVariant.info => (Icons.info_outline, c.primary),
+      ToastVariant.error   => (Icons.error_outline, c.error),
+      ToastVariant.info    => (Icons.info_outline, c.primary),
     };
 
     messenger

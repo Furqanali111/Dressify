@@ -5,8 +5,7 @@ import 'dart:ui' as ui;
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:camera/camera.dart';
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart'
-    show defaultTargetPlatform, TargetPlatform;
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -27,8 +26,7 @@ import '../../core/services/pose_detection_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_constants.dart';
 import '../../core/theme/app_spacing.dart';
-import 'package:permission_handler/permission_handler.dart'
-    show openAppSettings;
+import 'package:permission_handler/permission_handler.dart' show openAppSettings;
 
 import '../../core/utils/app_permissions.dart';
 import '../../core/utils/garment_control_points.dart';
@@ -72,7 +70,11 @@ double _shoulderSpan(Map<String, NormAnchor> a, Size size) {
 ///                     [cameraGarmentsProvider] (set by "See on Me" in wardrobe).
 /// [tabMode] = false — pushed as a modal; loads garments from [outfit].
 class CameraTryOnScreen extends ConsumerStatefulWidget {
-  const CameraTryOnScreen({super.key, this.outfit, this.tabMode = false});
+  const CameraTryOnScreen({
+    super.key,
+    this.outfit,
+    this.tabMode = false,
+  });
 
   final Outfit? outfit;
   final bool tabMode;
@@ -136,9 +138,9 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
   bool _highQuality = true;
 
   // ── Wrinkle pose crossfade (S4.2.4) ──────────────────────────────────────
-  String _currentPose = 'arms_down';
-  String _prevPose = 'arms_down';
-  int _poseChangedAtMs = 0;
+  String _currentPose    = 'arms_down';
+  String _prevPose       = 'arms_down';
+  int    _poseChangedAtMs = 0;
 
   // ---------------------------------------------------------------------------
   // Lifecycle
@@ -150,8 +152,7 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
     WidgetsBinding.instance.addObserver(this);
     // Gate expensive per-frame blur effects on displays that run at 60 Hz+.
     final double hz =
-        ui.PlatformDispatcher.instance.displays.firstOrNull?.refreshRate ??
-        60.0;
+        ui.PlatformDispatcher.instance.displays.firstOrNull?.refreshRate ?? 60.0;
     _highQuality = hz >= 59.0;
     _initCamera();
     if (!widget.tabMode) {
@@ -295,25 +296,25 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
           lensDirection: cam.lensDirection,
         )
         .then((Map<String, NormAnchor>? anchors) {
-          if (!mounted) return;
-          setState(() {
-            if (anchors != null) {
-              _anchors = _smoothAnchors(_anchors, anchors);
-              _lastValidAnchors = _anchors;
-              _lastAnchorMs = DateTime.now().millisecondsSinceEpoch;
-            } else {
-              _anchors = null;
-              _startFadeTimer(); // keep repainting during the tracking-loss fade-out
-            }
-            if (_anchors != null && _displaySize != Size.zero) {
-              _resolveTpsInto(_anchors!, _displaySize);
-            }
-            if (_anchors != null) {
-              // Pose classification removed — feature is speculative.
-            }
-          });
-        })
-        .catchError((_) {});
+      if (!mounted) return;
+      setState(() {
+        if (anchors != null) {
+          _anchors = _smoothAnchors(_anchors, anchors);
+          _lastValidAnchors = _anchors;
+          _lastAnchorMs = DateTime.now().millisecondsSinceEpoch;
+        } else {
+          _anchors = null;
+          _startFadeTimer(); // keep repainting during the tracking-loss fade-out
+        }
+        if (_anchors != null && _displaySize != Size.zero) {
+          _resolveTpsInto(_anchors!, _displaySize);
+        }
+        if (_anchors != null) {
+          // Pose classification removed — feature is speculative.
+        }
+      });
+    }).catchError((_) {});
+
   }
 
   // ---------------------------------------------------------------------------
@@ -342,14 +343,10 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
   void _startFadeTimer() {
     if (_fadeTimer?.isActive ?? false) return;
     _fadeTimer = Timer.periodic(const Duration(milliseconds: 16), (_) {
-      if (!mounted) {
-        _fadeTimer?.cancel();
-        return;
-      }
+      if (!mounted) { _fadeTimer?.cancel(); return; }
       final int now = DateTime.now().millisecondsSinceEpoch;
-      final bool garmentFading = _garmentLoadTimes.values.any(
-        (int t) => now - t < 200,
-      );
+      final bool garmentFading =
+          _garmentLoadTimes.values.any((int t) => now - t < 200);
       final bool trackingFading = _anchors == null && now - _lastAnchorMs < 400;
       if (garmentFading || trackingFading) {
         setState(() {});
@@ -381,15 +378,10 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
     final Map<String, TpsSolution?> updated = {};
     for (final _GarmentData g in _garments.values) {
       final GarmentControlPoints cp = GarmentControlPoints.forType(g.item.type);
-      final List<Offset>? targets = cp.computeTargets(
-        g.item.type,
-        anchors,
-        size,
-        span,
-      );
-      updated[g.item.id] = targets != null
-          ? TpsWarper.solve(cp.uvPoints, targets)
-          : null;
+      final List<Offset>? targets =
+          cp.computeTargets(g.item.type, anchors, size, span);
+      updated[g.item.id] =
+          targets != null ? TpsWarper.solve(cp.uvPoints, targets) : null;
     }
     _tpsSolutions = updated;
   }
@@ -400,12 +392,11 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
         ref.read(wardrobeProvider).value ?? const <ClothingItem>[];
     await _loadItems(
       outfit.items
-          .map(
-            (OutfitItem oi) => cached.cast<ClothingItem?>().firstWhere(
-              (ClothingItem? it) => it?.id == oi.clothingItemId,
-              orElse: () => null,
-            ),
-          )
+          .map((OutfitItem oi) =>
+              cached.cast<ClothingItem?>().firstWhere(
+                    (ClothingItem? it) => it?.id == oi.clothingItemId,
+                    orElse: () => null,
+                  ))
           .whereType<ClothingItem>()
           .toList(),
     );
@@ -414,17 +405,14 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
   Future<void> _loadItems(List<ClothingItem> items) async {
     final List<String> ids = items.map((ClothingItem it) => it.id).toList();
     final Set<String> newSet = ids.toSet();
-    if (newSet.length == _lastLoadedIds.length &&
-        newSet.containsAll(_lastLoadedIds))
-      return;
+    if (newSet.length == _lastLoadedIds.length && newSet.containsAll(_lastLoadedIds)) return;
 
     if (mounted) setState(() => _loadingGarments = true);
 
     // Dispose garments that are no longer in the list.
     final Set<String> newIds = ids.toSet();
-    final List<String> toRemove = _garments.keys
-        .where((String k) => !newIds.contains(k))
-        .toList();
+    final List<String> toRemove =
+        _garments.keys.where((String k) => !newIds.contains(k)).toList();
     for (final String k in toRemove) {
       _garments[k]?.dispose();
       _garments.remove(k);
@@ -436,21 +424,14 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
       if (ci.processedUrl.isEmpty) continue;
       try {
         final ui.Image img = await _decodeNetworkImage(ci.processedUrl);
-        if (!mounted) {
-          img.dispose();
-          return;
-        }
+        if (!mounted) { img.dispose(); return; }
         // Show garment immediately; wrinkle maps load in the background (S6.6)
         _garments[ci.id] = _GarmentData(item: ci, uiImage: img);
         _garmentLoadTimes[ci.id] = DateTime.now().millisecondsSinceEpoch;
         _startFadeTimer();
         // Wrinkle cache removed — speculative feature.
       } catch (_) {
-        if (mounted)
-          AppToast.error(
-            context,
-            'Could not load "${ci.name}" — check your connection',
-          );
+        if (mounted) AppToast.error(context, 'Could not load "${ci.name}" — check your connection');
       }
     }
 
@@ -466,6 +447,8 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
     }
   }
 
+
+
   // Shared Dio for garment image downloads — avoids a new TCP handshake per item.
   static final Dio _imageDio = Dio(
     BaseOptions(
@@ -475,9 +458,10 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
   );
 
   static Future<ui.Image> _decodeNetworkImage(String url) async {
-    final Response<List<int>> resp = await _imageDio
-        .get<List<int>>(url, options: Options(responseType: ResponseType.bytes))
-        .timeout(AppConstants.imageLoadTimeout);
+    final Response<List<int>> resp = await _imageDio.get<List<int>>(
+      url,
+      options: Options(responseType: ResponseType.bytes),
+    ).timeout(AppConstants.imageLoadTimeout);
     final Uint8List bytes = Uint8List.fromList(resp.data ?? <int>[]);
     if (bytes.isEmpty) throw Exception('Empty image response for $url');
     final Completer<ui.Image> completer = Completer<ui.Image>();
@@ -509,9 +493,8 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
     setState(() => _capturing = true);
     try {
       await _controller?.stopImageStream();
-      final RenderRepaintBoundary? boundary =
-          _previewKey.currentContext?.findRenderObject()
-              as RenderRepaintBoundary?;
+      final RenderRepaintBoundary? boundary = _previewKey.currentContext
+          ?.findRenderObject() as RenderRepaintBoundary?;
       if (boundary == null) {
         if (mounted) AppToast.error(context, 'Capture failed — try again');
         return;
@@ -524,9 +507,8 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
         cleanBytes = await (await _controller!.takePicture()).readAsBytes();
       } catch (_) {}
       final ui.Image image = await boundary.toImage(pixelRatio: 2.0);
-      final ByteData? byteData = await image.toByteData(
-        format: ui.ImageByteFormat.png,
-      );
+      final ByteData? byteData =
+          await image.toByteData(format: ui.ImageByteFormat.png);
       image.dispose();
       if (byteData == null) {
         if (mounted) AppToast.error(context, 'Capture failed — try again');
@@ -586,10 +568,8 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
                 },
                 onScaleUpdate: (ScaleUpdateDetails d) {
                   if (d.pointerCount < 2) return;
-                  final double next = (_scaleOnGestureStart * d.scale).clamp(
-                    0.5,
-                    2.0,
-                  );
+                  final double next =
+                      (_scaleOnGestureStart * d.scale).clamp(0.5, 2.0);
                   if ((next - _manualScale).abs() > 0.005) {
                     setState(() => _manualScale = next);
                   }
@@ -623,14 +603,10 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
                               child: CustomPaint(
                                 size: size,
                                 painter: _CameraOverlayPainter(
-                                  garments:
-                                      (_garments.values.toList()..sort(
-                                            (a, b) => garmentDepth(a.item.type)
-                                                .compareTo(
-                                                  garmentDepth(b.item.type),
-                                                ),
-                                          ))
-                                          .toList(),
+                                  garments: (_garments.values.toList()
+                                        ..sort((a, b) => garmentDepth(a.item.type)
+                                            .compareTo(garmentDepth(b.item.type))))
+                                      .toList(),
                                   anchors: _anchors,
                                   lastValidAnchors: _lastValidAnchors,
                                   lastAnchorMs: _lastAnchorMs,
@@ -674,11 +650,9 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
               ),
 
             // ── Pose quality hint ─────────────────────────────────────────
-            if (_cameraReady &&
-                hasGarments &&
-                _anchors != null &&
+            if (_cameraReady && hasGarments && _anchors != null &&
                 !(_anchors!.containsKey('leftShoulder') ||
-                    _anchors!.containsKey('rightShoulder')))
+                  _anchors!.containsKey('rightShoulder')))
               const Positioned(
                 top: 56,
                 left: 0,
@@ -692,9 +666,7 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
               ),
 
             // ── Pinch-scale indicator + reset ─────────────────────────────
-            if (_cameraReady &&
-                hasGarments &&
-                (_manualScale - 1.0).abs() > 0.01)
+            if (_cameraReady && hasGarments && (_manualScale - 1.0).abs() > 0.01)
               Positioned(
                 top: 56,
                 right: AppSpacing.md,
@@ -737,9 +709,8 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
                 child: _SelectedGarmentBar(
                   garments: _garments.values.toList(),
                   onRemove: (ClothingItem item) {
-                    final List<ClothingItem> current = List<ClothingItem>.from(
-                      ref.read(cameraGarmentsProvider),
-                    );
+                    final List<ClothingItem> current =
+                        List<ClothingItem>.from(ref.read(cameraGarmentsProvider));
                     current.removeWhere((ClothingItem it) => it.id == item.id);
                     ref.read(cameraGarmentsProvider.notifier).state = current;
                   },
@@ -834,6 +805,7 @@ class _CameraOverlayPainter extends CustomPainter {
   final Map<String, int> garmentLoadTimes;
   final int nowMs;
 
+
   @override
   void paint(Canvas canvas, Size size) {
     // Fall back to last valid anchors during tracking loss so the garment
@@ -857,31 +829,12 @@ class _CameraOverlayPainter extends CustomPainter {
     // Alpha channel scaled by anchorFade so tracking-loss drives the fade-out.
     final double lum = (0.4 + ambientLuma * 0.85).clamp(0.3, 1.3);
     final ColorFilter lightingFilter = ColorFilter.matrix(<double>[
-      lum * rGain,
-      0,
-      0,
-      0,
-      0,
-      0,
-      lum * gGain,
-      0,
-      0,
-      0,
-      0,
-      0,
-      lum * bGain,
-      0,
-      0,
-      0,
-      0,
-      0,
-      anchorFade,
-      0,
+      lum * rGain, 0, 0, 0, 0,
+      0, lum * gGain, 0, 0, 0,
+      0, 0, lum * bGain, 0, 0,
+      0, 0, 0, anchorFade, 0,
     ]);
-    canvas.saveLayer(
-      Rect.fromLTWH(0, 0, size.width, size.height),
-      Paint()..colorFilter = lightingFilter,
-    );
+    canvas.saveLayer(Rect.fromLTWH(0, 0, size.width, size.height), Paint()..colorFilter = lightingFilter);
 
     // Shadow opacity damps when the user scales the garment very small (far
     // away) so depth cues don't look wrong at tiny scale values.
@@ -932,13 +885,9 @@ class _CameraOverlayPainter extends CustomPainter {
     if (needFadeLayer) {
       canvas.saveLayer(
         null,
-        Paint()
-          ..color = Color.fromARGB(
-            (255 * garmentFadeIn).round(),
-            255,
-            255,
-            255,
-          ),
+        Paint()..color = Color.fromARGB(
+          (255 * garmentFadeIn).round(), 255, 255, 255,
+        ),
       );
     }
 
@@ -953,10 +902,8 @@ class _CameraOverlayPainter extends CustomPainter {
         canvas.scale(effectiveScale);
         canvas.translate(-ax, -ay);
       }
-      final (ui.Vertices verts, Paint paint) = TpsWarper.buildMesh(
-        solution: tps,
-        img: img,
-      );
+      final (ui.Vertices verts, Paint paint) =
+          TpsWarper.buildMesh(solution: tps, img: img);
 
       // Soft edge shadow: blurred semi-transparent copy drawn beneath the
       // garment so it appears to rest on the body rather than float above it.
@@ -982,20 +929,15 @@ class _CameraOverlayPainter extends CustomPainter {
     }
 
     // ── Fallback: quad warp or skew+paintImage ───────────────────────────────
-    final double gW =
-        shoulderSpan *
+    final double gW = shoulderSpan *
         garmentShoulderMultiplier(g.item.type) *
         fitScales.forType(g.item.type) *
         manualScale;
     final double gH = gW / (img.width / img.height);
 
     final Offset norm = garmentAnchorNorm(g.item);
-    final Rect rect = Rect.fromLTWH(
-      ax - norm.dx * gW,
-      ay - norm.dy * gH,
-      gW,
-      gH,
-    );
+    final Rect rect =
+        Rect.fromLTWH(ax - norm.dx * gW, ay - norm.dy * gH, gW, gH);
 
     final double lsy =
         anchors['leftShoulder']?.y ?? anchors['shoulder']?.y ?? 0.5;
@@ -1011,22 +953,10 @@ class _CameraOverlayPainter extends CustomPainter {
       canvas.save();
       canvas.transform(
         Matrix4(
-          1,
-          0,
-          0,
-          0,
-          skewFactor,
-          1,
-          0,
-          0,
-          0,
-          0,
-          1,
-          0,
-          -skewFactor * ay,
-          0,
-          0,
-          1,
+          1, 0, 0, 0,
+          skewFactor, 1, 0, 0,
+          0, 0, 1, 0,
+          -skewFactor * ay, 0, 0, 1,
         ).storage,
       );
       paintImage(canvas: canvas, rect: rect, image: img, fit: BoxFit.fill);
@@ -1067,9 +997,7 @@ class _CameraOverlayPainter extends CustomPainter {
 
     final double shoulderWidthNorm = (lS.x - rS.x).abs();
     final double hipWidthNorm = (lH.x - rH.x).abs();
-    final double taper = shoulderWidthNorm > 0
-        ? (hipWidthNorm / shoulderWidthNorm).clamp(0.6, 1.2)
-        : 1.0;
+    final double taper = shoulderWidthNorm > 0 ? (hipWidthNorm / shoulderWidthNorm).clamp(0.6, 1.2) : 1.0;
 
     final double topY = rect.top;
 
@@ -1083,9 +1011,7 @@ class _CameraOverlayPainter extends CustomPainter {
 
     // If the garment's native aspect ratio is shorter than the user's torso, stretch it to the hips!
     // (If it's longer, like a dress, we keep the longer length).
-    final double bottomY = rect.bottom < targetBottomY
-        ? targetBottomY
-        : rect.bottom;
+    final double bottomY = rect.bottom < targetBottomY ? targetBottomY : rect.bottom;
 
     final Offset tl = Offset(rect.left + topSkew * (topY - ay), topY);
     final Offset tr = Offset(rect.right + topSkew * (topY - ay), topY);
@@ -1093,14 +1019,8 @@ class _CameraOverlayPainter extends CustomPainter {
     final double cx = rect.center.dx;
     final double bottomHalfWidth = (rect.width / 2) * taper;
 
-    final Offset bl = Offset(
-      cx - bottomHalfWidth + bottomSkew * (bottomY - ay),
-      bottomY,
-    );
-    final Offset br = Offset(
-      cx + bottomHalfWidth + bottomSkew * (bottomY - ay),
-      bottomY,
-    );
+    final Offset bl = Offset(cx - bottomHalfWidth + bottomSkew * (bottomY - ay), bottomY);
+    final Offset br = Offset(cx + bottomHalfWidth + bottomSkew * (bottomY - ay), bottomY);
 
     return <Offset>[tl, tr, br, bl];
   }
@@ -1114,14 +1034,10 @@ class _CameraOverlayPainter extends CustomPainter {
     ]);
 
     final Float32List textureCoordinates = Float32List.fromList(<double>[
-      0,
-      0,
-      img.width.toDouble(),
-      0,
-      0,
-      img.height.toDouble(),
-      img.width.toDouble(),
-      img.height.toDouble(),
+      0, 0,
+      img.width.toDouble(), 0,
+      0, img.height.toDouble(),
+      img.width.toDouble(), img.height.toDouble(),
     ]);
 
     final ui.Vertices vertices = ui.Vertices.raw(
@@ -1141,6 +1057,8 @@ class _CameraOverlayPainter extends CustomPainter {
     final Paint paint = Paint()..shader = shader;
     canvas.drawVertices(vertices, BlendMode.srcOver, paint);
   }
+
+
 
   // S3.1 — Soft elliptical ground shadow drawn below the garment hem.
   void _paintBodyShadow(
@@ -1192,10 +1110,7 @@ class _CameraOverlayPainter extends CustomPainter {
     } else {
       final NormAnchor? sh = anchors['shoulder'];
       if (sh == null) return;
-      collarPt = Offset(
-        sh.x * size.width,
-        sh.y * size.height - shoulderSpan * 0.22,
-      );
+      collarPt = Offset(sh.x * size.width, sh.y * size.height - shoulderSpan * 0.22);
     }
 
     final double w = shoulderSpan * 0.42;
@@ -1262,8 +1177,7 @@ class _CapturePreviewDialogState extends ConsumerState<_CapturePreviewDialog> {
   @override
   Widget build(BuildContext context) {
     final TryOnState tryOnState = ref.watch(tryOnProvider);
-    final bool savedPhoto =
-        ref.watch(tryOnPhotoProvider).value?.hasPhoto ?? false;
+    final bool savedPhoto = ref.watch(tryOnPhotoProvider).value?.hasPhoto ?? false;
 
     ref.listen<TryOnState>(tryOnProvider, (_, TryOnState next) {
       if (next.status == TryOnStatus.done) {
@@ -1285,9 +1199,8 @@ class _CapturePreviewDialogState extends ConsumerState<_CapturePreviewDialog> {
     });
 
     final bool hasGarments = widget.garments.isNotEmpty;
-    final _GarmentData? selected = hasGarments
-        ? widget.garments[_selectedIndex]
-        : null;
+    final _GarmentData? selected =
+        hasGarments ? widget.garments[_selectedIndex] : null;
     final AppColors c = context.colors;
 
     return Dialog(
@@ -1319,20 +1232,19 @@ class _CapturePreviewDialogState extends ConsumerState<_CapturePreviewDialog> {
                     SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
                       child: Row(
-                        children: widget.garments.asMap().entries.map((
-                          MapEntry<int, _GarmentData> e,
-                        ) {
+                        children: widget.garments
+                            .asMap()
+                            .entries
+                            .map((MapEntry<int, _GarmentData> e) {
                           final bool isSel = e.key == _selectedIndex;
                           return GestureDetector(
-                            onTap: () => setState(() => _selectedIndex = e.key),
+                            onTap: () =>
+                                setState(() => _selectedIndex = e.key),
                             child: Container(
-                              margin: const EdgeInsets.only(
-                                right: AppSpacing.xs,
-                              ),
+                              margin:
+                                  const EdgeInsets.only(right: AppSpacing.xs),
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 5,
-                              ),
+                                  horizontal: 10, vertical: 5),
                               decoration: BoxDecoration(
                                 color: isSel ? Colors.white : Colors.white24,
                                 borderRadius: BorderRadius.circular(16),
@@ -1380,13 +1292,16 @@ class _CapturePreviewDialogState extends ConsumerState<_CapturePreviewDialog> {
                               ? null
                               : () async {
                                   Navigator.of(context).pop();
-                                  await Share.shareXFiles(<XFile>[
-                                    XFile.fromData(
-                                      widget.pngBytes,
-                                      mimeType: 'image/png',
-                                      name: 'dressify_outfit.png',
-                                    ),
-                                  ], subject: 'My Dressify Outfit');
+                                  await Share.shareXFiles(
+                                    <XFile>[
+                                      XFile.fromData(
+                                        widget.pngBytes,
+                                        mimeType: 'image/png',
+                                        name: 'dressify_outfit.png',
+                                      ),
+                                    ],
+                                    subject: 'My Dressify Outfit',
+                                  );
                                 },
                         ),
                       ),
@@ -1419,37 +1334,27 @@ class _CapturePreviewDialogState extends ConsumerState<_CapturePreviewDialog> {
                             )
                           : const Icon(Icons.auto_awesome, size: 18),
                       label: Text(
-                        tryOnState.isLoading ? 'Generating…' : 'AI Try-On',
-                      ),
+                          tryOnState.isLoading ? 'Generating…' : 'AI Try-On'),
                       onPressed: tryOnState.isLoading
                           ? null
-                          : () => ref
-                                .read(tryOnProvider.notifier)
-                                .generate(
-                                  clothingItemId: selected.item.id,
-                                  // Saved photo → nothing to upload. Otherwise send the
-                                  // clean frame and keep it for next time.
-                                  personImageBytes: savedPhoto
-                                      ? null
-                                      : (widget.cleanBytes ?? widget.pngBytes),
-                                  savePhoto:
-                                      !savedPhoto && widget.cleanBytes != null,
-                                ),
+                          : () => ref.read(tryOnProvider.notifier).generate(
+                                clothingItemId: selected.item.id,
+                                // Saved photo → nothing to upload. Otherwise send the
+                                // clean frame and keep it for next time.
+                                personImageBytes: savedPhoto ? null : (widget.cleanBytes ?? widget.pngBytes),
+                                savePhoto: !savedPhoto && widget.cleanBytes != null,
+                              ),
                     ),
                     if (savedPhoto && widget.cleanBytes != null)
                       TextButton(
                         onPressed: tryOnState.isLoading
                             ? null
-                            : () => ref
-                                  .read(tryOnProvider.notifier)
-                                  .generate(
-                                    clothingItemId: selected.item.id,
-                                    personImageBytes: widget.cleanBytes,
-                                    savePhoto: true,
-                                  ),
-                        child: const Text(
-                          'Use this photo instead (and save it)',
-                        ),
+                            : () => ref.read(tryOnProvider.notifier).generate(
+                                  clothingItemId: selected.item.id,
+                                  personImageBytes: widget.cleanBytes,
+                                  savePhoto: true,
+                                ),
+                        child: const Text('Use this photo instead (and save it)'),
                       ),
                   ],
                 ],
@@ -1708,20 +1613,15 @@ class _GarmentNameChips extends ConsumerWidget {
         final fitAsync = ref.watch(fitRatingProvider(g.item.id));
         final fit = fitAsync.valueOrNull;
 
-        final Color? badgeColor = fit == null
-            ? null
-            : switch (fit.rating) {
-                FitRating.perfect => Colors.green.shade600,
-                FitRating.mayBeSnug => Colors.orange.shade600,
-                FitRating.runsLarge => Colors.blue.shade600,
-                FitRating.unknown => null,
-              };
+        final Color? badgeColor = fit == null ? null : switch (fit.rating) {
+          FitRating.perfect    => Colors.green.shade600,
+          FitRating.mayBeSnug  => Colors.orange.shade600,
+          FitRating.runsLarge  => Colors.blue.shade600,
+          FitRating.unknown    => null,
+        };
 
         return Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.sm,
-            vertical: 4,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 4),
           decoration: BoxDecoration(
             color: Colors.black.withValues(alpha: 0.55),
             borderRadius: BorderRadius.circular(20),
@@ -1733,17 +1633,11 @@ class _GarmentNameChips extends ConsumerWidget {
                 Container(
                   width: 8,
                   height: 8,
-                  decoration: BoxDecoration(
-                    color: badgeColor,
-                    shape: BoxShape.circle,
-                  ),
+                  decoration: BoxDecoration(color: badgeColor, shape: BoxShape.circle),
                 ),
                 const SizedBox(width: 4),
               ],
-              Text(
-                g.item.name,
-                style: const TextStyle(color: Colors.white, fontSize: 12),
-              ),
+              Text(g.item.name, style: const TextStyle(color: Colors.white, fontSize: 12)),
             ],
           ),
         );
@@ -1950,20 +1844,13 @@ class _GarmentPickerSheet extends ConsumerWidget {
     final AppColors c = context.colors;
     final TextTheme text = Theme.of(context).textTheme;
 
-    final AsyncValue<List<ClothingItem>> wardrobeAsync = ref.watch(
-      wardrobeProvider,
-    );
+    final AsyncValue<List<ClothingItem>> wardrobeAsync = ref.watch(wardrobeProvider);
     final List<ClothingItem> all = (wardrobeAsync.value ?? <ClothingItem>[])
-        .where(
-          (ClothingItem it) =>
-              it.processingStatus != 'processing' &&
-              it.processingStatus != 'failed',
-        )
+        .where((ClothingItem it) =>
+            it.processingStatus != 'processing' && it.processingStatus != 'failed')
         .toList();
     final List<ClothingItem> selected = ref.watch(cameraGarmentsProvider);
-    final Set<String> selectedIds = selected
-        .map((ClothingItem it) => it.id)
-        .toSet();
+    final Set<String> selectedIds = selected.map((ClothingItem it) => it.id).toSet();
 
     return Container(
       constraints: BoxConstraints(
@@ -1983,10 +1870,7 @@ class _GarmentPickerSheet extends ConsumerWidget {
           children: <Widget>[
             Padding(
               padding: const EdgeInsets.fromLTRB(
-                AppSpacing.xl,
-                AppSpacing.md,
-                AppSpacing.xl,
-                AppSpacing.md,
+                AppSpacing.xl, AppSpacing.md, AppSpacing.xl, AppSpacing.md,
               ),
               child: Column(
                 children: <Widget>[
@@ -2034,10 +1918,7 @@ class _GarmentPickerSheet extends ConsumerWidget {
               Flexible(
                 child: ListView.builder(
                   padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.xl,
-                    0,
-                    AppSpacing.xl,
-                    AppSpacing.lg,
+                    AppSpacing.xl, 0, AppSpacing.xl, AppSpacing.lg,
                   ),
                   itemCount: all.length,
                   itemBuilder: (_, int i) {
@@ -2060,13 +1941,13 @@ class _GarmentPickerSheet extends ConsumerWidget {
                       ),
                       title: Text(
                         item.name,
-                        style: text.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
+                        style: text.bodyMedium
+                            ?.copyWith(fontWeight: FontWeight.w600),
                       ),
                       subtitle: Text(
                         item.type,
-                        style: text.bodySmall?.copyWith(color: c.textSecondary),
+                        style:
+                            text.bodySmall?.copyWith(color: c.textSecondary),
                       ),
                       trailing: Icon(
                         isSelected
@@ -2077,12 +1958,10 @@ class _GarmentPickerSheet extends ConsumerWidget {
                       onTap: () {
                         final List<ClothingItem> current =
                             List<ClothingItem>.from(
-                              ref.read(cameraGarmentsProvider),
-                            );
+                                ref.read(cameraGarmentsProvider));
                         if (isSelected) {
                           current.removeWhere(
-                            (ClothingItem it) => it.id == item.id,
-                          );
+                              (ClothingItem it) => it.id == item.id);
                         } else {
                           current.add(item);
                         }

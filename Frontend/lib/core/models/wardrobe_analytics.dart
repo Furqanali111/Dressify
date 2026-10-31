@@ -14,12 +14,12 @@ class WornItem {
   });
 
   factory WornItem.fromJson(Map<String, dynamic> json) => WornItem(
-    id: json['id'] as String,
-    name: json['name'] as String,
-    type: json['type'] as String,
-    wearCount: json['wear_count'] as int,
-    processedUrl: json['processed_url'] as String? ?? '',
-  );
+        id:           json['id'] as String,
+        name:         json['name'] as String,
+        type:         json['type'] as String,
+        wearCount:    json['wear_count'] as int,
+        processedUrl: json['processed_url'] as String? ?? '',
+      );
 }
 
 class WeeklyFrequency {
@@ -27,9 +27,8 @@ class WeeklyFrequency {
   final int count;
   const WeeklyFrequency({required this.week, required this.count});
 
-  factory WeeklyFrequency.fromJson(Map<String, dynamic> json) =>
-      WeeklyFrequency(
-        week: json['week'] as String,
+  factory WeeklyFrequency.fromJson(Map<String, dynamic> json) => WeeklyFrequency(
+        week:  json['week'] as String,
         count: json['count'] as int,
       );
 }
@@ -53,22 +52,16 @@ class WardrobeAnalytics {
     required this.outfitFrequency,
   });
 
-  factory WardrobeAnalytics.fromJson(Map<String, dynamic> json) =>
-      WardrobeAnalytics(
-        totalItems: json['total_items'] as int,
-        totalOutfits: json['total_outfits'] as int,
-        mostWorn: (json['most_worn'] as List<dynamic>)
-            .map((e) => WornItem.fromJson(e as Map<String, dynamic>))
-            .toList(),
+  factory WardrobeAnalytics.fromJson(Map<String, dynamic> json) => WardrobeAnalytics(
+        totalItems:    json['total_items'] as int,
+        totalOutfits:  json['total_outfits'] as int,
+        mostWorn:      (json['most_worn'] as List<dynamic>)
+            .map((e) => WornItem.fromJson(e as Map<String, dynamic>)).toList(),
         underutilised: (json['underutilised'] as List<dynamic>)
-            .map((e) => WornItem.fromJson(e as Map<String, dynamic>))
-            .toList(),
-        colorDistribution: Map<String, int>.from(
-          json['color_distribution'] as Map,
-        ),
-        styleBreakdown: Map<String, int>.from(json['style_breakdown'] as Map),
-        outfitFrequency: (json['outfit_frequency'] as List<dynamic>)
-            .map((e) => WeeklyFrequency.fromJson(e as Map<String, dynamic>))
-            .toList(),
+            .map((e) => WornItem.fromJson(e as Map<String, dynamic>)).toList(),
+        colorDistribution: Map<String, int>.from(json['color_distribution'] as Map),
+        styleBreakdown:    Map<String, int>.from(json['style_breakdown'] as Map),
+        outfitFrequency:   (json['outfit_frequency'] as List<dynamic>)
+            .map((e) => WeeklyFrequency.fromJson(e as Map<String, dynamic>)).toList(),
       );
 }

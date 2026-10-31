@@ -30,14 +30,13 @@ class ThemeModeNotifier extends StateNotifier<ThemeMode> {
   }
 
   String get label => switch (state) {
-    ThemeMode.light => 'Light',
-    ThemeMode.dark => 'Dark',
-    _ => 'System',
-  };
+        ThemeMode.light => 'Light',
+        ThemeMode.dark => 'Dark',
+        _ => 'System',
+      };
 }
 
-final themeModeProvider = StateNotifierProvider<ThemeModeNotifier, ThemeMode>((
-  ref,
-) {
+final themeModeProvider =
+    StateNotifierProvider<ThemeModeNotifier, ThemeMode>((ref) {
   return ThemeModeNotifier();
 });

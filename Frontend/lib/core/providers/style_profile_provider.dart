@@ -18,10 +18,7 @@ class StyleProfileNotifier extends AsyncNotifier<StyleProfile?> {
 
   Future<void> patchProfile(Map<String, dynamic> data) async {
     final dio = ref.read(apiClientProvider);
-    final res = await dio.patch<Map<String, dynamic>>(
-      'users/me/style-profile',
-      data: data,
-    );
+    final res = await dio.patch<Map<String, dynamic>>('users/me/style-profile', data: data);
     state = AsyncData(StyleProfile.fromJson(res.data!));
   }
 
@@ -32,21 +29,17 @@ class StyleProfileNotifier extends AsyncNotifier<StyleProfile?> {
   }) async {
     try {
       final dio = ref.read(apiClientProvider);
-      await dio.post<void>(
-        'interactions',
-        data: {
-          'action': action,
-          'clothing_item_ids': clothingItemIds,
-          'outfit_id': outfitId,
-        },
-      );
+      await dio.post<void>('interactions', data: {
+        'action': action,
+        'clothing_item_ids': clothingItemIds,
+        'outfit_id': outfitId,
+      });
     } catch (_) {
       // Interaction logging is best-effort — don't surface errors to the user
     }
   }
 }
 
-final styleProfileProvider =
-    AsyncNotifierProvider<StyleProfileNotifier, StyleProfile?>(() {
-      return StyleProfileNotifier();
-    });
+final styleProfileProvider = AsyncNotifierProvider<StyleProfileNotifier, StyleProfile?>(() {
+  return StyleProfileNotifier();
+});

@@ -289,8 +289,8 @@ class _StyleMeSheetState extends ConsumerState<StyleMeSheet> {
                     'Usually takes 5–10 seconds',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: context.colors.textSecondary,
-                    ),
+                          color: context.colors.textSecondary,
+                        ),
                   ),
                 ],
               ],

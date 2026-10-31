@@ -71,9 +71,9 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
   final TextEditingController _heightInchesController = TextEditingController();
   final TextEditingController _weightController = TextEditingController();
   // Phase 4.1 — optional body measurements
-  final TextEditingController _chestController = TextEditingController();
-  final TextEditingController _waistController = TextEditingController();
-  final TextEditingController _hipController = TextEditingController();
+  final TextEditingController _chestController    = TextEditingController();
+  final TextEditingController _waistController    = TextEditingController();
+  final TextEditingController _hipController      = TextEditingController();
   final TextEditingController _shoulderController = TextEditingController();
   bool _measurementsExpanded = false;
 
@@ -130,9 +130,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
         return;
       }
       final String inchesRaw = _heightInchesController.text.trim();
-      final double inches = inchesRaw.isEmpty
-          ? 0
-          : (double.tryParse(inchesRaw) ?? -1);
+      final double inches = inchesRaw.isEmpty ? 0 : (double.tryParse(inchesRaw) ?? -1);
       if (inches < 0 || inches >= 12) {
         setState(() => _heightError = 'Inches must be 0–11');
         return;
@@ -206,13 +204,10 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
       if (_gender != null) 'gender': _gender!.apiValue,
       // Phase 4.1 measurements (only if expanded and filled)
       if (_measurementsExpanded) ...{
-        if (parseCm(_chestController) != null)
-          'chest_cm': parseCm(_chestController),
-        if (parseCm(_waistController) != null)
-          'waist_cm': parseCm(_waistController),
-        if (parseCm(_hipController) != null) 'hip_cm': parseCm(_hipController),
-        if (parseCm(_shoulderController) != null)
-          'shoulder_cm': parseCm(_shoulderController),
+        if (parseCm(_chestController)    != null) 'chest_cm':    parseCm(_chestController),
+        if (parseCm(_waistController)    != null) 'waist_cm':    parseCm(_waistController),
+        if (parseCm(_hipController)      != null) 'hip_cm':      parseCm(_hipController),
+        if (parseCm(_shoulderController) != null) 'shoulder_cm': parseCm(_shoulderController),
       },
     };
 
@@ -222,9 +217,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text(
-              'Profile save failed — you can update it later in settings.',
-            ),
+            content: Text('Profile save failed — you can update it later in settings.'),
           ),
         );
       }
@@ -337,16 +330,14 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                       groupValue: _gender,
                       onChanged: (Gender? v) => setState(() => _gender = v),
                       child: Column(
-                        children: Gender.values
-                            .map(
-                              (Gender g) => RadioListTile<Gender>(
-                                title: Text(g.label, style: text.bodyMedium),
-                                value: g,
-                                dense: true,
-                                contentPadding: EdgeInsets.zero,
-                              ),
-                            )
-                            .toList(),
+                        children: Gender.values.map(
+                          (Gender g) => RadioListTile<Gender>(
+                            title: Text(g.label, style: text.bodyMedium),
+                            value: g,
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                        ).toList(),
                       ),
                     ),
                     const SizedBox(height: AppSpacing.lg),
@@ -388,14 +379,9 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                               label: 'Chest',
                               controller: _chestController,
                               hint: 'e.g. 90',
-                              keyboardType:
-                                  const TextInputType.numberWithOptions(
-                                    decimal: true,
-                                  ),
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
                               inputFormatters: <TextInputFormatter>[
-                                FilteringTextInputFormatter.allow(
-                                  RegExp(r'[0-9.]'),
-                                ),
+                                FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
                               ],
                             ),
                           ),
@@ -405,14 +391,9 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                               label: 'Waist',
                               controller: _waistController,
                               hint: 'e.g. 74',
-                              keyboardType:
-                                  const TextInputType.numberWithOptions(
-                                    decimal: true,
-                                  ),
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
                               inputFormatters: <TextInputFormatter>[
-                                FilteringTextInputFormatter.allow(
-                                  RegExp(r'[0-9.]'),
-                                ),
+                                FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
                               ],
                             ),
                           ),
@@ -426,14 +407,9 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                               label: 'Hip',
                               controller: _hipController,
                               hint: 'e.g. 96',
-                              keyboardType:
-                                  const TextInputType.numberWithOptions(
-                                    decimal: true,
-                                  ),
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
                               inputFormatters: <TextInputFormatter>[
-                                FilteringTextInputFormatter.allow(
-                                  RegExp(r'[0-9.]'),
-                                ),
+                                FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
                               ],
                             ),
                           ),
@@ -443,14 +419,9 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                               label: 'Shoulder',
                               controller: _shoulderController,
                               hint: 'e.g. 42',
-                              keyboardType:
-                                  const TextInputType.numberWithOptions(
-                                    decimal: true,
-                                  ),
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
                               inputFormatters: <TextInputFormatter>[
-                                FilteringTextInputFormatter.allow(
-                                  RegExp(r'[0-9.]'),
-                                ),
+                                FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
                               ],
                             ),
                           ),
@@ -577,16 +548,17 @@ class _HeightField extends StatelessWidget {
               label: 'Height',
               controller: cmController,
               hint: 'e.g. 175',
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
               inputFormatters: numericFormatters,
               error: error,
               onChanged: onChanged,
             ),
           ),
           const SizedBox(width: AppSpacing.md),
-          Padding(padding: const EdgeInsets.only(top: 22), child: toggle),
+          Padding(
+            padding: const EdgeInsets.only(top: 22),
+            child: toggle,
+          ),
         ],
       );
     }
@@ -621,7 +593,10 @@ class _HeightField extends StatelessWidget {
           ),
         ),
         const SizedBox(width: AppSpacing.md),
-        Padding(padding: const EdgeInsets.only(top: 22), child: toggle),
+        Padding(
+          padding: const EdgeInsets.only(top: 22),
+          child: toggle,
+        ),
       ],
     );
   }

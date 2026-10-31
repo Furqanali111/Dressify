@@ -2,7 +2,10 @@ class OutfitItem {
   final String clothingItemId;
   final Map<String, dynamic>? position;
 
-  const OutfitItem({required this.clothingItemId, this.position});
+  const OutfitItem({
+    required this.clothingItemId,
+    this.position,
+  });
 
   factory OutfitItem.fromJson(Map<String, dynamic> json) {
     return OutfitItem(
@@ -12,9 +15,9 @@ class OutfitItem {
   }
 
   Map<String, dynamic> toJson() => {
-    'clothing_item_id': clothingItemId,
-    'position': position,
-  };
+        'clothing_item_id': clothingItemId,
+        'position': position,
+      };
 }
 
 class Outfit {
@@ -45,8 +48,7 @@ class Outfit {
       name: json['name'] as String,
       avatarKind: json['avatar_kind'] as String,
       isStarred: json['is_starred'] as bool? ?? false,
-      items:
-          (json['items'] as List<dynamic>?)
+      items: (json['items'] as List<dynamic>?)
               ?.map((e) => OutfitItem.fromJson(e as Map<String, dynamic>))
               .toList() ??
           const [],
@@ -56,23 +58,23 @@ class Outfit {
   }
 
   Outfit copyWith({String? name, bool? isStarred}) => Outfit(
-    id: id,
-    userId: userId,
-    name: name ?? this.name,
-    avatarKind: avatarKind,
-    isStarred: isStarred ?? this.isStarred,
-    items: items,
-    createdAt: createdAt,
-    personalized: personalized,
-  );
+        id: id,
+        userId: userId,
+        name: name ?? this.name,
+        avatarKind: avatarKind,
+        isStarred: isStarred ?? this.isStarred,
+        items: items,
+        createdAt: createdAt,
+        personalized: personalized,
+      );
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'user_id': userId,
-    'name': name,
-    'avatar_kind': avatarKind,
-    'is_starred': isStarred,
-    'items': items.map((e) => e.toJson()).toList(),
-    'created_at': createdAt.toIso8601String(),
-  };
+        'id': id,
+        'user_id': userId,
+        'name': name,
+        'avatar_kind': avatarKind,
+        'is_starred': isStarred,
+        'items': items.map((e) => e.toJson()).toList(),
+        'created_at': createdAt.toIso8601String(),
+      };
 }
