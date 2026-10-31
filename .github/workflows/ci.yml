@@ -11,6 +11,13 @@ jobs:
         with: { python-version: "3.12", cache: pip, cache-dependency-path: Backend/requirements.txt }
       - run: pip install -r requirements.txt pytest
       - run: python -m pytest tests -q
+        env:  # dummy values: the smoke tests never reach Supabase or the DB
+          SUPABASE_URL: http://localhost:54321
+          SUPABASE_KEY: dummy
+          SUPABASE_SERVICE_KEY: dummy
+          DATABASE_URL: postgresql+psycopg://u:p@localhost/db
+          GOOGLE_CLIENT_ID: dummy
+          JWT_SECRET: dummy-secret
 
   frontend:
     runs-on: ubuntu-latest
@@ -19,6 +26,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
         with: { channel: stable, cache: true }
+      - run: touch .env  # declared as an asset but gitignored
       - run: flutter pub get
       - run: flutter analyze --no-fatal-infos
       - run: flutter test
