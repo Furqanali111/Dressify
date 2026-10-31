@@ -13,6 +13,7 @@ import '../utils/json_cache.dart';
 import 'fit_rating_provider.dart';
 import 'fit_scale_provider.dart';
 import 'outfits_provider.dart';
+import 'tryon_photo_provider.dart';
 import 'profile_provider.dart';
 import 'style_profile_provider.dart';
 import 'wardrobe_analytics_provider.dart';
@@ -127,6 +128,7 @@ class AuthStateNotifier extends StateNotifier<User?> {
     _ref.invalidate(wardrobeAnalyticsProvider);
     _ref.invalidate(fitRatingProvider);
     _ref.invalidate(fitScalesProvider);
+    _ref.invalidate(tryOnPhotoProvider);
   }
 }
 

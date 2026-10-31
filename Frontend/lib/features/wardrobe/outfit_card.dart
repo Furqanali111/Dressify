@@ -52,6 +52,7 @@ class OutfitCard extends ConsumerWidget {
           AppToast.error(context, 'Failed to log wear');
         }
       case WardrobeAction.seeOnMe:
+      case WardrobeAction.aiTryOn:
         break;
       case WardrobeAction.tryOn:
         context.pushNamed(AppRoute.tryOn.name, extra: outfit);

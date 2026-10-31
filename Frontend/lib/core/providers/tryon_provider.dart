@@ -28,13 +28,16 @@ class TryOnNotifier extends StateNotifier<TryOnState> {
   final Dio _dio;
 
   Future<void> generate({
-    required Uint8List personImageBytes,
     required String clothingItemId,
+    Uint8List? personImageBytes,
+    bool savePhoto = false,
   }) async {
     state = const TryOnState(status: TryOnStatus.loading);
     try {
       final FormData form = FormData.fromMap(<String, dynamic>{
-        'person_image':     MultipartFile.fromBytes(personImageBytes, filename: 'person.jpg'),
+        if (personImageBytes != null)
+          'person_image': MultipartFile.fromBytes(personImageBytes, filename: 'person.jpg'),
+        'save_photo':       savePhoto,
         'clothing_item_id': clothingItemId,
       });
       final Response<Map<String, dynamic>> resp =

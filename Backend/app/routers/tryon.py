@@ -1,12 +1,13 @@
 import asyncio
 import base64
+import hashlib
 import io
 import logging
 import time
 import uuid
 
 import httpx
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -28,12 +29,82 @@ _POLL_INTERVAL    = 2      # seconds between status polls
 _POLL_MAX         = 45     # give up after 90 seconds (45 × 2s)
 
 
+_MIN_PHOTO_SIDE = 400  # px; smaller photos give poor try-on results
+
+
+def _photo_path(user_id) -> str:
+    return f"tryon/{user_id}/person.jpg"
+
+
+def _prepare_photo(raw: bytes) -> bytes:
+    """Validate a user photo and normalise it to the VTON model's 768x1024 JPEG."""
+    from PIL import Image, ImageOps, UnidentifiedImageError
+
+    if not raw:
+        raise HTTPException(status_code=400, detail="Photo is empty")
+    try:
+        img = ImageOps.exif_transpose(Image.open(io.BytesIO(raw)))
+        img.load()
+    except (UnidentifiedImageError, OSError):
+        raise HTTPException(status_code=422, detail="That file is not a valid image")
+    if min(img.size) < _MIN_PHOTO_SIDE:
+        raise HTTPException(
+            status_code=422,
+            detail="Photo is too small — use a clear, full-body photo taken closer to the camera",
+        )
+    if img.width > img.height * 1.2:
+        raise HTTPException(
+            status_code=422,
+            detail="Use a portrait (upright) full-body photo",
+        )
+    buf = io.BytesIO()
+    img.convert("RGB").save(buf, format="JPEG", quality=95)
+    return _resize_person_image(buf.getvalue())
+
+
+@router.get("/photo")
+async def get_tryon_photo(current_user: User = Depends(get_current_user)):
+    """Does the user have a saved try-on photo? Returns a short-lived preview URL."""
+    path = _photo_path(current_user.id)
+    if not await asyncio.to_thread(storage.file_exists, settings.CLOTHING_BUCKET, path):
+        return {"has_photo": False, "url": None}
+    url = await asyncio.to_thread(storage.get_signed_url, settings.CLOTHING_BUCKET, path, 3600)
+    return {"has_photo": url is not None, "url": url}
+
+
+@router.put("/photo")
+@limiter.limit("20/hour")
+async def save_tryon_photo(
+    request: Request,
+    photo: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+):
+    """Save (replace) the user's try-on photo so later try-ons need no camera."""
+    prepared = await asyncio.to_thread(_prepare_photo, await photo.read())
+    ok = await asyncio.to_thread(
+        storage.upload_file, settings.CLOTHING_BUCKET, _photo_path(current_user.id),
+        prepared, "image/jpeg", True,
+    )
+    if not ok:
+        raise HTTPException(status_code=502, detail="Could not save your photo — please try again")
+    url = await asyncio.to_thread(
+        storage.get_signed_url, settings.CLOTHING_BUCKET, _photo_path(current_user.id), 3600
+    )
+    return {"has_photo": True, "url": url}
+
+
+@router.delete("/photo", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_tryon_photo(current_user: User = Depends(get_current_user)):
+    await asyncio.to_thread(storage.delete_file, settings.CLOTHING_BUCKET, _photo_path(current_user.id))
+
+
 @router.post("")
 @limiter.limit("10/day")
 async def create_tryon(
     request: Request,
-    person_image: UploadFile = File(...),
     clothing_item_id: str = Form(...),
+    person_image: UploadFile | None = File(None),
+    save_photo: bool = Form(False),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -55,8 +126,28 @@ async def create_tryon(
     if not item.processed_image_path:
         raise HTTPException(status_code=422, detail="Item has no processed image yet")
 
-    # ── 2. Check 24-hour result cache (S5.1.5) ─────────────────────────────
-    cache_img_path = f"tryon/{current_user.id}/{clothing_item_id}_cached.jpg"
+    # ── 2. Person photo: fresh upload, or the saved one ────────────────────
+    if person_image is not None:
+        person_bytes = await asyncio.to_thread(_prepare_photo, await person_image.read())
+        if save_photo:
+            await asyncio.to_thread(
+                storage.upload_file, settings.CLOTHING_BUCKET, _photo_path(current_user.id),
+                person_bytes, "image/jpeg", True,
+            )
+    else:
+        person_bytes = await asyncio.to_thread(
+            storage.download_file, settings.CLOTHING_BUCKET, _photo_path(current_user.id)
+        )
+        if not person_bytes:
+            raise HTTPException(
+                status_code=400,
+                detail="Add a photo of yourself first to use AI try-on",
+            )
+
+    # ── 2b. Check 24-hour result cache (S5.1.5) ────────────────────────────
+    # Keyed by photo content too, so a new photo never returns a stale result.
+    photo_key = hashlib.sha1(person_bytes).hexdigest()[:10]
+    cache_img_path = f"tryon/{current_user.id}/{clothing_item_id}_{photo_key}_cached.jpg"
     cached_url = await asyncio.to_thread(
         _check_tryon_cache, cache_img_path
     )
@@ -69,14 +160,6 @@ async def create_tryon(
     )
     if not garment_bytes:
         raise HTTPException(status_code=502, detail="Could not download garment image")
-
-    # ── 4. Read person photo ────────────────────────────────────────────────
-    person_bytes = await person_image.read()
-    if not person_bytes:
-        raise HTTPException(status_code=400, detail="Person image is empty")
-
-    # ── 5. Resize person image to model's preferred 768×1024 resolution ────────
-    person_bytes = await asyncio.to_thread(_resize_person_image, person_bytes)
 
     # ── 6. Build garment description from AI metadata (S5.1.3) ────────────
     garment_desc = " ".join(
@@ -106,7 +189,7 @@ async def create_tryon(
         raise HTTPException(status_code=502, detail="Try-on API failed — please try again")
 
     # ── 8. Store result in Supabase with deterministic path (S5.1.5) ────────
-    ts_path = f"tryon/{current_user.id}/{clothing_item_id}_ts.txt"
+    ts_path = cache_img_path.replace("_cached.jpg", "_ts.txt")
     await asyncio.to_thread(
         storage.upload_file,
         settings.CLOTHING_BUCKET,
