@@ -35,13 +35,25 @@ _CROP_MAX_PX = 1024  # max dimension for the saved crop
 # produces 3 stacked segmentation masks instead of a standard RGBA output).
 _REMBG_MODEL = "birefnet-general"
 _rembg_session = None
+_rembg_lock = None  # initialized lazily to avoid issues with multiprocessing forks
+
+
+def _get_rembg_lock():
+    global _rembg_lock
+    if _rembg_lock is None:
+        import threading
+        _rembg_lock = threading.Lock()
+    return _rembg_lock
 
 
 def _get_rembg_session():
     global _rembg_session
-    if _rembg_session is None:
-        _rembg_session = new_session(_REMBG_MODEL)
-        logger.info("Loaded rembg model: %s", _REMBG_MODEL)
+    if _rembg_session is not None:
+        return _rembg_session
+    with _get_rembg_lock():
+        if _rembg_session is None:
+            _rembg_session = new_session(_REMBG_MODEL)
+            logger.info("Loaded rembg model: %s", _REMBG_MODEL)
     return _rembg_session
 
 def _resize_for_seg(img: Image.Image) -> Image.Image:
@@ -53,17 +65,90 @@ def _resize_for_seg(img: Image.Image) -> Image.Image:
     return img.resize((int(w * scale), int(h * scale)), Image.Resampling.LANCZOS)
 
 
-def _clean_alpha(result: Image.Image, kernel: int = 21) -> Image.Image:
-    """Morphological opening on the alpha channel: removes isolated noise blobs.
+def _clean_alpha(result: Image.Image, close_kernel: int = 11, open_kernel: int = 21) -> Image.Image:
+    """Morphological closing then opening on the alpha channel.
 
-    Erosion (MinFilter) kills pixels whose neighbors are all transparent — this
-    eliminates small artifact blobs left by rembg.  Dilation (MaxFilter) restores
-    the main garment shape which, being a large connected region, survives erosion.
+    Closing (MaxFilter → MinFilter) fills interior holes — transparent gaps left
+    by birefnet inside mesh fabric, buttons, or dark pattern patches.
+    Opening (MinFilter → MaxFilter) removes exterior noise blobs around the garment.
     """
     r, g, b, a = result.split()
-    a = a.filter(ImageFilter.MinFilter(size=kernel))  # shrink small blobs to zero
-    a = a.filter(ImageFilter.MaxFilter(size=kernel))  # grow the surviving garment back
+    # Closing: fill interior holes
+    a = a.filter(ImageFilter.MaxFilter(size=close_kernel))
+    a = a.filter(ImageFilter.MinFilter(size=close_kernel))
+    # Opening: remove exterior artifact blobs
+    a = a.filter(ImageFilter.MinFilter(size=open_kernel))
+    a = a.filter(ImageFilter.MaxFilter(size=open_kernel))
     return Image.merge('RGBA', (r, g, b, a))
+
+
+def _feather_alpha_edges(result: Image.Image, radius: float = 1.5) -> Image.Image:
+    """Gaussian-blur the alpha channel to anti-alias garment edges.
+
+    Hard binary alpha looks like a sticker in the live preview. A 1.5px blur
+    creates a soft transition zone that blends naturally with the camera feed.
+    RGB channels are untouched — only the alpha mask is smoothed.
+    """
+    r, g, b, a = result.split()
+    a = a.filter(ImageFilter.GaussianBlur(radius=radius))
+    return Image.merge('RGBA', (r, g, b, a))
+
+
+def _normalize_white_balance(result: Image.Image) -> Image.Image:
+    """Remove warm/cool lighting cast baked into the garment photo.
+
+    Finds the median colour of the brightest 5% of opaque pixels and scales
+    the RGB channels so the dominant highlight approaches neutral grey.
+    Only applies when the channel imbalance exceeds 5% to avoid touching
+    intentionally tinted garments (e.g. a warm-beige sweater).
+    Correction is clamped to ±25% per channel to prevent over-whitening.
+    """
+    arr = np.array(result).astype(np.float32)
+    alpha = arr[:, :, 3]
+    rgb   = arr[:, :, :3]
+
+    opaque_mask = alpha > 200
+    if not opaque_mask.any():
+        return result
+
+    opaque_pixels = rgb[opaque_mask]
+    luma = (0.2126 * opaque_pixels[:, 0]
+            + 0.7152 * opaque_pixels[:, 1]
+            + 0.0722 * opaque_pixels[:, 2])
+    threshold = np.percentile(luma, 95)
+    bright = opaque_pixels[luma >= threshold]
+
+    if len(bright) < 10:
+        return result
+
+    ref = np.median(bright, axis=0)   # [R, G, B] of bright highlights
+    peak = float(ref.max())
+    if peak < 50:                      # too dark to reliably measure cast
+        return result
+
+    scale = peak / np.maximum(ref, 1.0)
+    if float(np.max(np.abs(scale - 1.0))) < 0.05:
+        return result                  # cast too small to bother correcting
+
+    scale = np.clip(scale, 0.75, 1.25)
+    corrected = np.clip(rgb * scale[np.newaxis, np.newaxis, :], 0, 255)
+    out = arr.copy()
+    out[:, :, :3] = corrected
+    return Image.fromarray(out.astype(np.uint8), mode='RGBA')
+
+
+def _ensure_min_resolution(result: Image.Image, min_long_side: int = 768) -> Image.Image:
+    """Upscale to at least min_long_side px on the longest dimension.
+
+    A tightly-cropped garment PNG can end up under 400px wide. Upscaling
+    with LANCZOS prevents visible pixelation when the TPS warper stretches
+    the image to fill the user's shoulder span on a high-DPI screen.
+    """
+    w, h = result.size
+    if max(w, h) >= min_long_side:
+        return result
+    scale = min_long_side / max(w, h)
+    return result.resize((int(w * scale), int(h * scale)), Image.Resampling.LANCZOS)
 
 
 def _trim_bottom_outliers(result: Image.Image, margin: float = 0.20, threshold: float = 100.0) -> Image.Image:
@@ -250,14 +335,19 @@ def extract_garment(image_bytes: bytes, bbox: dict, num_garments: int = 1) -> by
                 f"rembg returned unexpected size {result.size} vs input {region.size}"
             )
 
-        # 1. Remove isolated artifact blobs via morphological opening.
-        result = _clean_alpha(result, kernel=41)
+        # 1. Fill interior holes (mesh, lace, buttons), then remove exterior blobs.
+        result = _clean_alpha(result)
 
         # 2. Strip bottom rows whose colour strongly differs from the garment body
         #    (e.g. the mat or surface visible at the hem after rembg).
         result = _trim_bottom_outliers(result)
 
-        # 3. Auto-crop to the tight bounding box of remaining opaque pixels.
+        # 3. Normalize white balance so the Flutter lighting filter works accurately.
+        result = _normalize_white_balance(result)
+
+        # 4. Auto-crop to a symmetric tight bounding box of remaining opaque pixels.
+        #    Symmetric about the vertical centre axis prevents off-centre overlay
+        #    when birefnet trims one shoulder slightly more than the other.
         alpha = np.array(result)[:, :, 3]
         rows = np.any(alpha > 127, axis=1)
         cols = np.any(alpha > 127, axis=0)
@@ -265,14 +355,28 @@ def extract_garment(image_bytes: bytes, bbox: dict, num_garments: int = 1) -> by
         if rows.any() and cols.any():
             rmin, rmax = int(np.where(rows)[0][0]),  int(np.where(rows)[0][-1])
             cmin, cmax = int(np.where(cols)[0][0]),  int(np.where(cols)[0][-1])
-            px = max(4, int(result.width  * 0.02))
-            py = max(4, int(result.height * 0.02))
+
+            # Force symmetric horizontal bounds around the garment centre.
+            gcx  = (cmin + cmax) // 2
+            half = max(cmax - gcx, gcx - cmin)
+            cmin = max(0, gcx - half)
+            cmax = min(result.width - 1, gcx + half)
+
+            # 6% padding (was 2%) — gives TPS warper room at the garment boundary.
+            px = max(6, int(result.width  * 0.06))
+            py = max(6, int(result.height * 0.06))
             result = result.crop((
                 max(0, cmin - px),
                 max(0, rmin - py),
                 min(result.width,  cmax + px + 1),
                 min(result.height, rmax + py + 1),
             ))
+
+        # 5. Upscale to at least 768px on the long side before feathering.
+        result = _ensure_min_resolution(result)
+
+        # 6. Feather alpha edges for smooth camera-feed blending.
+        result = _feather_alpha_edges(result)
 
         opaque_ratio = float((np.array(result)[:, :, 3] > 127).mean())
         if opaque_ratio >= 0.08:
@@ -293,134 +397,4 @@ def extract_garment(image_bytes: bytes, bbox: dict, num_garments: int = 1) -> by
     return out.getvalue()
 
 
-# ---------------------------------------------------------------------------
-# Step 3 — classify type + compute anchor points for an extracted garment
-# ---------------------------------------------------------------------------
-
-async def detect_type_and_anchors(image_bytes: bytes) -> tuple[str, dict, float]:
-    """Classify clothing type and estimate anchor points via Llama 3.2-vision."""
-    detected_type = "other"
-    dynamic_anchors = None
-
-    try:
-        vision_result = await _analyze_garment_with_vision(image_bytes)
-        detected_type = vision_result.get("type", "other")
-        dynamic_anchors = vision_result.get("anchors")
-    except Exception as e:
-        logger.warning(f"Garment vision analysis failed, defaulting to 'other': {e}")
-
-    if not dynamic_anchors or not isinstance(dynamic_anchors, dict):
-        anchors = _TYPE_ANCHORS.get(detected_type, _TYPE_ANCHORS["other"])
-    else:
-        anchors = dynamic_anchors
-
-    confidence = 0.85 if detected_type != "other" else 0.50
-    return detected_type, anchors, confidence
-
-
-async def _analyze_garment_with_vision(image_bytes: bytes) -> dict:
-    from openai import AsyncOpenAI
-
-    b64 = base64.b64encode(image_bytes).decode("utf-8")
-
-    if settings.OPENAI_API_KEY:
-        client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
-        model = settings.OPENAI_API_MODEL
-    else:
-        client = AsyncOpenAI(base_url=settings.OLLAMA_BASE_URL, api_key="ollama")
-        model = settings.OLLAMA_VISION_MODEL
-
-    prompt = (
-        "Analyze this clothing item image which has its background removed and is cropped tightly to the garment. "
-        "First, classify it into exactly one of these categories: top, bottom, dress, jacket, shoes, accessory, other. "
-        "Second, estimate the normalized X and Y coordinates (between 0.0 and 1.0) for key anchor points needed to dress a 2D avatar. "
-        "(0,0 is top-left, 1,1 is bottom-right). "
-        "For example, a top needs 'shoulder' and 'chest' anchors. A bottom needs 'waist' and 'hip'. "
-        'Reply strictly with a JSON object in this format: {"type": "<category>", "anchors": {"shoulder": {"x": 0.5, "y": 0.15}, ...}}.'
-    )
-
-    response = await client.chat.completions.create(
-        model=model,
-        messages=[
-            {
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": prompt},
-                    {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{b64}"}},
-                ],
-            }
-        ],
-        response_format={"type": "json_object"},
-        temperature=0.1,
-        max_tokens=100,
-    )
-
-    content = response.choices[0].message.content
-    data = json.loads(content)
-
-    detected_type = str(data.get("type", "other")).lower().strip()
-    if detected_type not in _VALID_TYPES:
-        detected_type = "other"
-
-    return {"type": detected_type, "anchors": data.get("anchors")}
-
-
 _VALID_SIZES = frozenset({"XS", "S", "M", "L", "XL", "XXL", "One Size", "Unknown"})
-
-
-async def analyze_garment_complete(image_bytes: bytes) -> dict:
-    """Single Ollama call replacing detect_type_and_anchors + extract_metadata_job.
-
-    Returns type, anchors, color, pattern, style, sub_type, size_label in one shot.
-    """
-    from openai import AsyncOpenAI
-
-    b64 = base64.b64encode(image_bytes).decode("utf-8")
-
-    if settings.OPENAI_API_KEY:
-        client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
-        model = settings.OPENAI_API_MODEL
-    else:
-        client = AsyncOpenAI(base_url=settings.OLLAMA_BASE_URL, api_key="ollama")
-        model = settings.OLLAMA_VISION_MODEL
-
-    prompt = (
-        "You are a fashion AI. Analyze this background-removed clothing item image.\n"
-        "Return ONLY a JSON object with exactly these keys:\n"
-        '{"type":"<top|bottom|dress|jacket|shoes|accessory|other>",'
-        '"anchors":{"<key>":{"x":0.5,"y":0.15}},'
-        '"color":"<primary color e.g. navy blue>",'
-        '"pattern":"<solid|striped|plaid|floral|graphic|other>",'
-        '"style":"<casual|formal|sporty|vintage|streetwear|other>",'
-        '"sub_type":"<specific item e.g. polo shirt, cargo pants>",'
-        '"size_label":"<XS|S|M|L|XL|XXL|One Size|Unknown>"}\n'
-        "Anchor keys by type — top/jacket: shoulder+chest; dress: shoulder+chest+waist; "
-        "bottom: waist+hip; shoes: feet; accessory/other: chest. "
-        "Coordinates normalized 0.0–1.0 from top-left."
-    )
-
-    try:
-        response = await client.chat.completions.create(
-            model=model,
-            messages=[{
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": prompt},
-                    {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{b64}"}},
-                ],
-            }],
-            response_format={"type": "json_object"},
-            temperature=0.1,
-            max_tokens=200,
-        )
-        raw = json.loads(response.choices[0].message.content or "{}")
-        detected_type = str(raw.get("type", "other")).lower().strip()
-        if detected_type not in _VALID_TYPES:
-            detected_type = "other"
-        raw["type"] = detected_type
-        raw_size = raw.get("size_label", "Unknown")
-        raw["size_label"] = raw_size if raw_size in _VALID_SIZES else "Unknown"
-        return raw
-    except Exception as exc:
-        logger.warning("analyze_garment_complete failed: %s", exc)
-        return {}

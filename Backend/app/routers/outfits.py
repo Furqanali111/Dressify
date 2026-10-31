@@ -2,24 +2,26 @@ import asyncio
 import logging
 import uuid
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, update as sa_update
 from sqlalchemy.orm import selectinload
 
 from app.db import get_db
 from app.models.outfit import Outfit, OutfitItem
+from app.models.profile import Profile
 from app.models.style_preference import UserStylePreference
 from app.models.user import User
 from app.models.clothing_item import ClothingItem
+from app.models.notification import Notification
+from app.models.wear_log import WearLog
 from app.deps import get_current_user
 from app.schemas.outfit import OutfitCreate, OutfitUpdate, OutfitResponse, OutfitItemSchema, GenerateOutfitRequest, OutfitListResponse
 from app.services.weather import get_current_weather
 from app.services.ai_outfit_generator import generate_outfit
-from app.services.notifications import push_notification
 from app.core.limiter import limiter
 
 logger = logging.getLogger(__name__)
@@ -94,11 +96,13 @@ async def create_outfit(
     await db.refresh(outfit)
 
     # Push notification after commit so a rollback can't silently drop it
-    push_notification(
-        db, current_user.id, "outfit_saved",
-        "Outfit saved!",
-        f'"{outfit_in.name}" has been added to your wardrobe.',
-    )
+    db.add(Notification(
+        id=uuid.uuid4(),
+        user_id=current_user.id,
+        type="outfit_saved",
+        title="Outfit saved!",
+        body=f'"{outfit_in.name}" has been added to your wardrobe.',
+    ))
     await db.commit()
     return OutfitResponse(
         id=outfit.id,
@@ -166,34 +170,43 @@ async def get_outfit(
 
 
 @router.patch("/{outfit_id}", response_model=OutfitResponse)
+@limiter.limit("30/minute")
 async def update_outfit(
+    request: Request,
     outfit_id: uuid.UUID,
     update_data: OutfitUpdate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    values: dict = {}
+    if update_data.name is not None:
+        values["name"] = update_data.name
+    if update_data.is_starred is not None:
+        values["is_starred"] = update_data.is_starred
+
+    if not values:
+        raise HTTPException(status_code=400, detail="No fields to update")
+
+    try:
+        await db.execute(
+            sa_update(Outfit)
+            .where(Outfit.id == outfit_id, Outfit.user_id == current_user.id)
+            .values(**values)
+        )
+        await db.commit()
+    except SQLAlchemyError as e:
+        await db.rollback()
+        logger.error("DB error updating outfit %s: %s", outfit_id, e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to update outfit")
+
     result = await db.execute(
         select(Outfit)
         .where(Outfit.id == outfit_id, Outfit.user_id == current_user.id)
         .options(selectinload(Outfit.items))
     )
     outfit = result.scalar_one_or_none()
-
     if not outfit:
         raise HTTPException(status_code=404, detail="Outfit not found")
-
-    if update_data.name is not None:
-        outfit.name = update_data.name
-    if update_data.is_starred is not None:
-        outfit.is_starred = update_data.is_starred
-
-    try:
-        await db.commit()
-        await db.refresh(outfit)
-    except SQLAlchemyError as e:
-        await db.rollback()
-        logger.error(f"DB error updating outfit {outfit_id}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to update outfit")
 
     return _build_outfit_response(outfit)
 
@@ -265,13 +278,22 @@ async def auto_generate_outfit(
         style_profile_str = "; ".join(parts) if parts else None
     is_personalized = style_profile_str is not None
 
+    # Items worn in the last 7 days, so the stylist rotates the wardrobe.
+    recent_result = await db.execute(
+        select(WearLog.clothing_item_ids).where(
+            WearLog.user_id == current_user.id,
+            WearLog.logged_at >= datetime.now(timezone.utc) - timedelta(days=7),
+        )
+    )
+    recent_ids = sorted({str(i) for ids in recent_result.scalars() for i in (ids or []) if str(i) in valid_ids})
+
     weather_context = None
     if body.lat is not None and body.lon is not None:
         weather_context = await get_current_weather(body.lat, body.lon)
 
     try:
         chosen_ids = await asyncio.to_thread(
-            generate_outfit, wardrobe_details_str, body.occasion, weather_context, seed_item_details, style_profile_str
+            generate_outfit, wardrobe_details_str, body.occasion, weather_context, seed_item_details, style_profile_str, recent_ids
         )
     except RuntimeError as e:
         raise HTTPException(status_code=503, detail=str(e))
@@ -287,7 +309,13 @@ async def auto_generate_outfit(
     if not final_ids:
         raise HTTPException(status_code=422, detail="AI suggested items not in your wardrobe — please try again")
 
-    avatar_kind = body.avatar_kind or "maleAverage"
+    if body.avatar_kind:
+        avatar_kind = body.avatar_kind
+    else:
+        profile_res = await db.execute(
+            select(Profile.avatar_kind).where(Profile.user_id == current_user.id)
+        )
+        avatar_kind = profile_res.scalar_one_or_none() or "maleAverage"
 
     outfit_id = uuid.uuid4()
     new_outfit = Outfit(

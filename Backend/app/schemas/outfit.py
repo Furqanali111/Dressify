@@ -9,9 +9,15 @@ AvatarKind = Literal[
 ]
 
 
+class ItemPosition(BaseModel):
+    x: float = Field(..., ge=0.0, le=1.0)
+    y: float = Field(..., ge=0.0, le=1.0)
+    scale: Optional[float] = Field(None, gt=0.0, le=10.0)
+
+
 class OutfitItemSchema(BaseModel):
     clothing_item_id: uuid.UUID
-    position: Optional[dict] = None
+    position: Optional[ItemPosition] = None
 
 
 class OutfitCreate(BaseModel):
@@ -28,8 +34,8 @@ class OutfitUpdate(BaseModel):
 class GenerateOutfitRequest(BaseModel):
     occasion: str = Field(..., min_length=1, max_length=50)
     avatar_kind: Optional[AvatarKind] = None
-    lat: Optional[float] = None
-    lon: Optional[float] = None
+    lat: Optional[float] = Field(None, ge=-90.0, le=90.0)
+    lon: Optional[float] = Field(None, ge=-180.0, le=180.0)
     seed_item_id: Optional[uuid.UUID] = None
 
 

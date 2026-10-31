@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../../core/api/friendly_error_interceptor.dart';
 import 'dart:ui' as ui;
 
 import 'package:dio/dio.dart';
@@ -262,8 +263,7 @@ class _TryOnScreenState extends ConsumerState<TryOnScreen> {
       setState(() => _saving = false);
       AppToast.error(
         context,
-        (e.response?.data as Map<String, dynamic>?)?['detail']?.toString() ??
-            'Failed to save outfit',
+        friendlyMessage(e),
       );
     }
   }

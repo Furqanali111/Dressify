@@ -21,14 +21,12 @@ import '../../core/providers/fit_scale_provider.dart';
 import '../../core/providers/tryon_provider.dart';
 import '../../core/providers/wardrobe_provider.dart';
 import '../../core/router/app_routes.dart';
-import '../../core/services/luminance_sampler.dart';
 import '../../core/services/pose_detection_service.dart';
-
-import '../../core/services/wrinkle_cache_service.dart';
-import '../../core/utils/pose_classifier.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_constants.dart';
 import '../../core/theme/app_spacing.dart';
+import 'package:permission_handler/permission_handler.dart' show openAppSettings;
+
 import '../../core/utils/app_permissions.dart';
 import '../../core/utils/garment_control_points.dart';
 import '../../core/utils/garment_utils.dart';
@@ -40,15 +38,11 @@ import '../../core/widgets/app_toast.dart';
 // ---------------------------------------------------------------------------
 
 class _GarmentData {
-  _GarmentData({required this.item, required this.uiImage, this.wrinkleMaps});
+  _GarmentData({required this.item, required this.uiImage});
   final ClothingItem item;
   final ui.Image uiImage;
-  final Map<String, ui.Image>? wrinkleMaps; // pose → decoded ui.Image (S6.6 pre-blit)
   void dispose() {
     uiImage.dispose();
-    for (final ui.Image m in wrinkleMaps?.values ?? <ui.Image>[]) {
-      m.dispose();
-    }
   }
 }
 
@@ -103,12 +97,20 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
   DateTime _lastFrameTime = DateTime.fromMillisecondsSinceEpoch(0);
   static const Duration _frameThrottle = AppConstants.frameThrottle;
 
+  // ── Anchor smoothing & tracking-loss fade ────────────────────────────────
+  Map<String, NormAnchor>? _lastValidAnchors;
+  int _lastAnchorMs = 0;
+
   // ── Garments ──────────────────────────────────────────────────────────────
   // Maps ClothingItem.id → loaded garment data.
   final Map<String, _GarmentData> _garments = <String, _GarmentData>{};
   bool _loadingGarments = false;
   // The item IDs we last loaded garments for (detect changes).
   List<String> _lastLoadedIds = <String>[];
+  // Millisecond timestamp when each garment was first successfully loaded.
+  final Map<String, int> _garmentLoadTimes = <String, int>{};
+  // Drives 60fps setState calls during active fade animations.
+  Timer? _fadeTimer;
 
   // ── Capture ───────────────────────────────────────────────────────────────
   final GlobalKey _previewKey = GlobalKey();
@@ -187,6 +189,7 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
     WidgetsBinding.instance.removeObserver(this);
     _controller?.dispose();
     _poseService.dispose();
+    _fadeTimer?.cancel();
     _clearGarments();
     super.dispose();
   }
@@ -275,34 +278,7 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
     if (_frameCount % 3 == 0) {
       final Map<String, NormAnchor>? currentAnchors = _anchors;
       if (currentAnchors != null && currentAnchors.containsKey('shoulder')) {
-        final NormAnchor shoulder = currentAnchors['shoulder']!;
-        final Rect region = Rect.fromCenter(
-          center: Offset(shoulder.x, shoulder.y),
-          width: 0.10,
-          height: 0.10,
-        );
-        final double luma = LuminanceSampler.sample(image, region);
-        final ({double r, double g, double b}) rgb =
-            LuminanceSampler.sampleRGB(image, region);
-
-        // Compute per-channel gains relative to neutral (1.0 = no shift).
-        // Normalize so r+g+b = 3.0, then lerp 30% toward scene colour.
-        final double total = (rgb.r + rgb.g + rgb.b).clamp(0.01, 3.0);
-        const double strength = 0.30;
-        final double newR = 1.0 + (rgb.r * 3.0 / total - 1.0) * strength;
-        final double newG = 1.0 + (rgb.g * 3.0 / total - 1.0) * strength;
-        final double newB = 1.0 + (rgb.b * 3.0 / total - 1.0) * strength;
-
-        final bool lumaChanged = (luma - _ambientLuma).abs() > 0.05;
-        final bool gainChanged =
-            (newR - _rGain).abs() > 0.02 || (newB - _bGain).abs() > 0.02;
-
-        if (mounted && (lumaChanged || gainChanged)) {
-          setState(() {
-            if (lumaChanged) _ambientLuma = luma;
-            if (gainChanged) { _rGain = newR; _gGain = newG; _bGain = newB; }
-          });
-        }
+        // Ambient lighting adjustment removed — feature is speculative.
       }
     }
 
@@ -321,22 +297,63 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
         .then((Map<String, NormAnchor>? anchors) {
       if (!mounted) return;
       setState(() {
-        _anchors = anchors;
-        if (anchors != null && _displaySize != Size.zero) {
-          _resolveTpsInto(anchors, _displaySize);
-        }
-        // S4.2.2 — classify pose and start crossfade timer if it changed
         if (anchors != null) {
-          final String newPose = PoseClassifier.classify(anchors);
-          if (newPose != _currentPose) {
-            _prevPose        = _currentPose;
-            _currentPose     = newPose;
-            _poseChangedAtMs = DateTime.now().millisecondsSinceEpoch;
-          }
+          _anchors = _smoothAnchors(_anchors, anchors);
+          _lastValidAnchors = _anchors;
+          _lastAnchorMs = DateTime.now().millisecondsSinceEpoch;
+        } else {
+          _anchors = null;
+          _startFadeTimer(); // keep repainting during the tracking-loss fade-out
+        }
+        if (_anchors != null && _displaySize != Size.zero) {
+          _resolveTpsInto(_anchors!, _displaySize);
+        }
+        if (_anchors != null) {
+          // Pose classification removed — feature is speculative.
         }
       });
     }).catchError((_) {});
 
+  }
+
+  // ---------------------------------------------------------------------------
+  // Anchor smoothing helpers
+  // ---------------------------------------------------------------------------
+
+  static Map<String, NormAnchor> _smoothAnchors(
+    Map<String, NormAnchor>? current,
+    Map<String, NormAnchor> incoming,
+  ) {
+    const double alpha = 0.35; // weight of new measurement (lower = smoother)
+    if (current == null) return incoming;
+    final Map<String, NormAnchor> smoothed = <String, NormAnchor>{};
+    for (final MapEntry<String, NormAnchor> e in incoming.entries) {
+      final NormAnchor? old = current[e.key];
+      smoothed[e.key] = old == null
+          ? e.value
+          : NormAnchor(
+              old.x * (1 - alpha) + e.value.x * alpha,
+              old.y * (1 - alpha) + e.value.y * alpha,
+            );
+    }
+    return smoothed;
+  }
+
+  void _startFadeTimer() {
+    if (_fadeTimer?.isActive ?? false) return;
+    _fadeTimer = Timer.periodic(const Duration(milliseconds: 16), (_) {
+      if (!mounted) { _fadeTimer?.cancel(); return; }
+      final int now = DateTime.now().millisecondsSinceEpoch;
+      final bool garmentFading =
+          _garmentLoadTimes.values.any((int t) => now - t < 200);
+      final bool trackingFading = _anchors == null && now - _lastAnchorMs < 400;
+      if (garmentFading || trackingFading) {
+        setState(() {});
+      } else {
+        _fadeTimer?.cancel();
+        _fadeTimer = null;
+      }
+    });
   }
 
   // ---------------------------------------------------------------------------
@@ -350,6 +367,7 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
     _garments.clear();
     _lastLoadedIds = <String>[];
     _tpsSolutions = {};
+    _garmentLoadTimes.clear();
   }
 
   // Solves TPS for every loaded garment against current anchors + display size.
@@ -397,6 +415,7 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
     for (final String k in toRemove) {
       _garments[k]?.dispose();
       _garments.remove(k);
+      _garmentLoadTimes.remove(k);
     }
 
     for (final ClothingItem ci in items) {
@@ -407,28 +426,9 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
         if (!mounted) { img.dispose(); return; }
         // Show garment immediately; wrinkle maps load in the background (S6.6)
         _garments[ci.id] = _GarmentData(item: ci, uiImage: img);
-        WrinkleCacheService.loadForItem(ci).then((Map<String, ui.Image>? wMaps) {
-          if (!mounted || wMaps == null || !_garments.containsKey(ci.id)) {
-            for (final ui.Image m in wMaps?.values ?? <ui.Image>[]) { m.dispose(); }
-            return;
-          }
-          setState(() {
-            final _GarmentData? existing = _garments[ci.id];
-            if (existing != null) {
-              // Dispose any previously loaded wrinkle maps before replacing.
-              for (final ui.Image m in existing.wrinkleMaps?.values ?? <ui.Image>[]) {
-                m.dispose();
-              }
-              _garments[ci.id] = _GarmentData(
-                item: existing.item,
-                uiImage: existing.uiImage,
-                wrinkleMaps: wMaps,
-              );
-            } else {
-              for (final ui.Image m in wMaps.values) { m.dispose(); }
-            }
-          });
-        }).catchError((_) {});
+        _garmentLoadTimes[ci.id] = DateTime.now().millisecondsSinceEpoch;
+        _startFadeTimer();
+        // Wrinkle cache removed — speculative feature.
       } catch (_) {
         if (mounted) AppToast.error(context, 'Could not load "${ci.name}" — check your connection');
       }
@@ -599,6 +599,8 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
                                             .compareTo(garmentDepth(b.item.type))))
                                       .toList(),
                                   anchors: _anchors,
+                                  lastValidAnchors: _lastValidAnchors,
+                                  lastAnchorMs: _lastAnchorMs,
                                   displaySize: size,
                                   fitScales: ref.watch(fitScalesProvider),
                                   manualScale: _manualScale,
@@ -611,6 +613,8 @@ class _CameraTryOnScreenState extends ConsumerState<CameraTryOnScreen>
                                   currentPose: _currentPose,
                                   prevPose: _prevPose,
                                   poseChangedAtMs: _poseChangedAtMs,
+                                  garmentLoadTimes: _garmentLoadTimes,
+                                  nowMs: DateTime.now().millisecondsSinceEpoch,
                                 ),
                               ),
                             );
@@ -755,6 +759,8 @@ class _CameraOverlayPainter extends CustomPainter {
   const _CameraOverlayPainter({
     required this.garments,
     required this.anchors,
+    required this.lastValidAnchors,
+    required this.lastAnchorMs,
     required this.displaySize,
     required this.fitScales,
     required this.manualScale,
@@ -767,10 +773,14 @@ class _CameraOverlayPainter extends CustomPainter {
     required this.currentPose,
     required this.prevPose,
     required this.poseChangedAtMs,
+    required this.garmentLoadTimes,
+    required this.nowMs,
   });
 
   final List<_GarmentData> garments;
   final Map<String, NormAnchor>? anchors;
+  final Map<String, NormAnchor>? lastValidAnchors;
+  final int lastAnchorMs;
   final Size displaySize;
   final FitScales fitScales;
   final double manualScale;
@@ -783,27 +793,37 @@ class _CameraOverlayPainter extends CustomPainter {
   final String currentPose;
   final String prevPose;
   final int poseChangedAtMs;
+  final Map<String, int> garmentLoadTimes;
+  final int nowMs;
 
 
   @override
   void paint(Canvas canvas, Size size) {
-    final Map<String, NormAnchor>? a = anchors;
+    // Fall back to last valid anchors during tracking loss so the garment
+    // stays in place while fading out rather than snapping off.
+    final Map<String, NormAnchor>? a = anchors ?? lastValidAnchors;
     if (a == null || a.isEmpty) return;
+
+    // Tracking-loss fade: 400ms to fully disappear once anchors are gone.
+    final double anchorFade = anchors != null
+        ? 1.0
+        : (1.0 - (nowMs - lastAnchorMs) / 400.0).clamp(0.0, 1.0);
+    if (anchorFade <= 0.0) return;
 
     // Garments arrive pre-sorted by depth from build() — no sort needed here.
     final List<_GarmentData> sorted = garments;
 
     final double shoulderSpan = _computeShoulderSpan(a, size);
 
-    // Isolate all garment draws into one layer so BlendMode.dstOut only clears
-    // pixels within this layer, not the CameraPreview rendered beneath.
+    // Isolate all garment draws into one layer.
     // ColorFilter applies ambient brightness + scene colour temperature shift.
-    final double lum = 0.75 + ambientLuma * 0.50;
+    // Alpha channel scaled by anchorFade so tracking-loss drives the fade-out.
+    final double lum = (0.4 + ambientLuma * 0.85).clamp(0.3, 1.3);
     final ColorFilter lightingFilter = ColorFilter.matrix(<double>[
       lum * rGain, 0, 0, 0, 0,
       0, lum * gGain, 0, 0, 0,
       0, 0, lum * bGain, 0, 0,
-      0, 0, 0, 1, 0,
+      0, 0, 0, anchorFade, 0,
     ]);
     canvas.saveLayer(Rect.fromLTWH(0, 0, size.width, size.height), Paint()..colorFilter = lightingFilter);
 
@@ -847,6 +867,21 @@ class _CameraOverlayPainter extends CustomPainter {
     final double ax = anchor.x * size.width;
     final double ay = anchor.y * size.height;
 
+    // Per-garment fade-in: 200ms from first load.
+    final int loadedAt = garmentLoadTimes[g.item.id] ?? 0;
+    final double garmentFadeIn = loadedAt == 0
+        ? 1.0
+        : ((nowMs - loadedAt) / 200.0).clamp(0.0, 1.0);
+    final bool needFadeLayer = garmentFadeIn < 1.0;
+    if (needFadeLayer) {
+      canvas.saveLayer(
+        null,
+        Paint()..color = Color.fromARGB(
+          (255 * garmentFadeIn).round(), 255, 255, 255,
+        ),
+      );
+    }
+
     // ── TPS path: smooth multi-point warp ────────────────────────────────────
     final TpsSolution? tps = tpsSolutions[g.item.id];
     if (tps != null) {
@@ -880,6 +915,7 @@ class _CameraOverlayPainter extends CustomPainter {
       canvas.drawVertices(verts, BlendMode.srcOver, paint);
       _paintWrinkleOverlay(canvas, g, tps);
       canvas.restore();
+      if (needFadeLayer) canvas.restore();
       return;
     }
 
@@ -917,6 +953,7 @@ class _CameraOverlayPainter extends CustomPainter {
       paintImage(canvas: canvas, rect: rect, image: img, fit: BoxFit.fill);
       canvas.restore();
     }
+    if (needFadeLayer) canvas.restore();
   }
 
   // S4.2 — Wrinkle overlay (disabled).
@@ -1085,6 +1122,8 @@ class _CameraOverlayPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _CameraOverlayPainter old) =>
       old.anchors != anchors ||
+      old.lastValidAnchors != lastValidAnchors ||
+      old.lastAnchorMs != lastAnchorMs ||
       old.garments != garments ||
       old.fitScales != fitScales ||
       old.manualScale != manualScale ||
@@ -1096,7 +1135,9 @@ class _CameraOverlayPainter extends CustomPainter {
       old.highQuality != highQuality ||
       old.currentPose != currentPose ||
       old.prevPose != prevPose ||
-      old.poseChangedAtMs != poseChangedAtMs;
+      old.poseChangedAtMs != poseChangedAtMs ||
+      old.garmentLoadTimes != garmentLoadTimes ||
+      old.nowMs != nowMs;
 }
 
 // ---------------------------------------------------------------------------
@@ -1612,15 +1653,30 @@ class _CameraError extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
+    return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          Icon(Icons.videocam_off, color: Colors.white54, size: 56),
-          SizedBox(height: AppSpacing.md),
-          Text(
+          const Icon(Icons.videocam_off, color: Colors.white54, size: 56),
+          const SizedBox(height: AppSpacing.md),
+          const Text(
             'Camera unavailable',
             style: TextStyle(color: Colors.white70, fontSize: 16),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          const Text(
+            'Grant camera access to use try-on',
+            style: TextStyle(color: Colors.white38, fontSize: 13),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          OutlinedButton.icon(
+            onPressed: openAppSettings,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.white70,
+              side: const BorderSide(color: Colors.white30),
+            ),
+            icon: const Icon(Icons.settings_outlined, size: 16),
+            label: const Text('Open Settings'),
           ),
         ],
       ),

@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import '../../core/api/friendly_error_interceptor.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -212,9 +213,9 @@ class ProfileScreen extends ConsumerWidget {
         if (!context.mounted) return;
         AppToast.info(context, 'Account deleted');
         context.goNamed(AppRoute.signIn.name);
-      } catch (_) {
+      } catch (e) {
         if (!context.mounted) return;
-        AppToast.error(context, 'Could not delete account. Please try again.');
+        AppToast.error(context, errorMessage(e, 'Could not delete account. Please try again.'));
       }
     }
   }
@@ -355,8 +356,8 @@ class _ProfileHeaderState extends ConsumerState<_ProfileHeader> {
     try {
       await ref.read(authStateProvider.notifier).uploadAvatar(File(picked.path));
       if (mounted) AppToast.success(context, 'Profile photo updated');
-    } catch (_) {
-      if (mounted) AppToast.error(context, 'Failed to update photo');
+    } catch (e) {
+      if (mounted) AppToast.error(context, errorMessage(e, 'Failed to update photo'));
     } finally {
       if (mounted) setState(() => _uploading = false);
     }

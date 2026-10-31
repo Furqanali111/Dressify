@@ -2,9 +2,10 @@ import json
 import logging
 from pathlib import Path
 
-from openai import OpenAI, APIConnectionError, APIStatusError, APITimeoutError
+from openai import APIConnectionError, APIStatusError, APITimeoutError
 
 from app.config import settings
+from app.services.ai_client import get_openai_client
 
 logger = logging.getLogger(__name__)
 
@@ -19,26 +20,31 @@ def generate_outfit(
     weather: str | None,
     seed_item: str | None,
     style_profile: str | None = None,
+    recent_item_ids: list[str] | None = None,
 ) -> list[str]:
     """Return a list of string UUIDs chosen by the AI stylist.
 
     Raises RuntimeError on any failure so the router can surface a 503.
     """
-    if settings.OPENAI_API_KEY:
-        client = OpenAI(api_key=settings.OPENAI_API_KEY)
-        model = settings.OPENAI_API_MODEL
-    else:
-        client = OpenAI(base_url=settings.OLLAMA_BASE_URL, api_key="ollama")
+    client, model = get_openai_client()
+    # Override to text model if using Ollama
+    if not settings.OPENAI_API_KEY:
         model = settings.OLLAMA_TEXT_MODEL
 
     style_line = f"    - User Style Profile: {style_profile}\n" if style_profile else ""
     seed_line  = f"    - Must Include This Item: {seed_item}\n" if seed_item else ""
+
+    recent_line = (
+        f"    - Recently Worn Item IDs (avoid if possible): {', '.join(recent_item_ids)}\n"
+        if recent_item_ids else ""
+    )
 
     prompt = _PROMPT_TEMPLATE.format(
         occasion=occasion,
         weather=weather or "Unknown",
         seed_line=seed_line,
         style_line=style_line,
+        recent_line=recent_line,
         wardrobe=wardrobe_details,
     )
 

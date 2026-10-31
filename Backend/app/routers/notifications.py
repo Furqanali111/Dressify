@@ -60,7 +60,7 @@ async def unread_count(
     count = (await db.execute(
         select(func.count()).where(
             Notification.user_id == current_user.id,
-            Notification.is_read == False,  # noqa: E712
+            Notification.is_read.is_(False),
         )
     )).scalar_one()
     return UnreadCountResponse(count=count)
@@ -77,7 +77,7 @@ async def mark_all_read(
         update(Notification)
         .where(
             Notification.user_id == current_user.id,
-            Notification.is_read == False,  # noqa: E712
+            Notification.is_read.is_(False),
         )
         .values(is_read=True)
     )

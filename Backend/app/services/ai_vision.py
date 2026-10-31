@@ -1,17 +1,14 @@
-import base64
 import json
 import logging
 from uuid import UUID
-from openai import OpenAI
 from sqlalchemy import select
 from app.db import AsyncSessionLocal
 from app.config import settings
 from app.models.clothing_item import ClothingItem
+from app.services.ai_client import get_openai_client, image_to_data_url
+from app.schemas.clothing import VALID_SIZE_LABELS
 
 logger = logging.getLogger(__name__)
-
-def encode_image_to_base64(image_bytes: bytes) -> str:
-    return base64.b64encode(image_bytes).decode('utf-8')
 
 async def extract_clothing_metadata(item_id: UUID, image_bytes: bytes):
     """
@@ -19,15 +16,8 @@ async def extract_clothing_metadata(item_id: UUID, image_bytes: bytes):
     We create a fresh DB session here because the request's session is already closed.
     """
     try:
-        base64_image = encode_image_to_base64(image_bytes)
-        
-        # Determine client and model
-        if settings.OPENAI_API_KEY:
-            client = OpenAI(api_key=settings.OPENAI_API_KEY)
-            model = settings.OPENAI_API_MODEL
-        else:
-            client = OpenAI(base_url=settings.OLLAMA_BASE_URL, api_key="ollama")
-            model = settings.OLLAMA_VISION_MODEL
+        data_url = image_to_data_url(image_bytes)
+        client, model = get_openai_client()
             
         prompt = """
         You are an AI fashion expert. Analyze this image of a clothing item.
@@ -50,9 +40,7 @@ async def extract_clothing_metadata(item_id: UUID, image_bytes: bytes):
                         {"type": "text", "text": prompt},
                         {
                             "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/jpeg;base64,{base64_image}"
-                            }
+                            "image_url": {"url": data_url}
                         }
                     ]
                 }
@@ -75,8 +63,7 @@ async def extract_clothing_metadata(item_id: UUID, image_bytes: bytes):
                 item.style = metadata.get("style")
                 item.sub_type = metadata.get("sub_type")
                 raw_size = metadata.get("size_label", "Unknown")
-                valid = {"XS", "S", "M", "L", "XL", "XXL", "One Size", "Unknown"}
-                item.size_label = raw_size if raw_size in valid else "Unknown"
+                item.size_label = raw_size if raw_size in VALID_SIZE_LABELS else "Unknown"
                 item.processing_status = "completed"
                 await session.commit()
                 logger.info(f"Successfully extracted and saved metadata for item {item_id}")

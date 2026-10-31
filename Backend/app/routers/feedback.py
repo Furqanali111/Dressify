@@ -6,8 +6,7 @@ import uuid
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import select
 
 from app.db import get_db
 from app.models.ai_feedback import AiFeedback
@@ -93,7 +92,7 @@ async def generate_feedback(
             if extras:
                 desc += f" - {', '.join(extras)}"
             clothing_descriptions.append(desc)
-            if ci.processed_image_path:
+            if ci.processed_image_path and len(outfit_image_paths) < 8:
                 outfit_image_paths.append(ci.processed_image_path)
 
     outfit_details_str = (

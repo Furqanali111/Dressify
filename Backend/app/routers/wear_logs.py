@@ -1,7 +1,7 @@
 import uuid
 import logging
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel
@@ -105,7 +105,7 @@ async def get_wear_logs(
             cursor_time = datetime.fromisoformat(cursor)
             query = query.where(WearLog.logged_at < cursor_time)
         except ValueError:
-            pass  # Ignore malformed cursor — just return from the top
+            raise HTTPException(status_code=400, detail="Invalid cursor format")
 
     query = query.limit(limit + 1)
     result = await db.execute(query)

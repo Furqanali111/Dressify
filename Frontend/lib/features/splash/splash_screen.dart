@@ -13,7 +13,6 @@ import '../../core/router/app_routes.dart';
 import '../../core/utils/app_permissions.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
-import '../../core/utils/motion.dart';
 import '../onboarding/onboarding_screen.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
@@ -25,6 +24,17 @@ class SplashScreen extends ConsumerStatefulWidget {
 
 class _SplashScreenState extends ConsumerState<SplashScreen> {
   Timer? _timer;
+
+  // Replace context.motion() with direct duration checks
+  Duration get _motionDuration {
+    final disableAnimations = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+    return disableAnimations ? Duration.zero : const Duration(milliseconds: 400);
+  }
+
+  Duration get _motionDelay {
+    final disableAnimations = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+    return disableAnimations ? Duration.zero : const Duration(milliseconds: 200);
+  }
 
   @override
   void initState() {
@@ -98,10 +108,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                         fontSize: 40,
                         fontWeight: FontWeight.w700,
                       ),
-                    ).animate().fadeIn(duration: context.motion(400.ms)).scale(
+                    ).animate().fadeIn(duration: _motionDuration).scale(
                           begin: const Offset(0.96, 0.96),
                           end: const Offset(1, 1),
-                          duration: context.motion(400.ms),
+                          duration: _motionDuration,
                           curve: Curves.easeOut,
                         ),
                     const SizedBox(height: AppSpacing.sm),
@@ -110,7 +120,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                       style: text.bodyLarge?.copyWith(
                         color: Colors.white.withValues(alpha: 0.85),
                       ),
-                    ).animate().fadeIn(delay: context.motion(200.ms), duration: context.motion(400.ms)),
+                    ).animate().fadeIn(delay: _motionDelay, duration: _motionDuration),
                     const SizedBox(height: AppSpacing.xxxl),
                     const SizedBox(
                       width: 28,

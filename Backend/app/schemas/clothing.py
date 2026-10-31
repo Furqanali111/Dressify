@@ -4,7 +4,8 @@ from datetime import datetime
 import uuid
 
 
-_VALID_SIZE_LABELS = {"XS", "S", "M", "L", "XL", "XXL", "One Size", "Unknown"}
+VALID_SIZE_LABELS = frozenset({"XS", "S", "M", "L", "XL", "XXL", "One Size", "Unknown"})
+SizeLabel = Literal["XS", "S", "M", "L", "XL", "XXL", "One Size", "Unknown"]
 
 
 class WrinkleMapEntry(BaseModel):
@@ -26,8 +27,6 @@ class ClothingItemResponse(BaseModel):
     size_label: Optional[str] = None
     fit_notes: Optional[str] = None
     processing_status: str
-    glb_mesh_path: Optional[str] = None
-    mesh_status: Optional[str] = None
     wrinkle_maps: Optional[list[WrinkleMapEntry]] = None
     created_at: datetime
 
@@ -51,7 +50,7 @@ class ClothingItemUpdate(BaseModel):
     pattern: Optional[str] = Field(None, max_length=50)
     style: Optional[str] = Field(None, max_length=50)
     sub_type: Optional[str] = Field(None, max_length=100)
-    size_label: Optional[str] = Field(None, max_length=10)
+    size_label: Optional[str] = Field(None, pattern=r"^(XS|S|M|L|XL|XXL|One Size|Unknown)$")
     fit_notes: Optional[str] = Field(None, max_length=500)
 
 

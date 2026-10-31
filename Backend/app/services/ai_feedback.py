@@ -10,14 +10,14 @@ Strategy:
      encouraging wardrobe rotation.
 """
 
-import base64
 import json
 import logging
 from typing import Optional
 
-from openai import OpenAI, APIConnectionError, APIStatusError, APITimeoutError
+from openai import APIConnectionError, APIStatusError, APITimeoutError
 from app.config import settings
 from app.services.storage import download_file
+from app.services.ai_client import get_openai_client, image_to_data_url
 
 logger = logging.getLogger(__name__)
 
@@ -25,12 +25,6 @@ logger = logging.getLogger(__name__)
 _MAX_VISION_IMAGES = 4
 # Wardrobe rotation sample cap (text-only, sent as pairing suggestions)
 _MAX_WARDROBE_SAMPLE = 15
-
-
-def _image_to_data_url(image_bytes: bytes) -> str:
-    """Convert raw image bytes to a base64 data URL for vision API."""
-    b64 = base64.b64encode(image_bytes).decode("utf-8")
-    return f"data:image/jpeg;base64,{b64}"
 
 
 def get_feedback_for_outfit(
@@ -55,13 +49,8 @@ def get_feedback_for_outfit(
     Raises:
         RuntimeError: user-facing message on any failure.
     """
+    client, model = get_openai_client()
     use_openai = bool(settings.OPENAI_API_KEY)
-    if use_openai:
-        client = OpenAI(api_key=settings.OPENAI_API_KEY)
-        model = settings.OPENAI_API_MODEL
-    else:
-        client = OpenAI(base_url=settings.OLLAMA_BASE_URL, api_key="ollama")
-        model = settings.OLLAMA_VISION_MODEL
 
     # ── Build vision image blocks ─────────────────────────────────────────────
     vision_blocks: list[dict] = []
@@ -70,7 +59,7 @@ def get_feedback_for_outfit(
             try:
                 img_bytes = download_file(settings.CLOTHING_BUCKET, path)
                 if img_bytes:
-                    data_url = _image_to_data_url(img_bytes)
+                    data_url = image_to_data_url(img_bytes)
                     vision_blocks.append({
                         "type": "image_url",
                         "image_url": {"url": data_url, "detail": "low"},
